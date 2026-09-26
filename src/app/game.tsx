@@ -7,12 +7,14 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Countdown } from '@/components/game/Countdown';
+import { EasterEggModal } from '@/components/game/EasterEggModal';
 import { GameOverlay } from '@/components/game/GameOverlay';
 import { Hud } from '@/components/game/Hud';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { defaultGameConfig } from '@/game/config';
+import { getEasterEgg, type EasterEgg } from '@/game/easterEggs';
 import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
 import { World } from '@/game/engine/World';
 import { useGameLoop } from '@/game/hooks/useGameLoop';
@@ -23,7 +25,7 @@ import { countdownLabel } from '@/game/render/countdown';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
 
-type Status = 'playing' | 'paused' | 'over';
+type Status = 'playing' | 'paused' | 'easterEgg' | 'over';
 type HudState = { score: number; effects: ActiveEffect[] };
 
 const config = defaultGameConfig;
@@ -35,6 +37,7 @@ export default function GameRoute() {
   const [status, setStatus] = useState<Status>('playing');
   const [hud, setHud] = useState<HudState>({ score: 0, effects: [] });
   const [countdown, setCountdown] = useState<string | null>(null);
+  const [foundEgg, setFoundEgg] = useState<EasterEgg | null>(null);
   const [lastResult, setLastResult] = useState<{ score: number; newBest: boolean } | null>(null);
 
   const worldRef = useRef<World | null>(null);
@@ -98,6 +101,14 @@ export default function GameRoute() {
     for (const e of events) {
       if (e.type === 'pickup') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (e.type === 'hit') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === 'easterEgg') {
+        const egg = getEasterEgg(e.eggId);
+        if (egg) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setFoundEgg(egg);
+          setStatus('easterEgg'); // stops the loop until "Tovább"
+        }
+      }
       if (e.type === 'launch') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       if (e.type === 'milestone') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -167,6 +178,18 @@ export default function GameRoute() {
             { label: 'Restart', onPress: () => restart() },
             { label: 'Menu', onPress: () => router.back() },
           ]}
+        />
+      )}
+
+      {status === 'easterEgg' && foundEgg && (
+        <EasterEggModal
+          title={foundEgg.title}
+          description={foundEgg.description}
+          heading={foundEgg.heading}
+          image={foundEgg.image}
+          imageAspectRatio={foundEgg.imageAspectRatio}
+          continueLabel={foundEgg.continueLabel}
+          onContinue={() => setStatus('playing')}
         />
       )}
 

@@ -1,10 +1,21 @@
-import { derivePhysics, type GameConfig } from '../config';
+import { derivePhysics, type EasterEggItemDef, type GameConfig } from '../config';
 import { LevelGenerator, type PlacedChunk } from '../level/generator';
 import type { LevelChunk } from '../level/chunks';
 import type { PlatformVariant } from '../level/tiles';
 import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
 import { EffectRegistry, type EffectContext, type EffectId } from './effects/EffectRegistry';
 import { createRng, type Rng } from './random';
+import { easterEggs as easterEggContent } from '../easterEggs';
+
+const easterEggIds = easterEggContent.map((e) => e.id);
+/** How far a "hover" item floats above its platform (like pickups). */
+const HOVER_LIFT = 0.15;
+
+/** The in-level object of an easter egg: its own `item` fields over the config default. */
+export function easterEggItemDef(eggId: string, config: GameConfig): EasterEggItemDef {
+  const own = easterEggContent.find((e) => e.id === eggId)?.item;
+  return { ...config.easterEggs.defaultItem, ...own };
+}
 
 /** World space: tile units, x → right, y → UP. `y` of a platform is its top surface. */
 export type Platform = {
@@ -28,6 +39,20 @@ export type StarParticle = { vx: number; vy: number; size: number; lifeMs: numbe
  * off (world space), the player flies on. Positions are computed from time.
  */
 export type Burst = { id: number; startedAt: number; x: number; y: number; particles: StarParticle[] };
+
+/**
+ * Hidden meme in the level: whatever sprite the meme defines. `y` is the
+ * bottom of its box (platform top for "ground", a bit above for "hover").
+ */
+export type EasterEggItem = {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  spriteKey: string;
+  placement: EasterEggItemDef['placement'];
+  eggId: string;
+};
 
 /** A pickup that was just taken, kept briefly so the renderer can play a collect animation in its place. */
 export type CollectedPickup = Pickup & { collectedAt: number };
@@ -69,6 +94,8 @@ export type GameEvent =
   | { type: 'death' }
   /** Countdown finished: the chick hops out of the egg. */
   | { type: 'launch' }
+  /** Found a hidden meme; the game shows it (and pauses) */
+  | { type: 'easterEgg'; eggId: string }
   | { type: 'gameOver' };
 
 export type WorldOptions = {
@@ -93,6 +120,7 @@ export class World {
   collected: CollectedPickup[] = [];
   hazards: Hazard[] = [];
   bursts: Burst[] = [];
+  easterEggs: EasterEggItem[] = [];
   cameraY = 0;
   /** Game clock in ms; only advances while stepping, so pausing freezes effects too. */
   time = 0;
@@ -109,7 +137,7 @@ export class World {
   /** Death sequence running (hurt pose, last hop, falling out); gameplay is frozen. */
   dying = false;
   diedAt = -Infinity;
-  stats = { platforms: 0, pickups: 0, hits: 0 };
+  stats = { platforms: 0, pickups: 0, hits: 0, easterEggs: 0 };
 
   private readonly gravity: number;
   private readonly jumpVelocity: number;
@@ -118,6 +146,9 @@ export class World {
   private readonly generator: LevelGenerator;
   private readonly visited = new Set<number>();
   private readonly rng: Rng;
+  /** Chunk number (after the start) that hides this game's easter egg; -1 = none this game. */
+  private easterEggChunk: number;
+  private chunksPlaced = 0;
   /** Next score that triggers a burst; only moves up, so dropping below and back doesn't re-fire. */
   private nextMilestone: number;
   private nextId = 1;
@@ -126,6 +157,12 @@ export class World {
     this.config = config;
     this.viewHeight = viewHeight;
     this.rng = rng;
+    // drop rate: one roll per game, at most one easter egg
+    const { chancePerGame, chunkRange } = config.easterEggs;
+    this.easterEggChunk =
+      easterEggIds.length > 0 && rng() < chancePerGame
+        ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
+        : -1;
     this.nextMilestone = config.milestones.every;
     ({ gravity: this.gravity, jumpVelocity: this.jumpVelocity } = derivePhysics(config));
     // speed reached when the umbrella opens (after falling fallPoseAfterTiles from the apex), scaled down
@@ -144,7 +181,7 @@ export class World {
       .register(doubleJumpHeight(config.effects.doubleJumpMs));
 
     const start = this.generator.placeStart();
-    this.addChunk(start);
+    this.addChunk(start, false);
     const spawn = start.spawn ?? { col: Math.floor(config.columns / 2), row: 1 };
     const { widthTiles: w, heightTiles: h } = config.player;
     const y = start.baseRow + spawn.row;
@@ -264,6 +301,14 @@ export class World {
       events.push({ type: 'pickup', effect: pk.effect });
       return false;
     });
+    this.easterEggs = this.easterEggs.filter((egg) => {
+      const touching =
+        overlapsX(p.x, p.w, egg.x, egg.size, columns) && p.y < egg.y + egg.size && p.y + p.h > egg.y;
+      if (!touching) return true;
+      this.stats.easterEggs++;
+      events.push({ type: 'easterEgg', eggId: egg.eggId });
+      return false;
+    });
     this.effects.tick(this.time);
 
     // ── hazards: hover up and down; touching one costs points (then brief invulnerability) ──
@@ -345,6 +390,31 @@ export class World {
     return this.generator.difficultyAt(Math.floor(this.cameraY));
   }
 
+  /** Puts this game's easter egg object on a free platform tile of the chunk; false if there is none. */
+  private hideEasterEgg(chunk: PlacedChunk): boolean {
+    // free = platform tiles with nothing (pickup/hazard) standing above them
+    const taken = new Set([...chunk.pickups, ...chunk.hazards].map((it) => `${it.col},${it.row}`));
+    const spots = chunk.platforms.flatMap((pl) =>
+      Array.from({ length: pl.width }, (_, i) => ({ col: pl.col + i, row: pl.row })).filter(
+        (s) => !taken.has(`${s.col},${s.row + 1}`),
+      ),
+    );
+    if (spots.length === 0) return false;
+    const spot = spots[Math.floor(this.rng() * spots.length)];
+    const eggId = easterEggIds[Math.floor(this.rng() * easterEggIds.length)];
+    const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
+    this.easterEggs.push({
+      id: this.nextId++,
+      x: spot.col + (1 - size) / 2,
+      y: chunk.baseRow + spot.row + 1 + (placement === 'hover' ? HOVER_LIFT : 0),
+      size,
+      spriteKey,
+      placement,
+      eggId,
+    });
+    return true;
+  }
+
   private checkMilestones(events: GameEvent[]) {
     const m = this.config.milestones;
     while (this.score >= this.nextMilestone) {
@@ -381,7 +451,7 @@ export class World {
 
   private fillAhead() {
     const needed = this.cameraY + this.viewHeight * (1 + this.config.generation.aheadScreens);
-    while (this.generator.topRow < needed) this.addChunk(this.generator.next());
+    while (this.generator.topRow < needed) this.addChunk(this.generator.next(), true);
   }
 
   private cull() {
@@ -392,9 +462,10 @@ export class World {
     this.platforms = this.platforms.filter((pl) => pl.y >= limit);
     this.pickups = this.pickups.filter((pk) => pk.y + pk.size >= limit);
     this.hazards = this.hazards.filter((h) => h.baseY + h.size >= limit);
+    this.easterEggs = this.easterEggs.filter((e) => e.y + e.size >= limit);
   }
 
-  private addChunk(chunk: PlacedChunk) {
+  private addChunk(chunk: PlacedChunk, mayHideEasterEgg: boolean) {
     for (const pl of chunk.platforms) {
       this.platforms.push({
         id: this.nextId++,
@@ -414,6 +485,12 @@ export class World {
         effect: pk.effect,
         spriteKey: pk.spriteKey,
       });
+    }
+    if (mayHideEasterEgg) {
+      this.chunksPlaced++;
+      if (this.chunksPlaced === this.easterEggChunk && !this.hideEasterEgg(chunk)) {
+        this.easterEggChunk++; // no free tile here: try the next chunk
+      }
     }
     for (const hz of chunk.hazards) {
       const baseY = chunk.baseRow + hz.row + 0.15;

@@ -2,6 +2,18 @@
  * Central tuning config. All world units are TILES (1 = one grid cell);
  * the renderer converts to pixels via tileSize = screenWidth / columns.
  */
+/**
+ * The in-level object of an easter egg: any registered sprite.
+ * placement "ground": stands on the platform; "hover": floats just above it
+ * (bobbing like the coin).
+ */
+export type EasterEggItemDef = {
+  spriteKey: string;
+  /** Drawn size and hitbox in tiles. */
+  size: number;
+  placement: "ground" | "hover";
+};
+
 export type GameConfig = {
   /** Grid width in tiles. Every level chunk row must be exactly this wide. */
   columns: number;
@@ -83,6 +95,23 @@ export type GameConfig = {
     /** Each star lives this long (± 20%), then it has shrunk away. */
     lifeMs: number;
   };
+  easterEggs: {
+    /**
+     * Drop rate per game: chance (0–1) that this run hides an easter egg at
+     * all. At most one per game; 0.1 ≈ one in every ten games on average.
+     */
+    chancePerGame: number;
+    /**
+     * If it drops, it's hidden in a random level chunk in this range (1 = the
+     * first chunk after the start), low enough to be reachable in a normal run.
+     */
+    chunkRange: [number, number];
+    /**
+     * What stands in the level for an easter egg that doesn't bring its own
+     * `item` (see src/game/easterEggs.ts).
+     */
+    defaultItem: EasterEggItemDef;
+  };
   start: {
     /** Countdown before the first hop; the chick waits in the egg meanwhile. 0 = start at once. */
     countdownMs: number;
@@ -142,10 +171,18 @@ export const defaultGameConfig: GameConfig = {
     autoScrollSpeed: 0.5,
     autoScrollPerDifficulty: 0.25,
   },
-  generation: { aheadScreens: 1.5, rowsPerDifficulty: 40, maxDifficulty: 3 },
-  effects: { doubleScoreMs: 5_000, doubleJumpMs: 2_500, coinBonus: 1 },
+  generation: {
+    aheadScreens: 1.5,
+    rowsPerDifficulty: 40,
+    maxDifficulty: 3,
+  },
+  effects: {
+    doubleScoreMs: 5_000,
+    doubleJumpMs: 2_500,
+    coinBonus: 1,
+  },
   milestones: {
-    every: 10,
+    every: 100,
     minStars: 7,
     maxStars: 10,
     smallSize: [0.25, 0.4],
@@ -154,8 +191,22 @@ export const defaultGameConfig: GameConfig = {
     gravity: 7,
     lifeMs: 1300,
   },
-  start: { countdownMs: 3000, eggSizeTiles: 1.5, eggSinkTiles: 0.1 },
-  death: { jumpFactor: 1.2, driftSpeed: [1.5, 4], exitMarginTiles: 1.5 },
+  easterEggs: {
+    chancePerGame: 0.1,
+    chunkRange: [2, 12],
+    // 1.125 → the pumpkin looks as big as the coin
+    defaultItem: { spriteKey: "easter_pumpkin", size: 1.125, placement: "ground" },
+  },
+  start: {
+    countdownMs: 3000,
+    eggSizeTiles: 1.5,
+    eggSinkTiles: 0.1,
+  },
+  death: {
+    jumpFactor: 1.2,
+    driftSpeed: [1.5, 4],
+    exitMarginTiles: 1.5,
+  },
   hazards: {
     damage: 1,
     invulnerableMs: 1000,

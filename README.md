@@ -44,6 +44,17 @@ A `hazard` tile a platform fölött lebeg (`config.hazards.bobTiles` / `bobHz`),
 
 A játék a kezdőpont fölött középre igazított tojáshéjjal indul (`start_egg`, forrás: `assets/sprite-sources/egg_shell.png`), a csibe mögötte ül. `config.start.countdownMs` (3000) ideig 3 → 2 → 1 visszaszámlálás látszik a képernyő közepén, közben a csibe nem mozdul és az irányítás nem hat; utána `launch` esemény, a csibe kiugrik a tojásból, és rövid ideig „GO!” látszik. A héj a pályán marad. Méret: `eggSizeTiles` (1.5), `eggSinkTiles` (0.1, hogy a csibe lába ne lógjon ki). `countdownMs: 0` = azonnali indulás tojás-ugrás nélkül (a fizikatesztek így futnak).
 
+## Easter eggek (rejtett mémek)
+
+A mémek listája: `src/game/easterEggs.ts` — ide kell felvenni az újakat (az `id` maradjon stabil). Minden mém két részből áll:
+
+- **a pályán látható tárgy** (`item`): `spriteKey` (bármelyik regisztrált sprite), `size` (tile), `placement` (`"ground"`: a platformon áll, `"hover"`: felette lebeg, mint az érme). Ami hiányzik, az a `config.easterEggs.defaultItem`-ből jön (most: töklámpás, 1.125, ground). Pl. `item: { spriteKey: "pickup_coin", placement: "hover" }`.
+- **a „megtaláltad” kártya**: `title`, `description`, opcionálisan `heading`, `image`, `imageAspectRatio`, `continueLabel` — ezek egy az egyben az `EasterEggModal` propjai.
+
+Új tárgy-sprite: PNG az `assets/sprites/`-ba (vagy forrásképből a generátorral) + egy sor a `spriteSources`-ba; a tesztek ellenőrzik, hogy minden mém tárgya létező sprite. Drop rate: játékonként egyetlen dobás — `config.easterEggs.chancePerGame` (10%) eséllyel az adott játékban lesz **egy** (soha nem több) mém a pályán, egy véletlen pályaszakasz szabad platformmezőjén a `chunkRange` (2.–12. szakasz, ~6–36 pont) tartományban, hogy normál játékban elérhető legyen. Átlagosan minden 10. játékban van, de véletlenszerűen (nem garantáltan minden 10.-ben). Felvételkor `easterEgg` esemény: a játék megáll, és megjelenik az `EasterEggModal` (`src/components/game/EasterEggModal.tsx`), a „Tovább” gomb folytatja.
+
+Az `EasterEggModal` nem tud a játékról, minden tartalma propból jön: `title` és `onContinue` (kötelező), `heading`, `description`, `image` (+ `imageAspectRatio`), `continueLabel`, valamint `children` bármilyen egyedi tartalomhoz. A mémek adattípusa (`EasterEgg`) ugyanezeket az opcionális mezőket tartalmazza, így mémenként felülírható a fejléc, a gombfelirat, vagy kép adható hozzá, pl. `image: require('@/assets/memes/doge.png')`.
+
 ## Halál
 
 Amikor a csibe talpa eléri a képernyő alját, `death` esemény (erős rezgés) és haláljelenet indul: csontváz (`player_hurt`) póz, `hurtPoseMs` után villogás, egy utolsó, magas felugrás (`config.death.jumpFactor`, ~1,45× egy normál ugrás) véletlen oldalirányú ívben (`driftSpeed`, véletlen irány; arra is néz), majd zuhanás ernyő nélkül. Közben nincs irányítás, ütközés, pontozás, a kamera áll. Ha a csibe `exitMarginTiles`-nyira a képernyő alá esett, jön a `gameOver`.

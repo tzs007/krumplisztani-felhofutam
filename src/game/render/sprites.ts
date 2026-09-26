@@ -22,6 +22,7 @@ export const spriteSources = {
   pickup_coin: require('@/assets/sprites/pickup_coin.png'),
   pickup_coin_collect: require('@/assets/sprites/pickup_coin_collect.png'),
   hazard_orange: require('@/assets/sprites/hazard_orange.png'),
+  easter_pumpkin: require('@/assets/sprites/easter_pumpkin.png'),
   pickup_double_score: require('@/assets/sprites/pickup_double_score.png'),
   pickup_double_jump: require('@/assets/sprites/pickup_double_jump.png'),
   player_jump: require('@/assets/sprites/player_jump.png'),

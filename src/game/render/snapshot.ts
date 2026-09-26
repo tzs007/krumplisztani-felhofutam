@@ -192,6 +192,15 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, pk.x * t, sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
   }
 
+  // easter egg objects: "ground" stands still on the platform, "hover" bobs like a pickup
+  for (const egg of world.easterEggs) {
+    if (!visible(egg.y, egg.y + egg.size)) continue;
+    const phase = world.time + pickupPhaseMs(egg.id);
+    const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
+    const x = egg.x * t;
+    sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, x, sy(egg.y + egg.size + bob), egg.size * t, egg.size * t);
+  }
+
   for (const h of world.hazards) {
     if (!visible(h.y, h.y + h.size)) continue;
     sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, h.x * t, sy(h.y + h.size), h.size * t, h.size * t);

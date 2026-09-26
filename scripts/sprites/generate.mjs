@@ -262,6 +262,12 @@ const fruits = join(SOURCE_DIR, 'Fruit+.png');
 if (existsSync(fruits)) {
   add('hazard_orange', () => writeImage('hazard_orange', gridCell(fruits, { cell: 16, col: 9, row: 1, scale: 6, pad: 128 })));
 }
+// easter egg item: jack-o'-lantern, pixel_pumpkins.png (4×4 cells of 16px), column 2 / row 3 (1-based);
+// ×8 = 128 with no padding, so the pumpkin's bottom is the sprite's bottom (it stands on the platform)
+const pumpkins = join(SOURCE_DIR, 'pixel_pumpkins.png');
+if (existsSync(pumpkins)) {
+  add('easter_pumpkin', () => writeImage('easter_pumpkin', gridCell(pumpkins, { cell: 16, col: 1, row: 2, scale: 8, pad: 128 })));
+}
 if (existsSync(goldCollect)) {
   add('pickup_coin_collect', () =>
     writeImage('pickup_coin_collect', gridFrames(goldCollect, { frame: 25, scale: 5, pad: 128 })),

@@ -311,3 +311,18 @@ Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel k
 - [x] S2 Engine: `started` / `countdownRemainingMs` / `launchedAt`; visszaszámlálás alatt nincs fizika, irányítás, kamera; 3 mp után `launch` (normál ugrás a tojásból) + enyhe haptika
 - [x] S3 HUD: `Countdown` komponens (3 → 2 → 1 → GO!, felnagyító animáció), `countdownLabel` tiszta függvény
 - [x] S4 Tesztek (start.test.ts), a fizikatesztek `countdownMs: 0`-val futnak; szimulátor
+
+---
+
+# Epic 8 – Easter eggek (2026-09-26)
+
+- [x] E1 Sprite: `pixel_pumpkins.png` (4×4 × 16 px) 2. oszlop / 3. sor → `easter_pumpkin` (×8 = 128, alja a sprite alja), méret 1,125 tile (az érmével egyező látható méret)
+- [x] E2 Tartalom: `src/game/easterEggs.ts` (id, title, description), két helyőrző mém
+- [x] E3 Drop rate: chunkonként `chancePerChunk` 6% (start chunk kivétel), szabad platformmezőre, játékon belül nem ismétlődik
+- [x] E4 Felvétel: `easterEgg` esemény, siker-haptika, a játék megáll, modal (cím + leírás + „Tovább”)
+- [x] E5 Tesztek (easterEggs.test.ts) + szimulátor (ideiglenesen 100%-os eséllyel, visszaállítva)
+- [x] E5b Absztrakt `EasterEggModal`: tartalom propokon át (heading, title, description, image, continueLabel, children), mémenként felülírható; komponensteszt (RNTL 14 + test-renderer, gluestack a transformIgnorePatterns-ben)
+- [x] E3b Drop rate játékonként: `chancePerGame` 10%, max. 1 tök/játék, a 2.–12. szakaszban (ha ott nincs szabad mező, a következőben); 2000 játékos szimulációs teszt
+- [x] E3c Absztrakt pályatárgy: mémenként `item` (spriteKey, size, placement ground/hover), alapérték `config.easterEggs.defaultItem` (töklámpás); az engine a mémből veszi; tesztek (létező sprite, fallback, felülírás, hover)
+- [ ] E6 Valódi mémek (szöveg, később kép a modalban)
+- [ ] E7 Ötlet: megtalált mémek mentése + gyűjtemény képernyő
