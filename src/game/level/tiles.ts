@@ -25,8 +25,9 @@ export const tiles: Record<string, TileDef> = {
   '=': { kind: 'platform', variant: 'blue', spriteKey: 'platform_blue' },
   B: { kind: 'platform', variant: 'brick', spriteKey: 'platform_brick' },
   C: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_coin', size: 1.2 },
-  X: { kind: 'pickup', effect: 'doubleScore', spriteKey: 'pickup_double_score' },
-  J: { kind: 'pickup', effect: 'doubleJump', spriteKey: 'pickup_double_jump' },
+  // 0.96: the boxed icons fill 87.5% of their sprite, the coin 70% of its 1.2 → same visible size (~0.84 tile)
+  X: { kind: 'pickup', effect: 'doubleScore', spriteKey: 'pickup_double_score', size: 0.96 },
+  J: { kind: 'pickup', effect: 'doubleJump', spriteKey: 'pickup_double_jump', size: 0.96 },
   O: { kind: 'hazard', spriteKey: 'hazard_orange', size: 1.2 },
 };
 

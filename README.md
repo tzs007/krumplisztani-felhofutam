@@ -32,7 +32,7 @@ A pálya `src/game/level/chunks.ts`-ben lévő mátrixokból áll (fentről lefe
 | `.` vagy ` `    | üres                                                  |
 | `#` / `=` / `B` | platform (fű / kék / tégla)                           |
 | `P`             | kezdőpozíció (csak a start chunkban)                  |
-| `C` / `X` / `J` | pickup: +1 pont / ×2 pont 10 s / ×2 ugrásmagasság 5 s (méret tile-onként: `size` a `tiles.ts`-ben, alap 0.6, érme 1.2) |
+| `C` / `X` / `J` | pickup: +1 pont / ×2 pont 10 s / ×2 ugrásmagasság 5 s (méret tile-onként: `size` a `tiles.ts`-ben, alap 0.6; érme 1.2, ×2 ikonok 0.96 — a látható méretük így az érméével egyezik, ezt teszt ellenőrzi) |
 
 Szabályok (a tesztek ellenőrzik): minden sor pontosan `columns` széles, két platformsor között legfeljebb `maxJumpTiles - 1` sor lehet (chunk-határon át is), pickup csak platform fölött állhat. Új tile: `src/game/level/tiles.ts` (a `spriteKey` a későbbi sprite-hoz).
 

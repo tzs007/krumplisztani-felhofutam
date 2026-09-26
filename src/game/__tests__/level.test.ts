@@ -28,7 +28,13 @@ describe('parseChunk', () => {
   });
 
   it('uses the default size for pickups without their own', () => {
-    expect(parseChunk(['X'], columns).pickups[0].size).toBe(0.6);
+    tiles.Z = { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_coin' }; // temporary tile without size
+    try {
+      expect(parseChunk(['Z'], columns).pickups[0].size).toBe(0.6);
+    } finally {
+      delete tiles.Z;
+    }
+    expect(parseChunk(['X'], columns).pickups[0].size).toBe(0.96);
   });
 
   it('pads short rows and rejects too wide ones', () => {
