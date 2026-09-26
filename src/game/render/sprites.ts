@@ -33,6 +33,8 @@ export const spriteSources = {
   player_bonus_double_score: require('@/assets/sprites/player_bonus_double_score.png'),
   player_bonus_double_jump: require('@/assets/sprites/player_bonus_double_jump.png'),
   cloud: require('@/assets/sprites/cloud.png'),
+  effect_star: require('@/assets/sprites/effect_star.png'),
+  start_egg: require('@/assets/sprites/start_egg.png'),
 } as const;
 
 export type SpriteKey = keyof typeof spriteSources;

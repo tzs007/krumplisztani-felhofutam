@@ -10,6 +10,7 @@ const idle: StepInput = { dragging: false, dx: 0 };
 const noScroll: GameConfig = {
   ...defaultGameConfig,
   camera: { ...defaultGameConfig.camera, autoScrollSpeed: 0, autoScrollPerDifficulty: 0 },
+  start: { ...defaultGameConfig.start, countdownMs: 0 }, // no countdown in physics tests
 };
 
 const empty: LevelChunk = { id: 'empty', difficulty: 0, map: Array(9).fill('.........') };
@@ -132,6 +133,7 @@ describe('World physics', () => {
     const config: GameConfig = {
       ...defaultGameConfig,
       camera: { ...defaultGameConfig.camera, autoScrollSpeed: 5 },
+      start: { ...defaultGameConfig.start, countdownMs: 0 },
     };
     const world = makeWorld(['.........', '....P....', '#########'], config);
     const events = run(world, 10);

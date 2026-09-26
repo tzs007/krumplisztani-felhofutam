@@ -1,5 +1,5 @@
 import { derivePhysics } from '../config';
-import { isFalling, type Player, type World } from '../engine/World';
+import { isFalling, type Player, type StarParticle, type World } from '../engine/World';
 import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
@@ -97,6 +97,27 @@ export function jumpProgress(player: Player, time: number, jumpVelocity: number)
   return Math.min(0.999, 1 - Math.min(1, player.vy / jumpVelocity));
 }
 
+const STAR_POP_MS = 80;
+const STAR_SHRINK_FROM = 0.6;
+
+/**
+ * Where a burst star is `elapsedMs` after the burst, relative to the burst
+ * origin (tiles, y up), and its drawn size; null once it has shrunk away.
+ * Pops in quickly, flies out, is pulled back by gravity, shrinks at the end.
+ */
+export function starState(
+  star: StarParticle,
+  elapsedMs: number,
+  gravity: number,
+): { dx: number; dy: number; size: number } | null {
+  if (elapsedMs < 0 || elapsedMs >= star.lifeMs) return null;
+  const t = elapsedMs / 1000;
+  const life = elapsedMs / star.lifeMs;
+  const pop = Math.min(1, 0.4 + (0.6 * elapsedMs) / STAR_POP_MS);
+  const shrink = life < STAR_SHRINK_FROM ? 1 : 1 - (life - STAR_SHRINK_FROM) / (1 - STAR_SHRINK_FROM);
+  return { dx: star.vx * t, dy: star.vy * t - 0.5 * gravity * t * t, size: star.size * pop * shrink };
+}
+
 const BLINK_MS = 100;
 /** Invulnerability blink: hidden every other BLINK_MS. */
 export function isBlinkOff(sinceHitMs: number): boolean {
@@ -191,20 +212,47 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const op = p.facing < 0 ? Op.spriteFlipped : Op.sprite;
   const active = world.effects.getActive(world.time).map((e) => e.id);
   const { hurtPoseMs } = world.config.hazards;
-  const key = playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active, hurtPoseMs);
+  // dying: skeleton (hurt) pose all the way down, no squash/stretch
+  const key = world.dying
+    ? 'player_hurt'
+    : playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active, hurtPoseMs);
   const elapsed = playerAnimElapsed(p, world.time, world.config.player.bonusPoseMs);
   const { jumpVelocity } = derivePhysics(world.config);
-  const { sx, sy: sY } = playerScale(p, world.time, jumpVelocity);
+  const { sx, sy: sY } = world.dying ? { sx: 1, sy: 1 } : playerScale(p, world.time, jumpVelocity);
   const progress = jumpProgress(p, world.time, jumpVelocity);
   const w = t * sx;
   const h = t * sY;
   const drawPlayer = (px: number) =>
     sprite(op, key, elapsed, (px + p.w / 2) * t - w / 2, sy(p.y) - h, w, h, progress);
-  // after a hit: the hurt pose stays solid, then the player blinks for the rest of the invulnerability
+  // after a hit: the hurt pose stays solid, then the player blinks for the rest of the invulnerability;
+  // the death sequence blinks the same way until the player has fallen out
   const sinceHit = world.time - p.hurtAt;
-  if (world.isInvulnerable && sinceHit >= hurtPoseMs && isBlinkOff(sinceHit)) return out;
-  drawPlayer(p.x);
-  if (p.x + p.w > cols) drawPlayer(p.x - cols);
+  const sinceDeath = world.time - world.diedAt;
+  const blinkOff = world.dying
+    ? sinceDeath >= hurtPoseMs && isBlinkOff(sinceDeath)
+    : world.isInvulnerable && sinceHit >= hurtPoseMs && isBlinkOff(sinceHit);
+  if (!blinkOff) {
+    drawPlayer(p.x);
+    if (p.x + p.w > cols) drawPlayer(p.x - cols);
+  }
+
+  // start egg shell, in front of the chick so it looks like it sits inside
+  const egg = world.egg;
+  if (visible(egg.y, egg.y + egg.size)) {
+    const x = (egg.x - egg.size / 2) * t;
+    sprite(Op.sprite, 'start_egg', 0, x, sy(egg.y + egg.size), egg.size * t, egg.size * t);
+  }
+
+  // milestone star bursts: fireworks fixed where they went off, drawn on top
+  for (const burst of world.bursts) {
+    for (const star of burst.particles) {
+      const st = starState(star, world.time - burst.startedAt, world.config.milestones.gravity);
+      if (!st || st.size <= 0) continue;
+      const half = st.size / 2;
+      const x = burst.x + st.dx - half;
+      sprite(Op.sprite, 'effect_star', 0, x * t, sy(burst.y + st.dy + half), st.size * t, st.size * t);
+    }
+  }
 
   return out;
 }

@@ -40,6 +40,18 @@ Szabályok (a tesztek ellenőrzik): minden sor pontosan `columns` széles, két 
 
 A `hazard` tile a platform fölött lebeg (`config.hazards.bobTiles` / `bobHz`), az ütközés az engine-ben számolt, lebegő pozícióval történik (a hitbox kicsit kisebb a rajznál: `hitboxScale`). Érintéskor `damage` pontot von le (0 alá nem megy), `hit` eseményt küld (erős rezgés), és `invulnerableMs` ideig nem sebezhető a játékos: először `hurtPoseMs` ideig a `player_hurt` póz látszik (forrás: `chick_hurt.png`), utána a sérthetetlenség végéig villog. Sprite: a `Fruit+.png` gyümölcs-atlasz (16×16-os cellák) egy cellája, ×6 → 128.
 
+## Start: tojás + visszaszámlálás
+
+A játék a kezdőpont fölött középre igazított tojáshéjjal indul (`start_egg`, forrás: `assets/sprite-sources/egg_shell.png`), a csibe mögötte ül. `config.start.countdownMs` (3000) ideig 3 → 2 → 1 visszaszámlálás látszik a képernyő közepén, közben a csibe nem mozdul és az irányítás nem hat; utána `launch` esemény, a csibe kiugrik a tojásból, és rövid ideig „GO!” látszik. A héj a pályán marad. Méret: `eggSizeTiles` (1.5), `eggSinkTiles` (0.1, hogy a csibe lába ne lógjon ki). `countdownMs: 0` = azonnali indulás tojás-ugrás nélkül (a fizikatesztek így futnak).
+
+## Halál
+
+Amikor a csibe talpa eléri a képernyő alját, `death` esemény (erős rezgés) és haláljelenet indul: csontváz (`player_hurt`) póz, `hurtPoseMs` után villogás, egy utolsó, magas felugrás (`config.death.jumpFactor`, ~1,45× egy normál ugrás) véletlen oldalirányú ívben (`driftSpeed`, véletlen irány; arra is néz), majd zuhanás ernyő nélkül. Közben nincs irányítás, ütközés, pontozás, a kamera áll. Ha a csibe `exitMarginTiles`-nyira a képernyő alá esett, jön a `gameOver`.
+
+## Mérföldkő: csillagrobbanás
+
+Amikor a pontszám először eléri a `config.milestones.every` (100) többszörösét, a csibéből 7–10 ötágú csillag (`effect_star`, fele kicsi, fele nagy) robban szét, `milestone` esemény + „siker” rezgés. Ha a pont egy narancs miatt visszaesik és újra eléri a határt, nem ismétlődik. A csillagok pozícióját az idő határozza meg (kirepülés, visszahúzó gravitáció, a végén zsugorodás). Tűzijátékként a pályán ott marad, ahol a csibe épp volt a robbanáskor; a csibe továbbrepül. Beállítások: darabszám, méretek, sebesség, gravitáció, élettartam.
+
 ## Új pickup effekt
 
 ```ts

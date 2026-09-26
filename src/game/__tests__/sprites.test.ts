@@ -17,7 +17,11 @@ const idle: StepInput = { dragging: false, dx: 0 };
 
 function makeWorld(start: string[]) {
   return new World({
-    config: { ...defaultGameConfig, camera: { ...defaultGameConfig.camera, autoScrollSpeed: 0 } },
+    config: {
+      ...defaultGameConfig,
+      camera: { ...defaultGameConfig.camera, autoScrollSpeed: 0 },
+      start: { ...defaultGameConfig.start, countdownMs: 0 },
+    },
     viewHeight: 18,
     rng: createRng(1),
     chunks: [{ id: 'empty', difficulty: 0, map: Array(9).fill('.........') }],

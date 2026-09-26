@@ -6,6 +6,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Countdown } from '@/components/game/Countdown';
 import { GameOverlay } from '@/components/game/GameOverlay';
 import { Hud } from '@/components/game/Hud';
 import { Box } from '@/components/ui/box';
@@ -18,6 +19,7 @@ import { useGameLoop } from '@/game/hooks/useGameLoop';
 import { DragInput } from '@/game/input/DragInput';
 import { GameCanvas } from '@/game/render/GameCanvas';
 import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
+import { countdownLabel } from '@/game/render/countdown';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
 
@@ -32,6 +34,7 @@ export default function GameRoute() {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [status, setStatus] = useState<Status>('playing');
   const [hud, setHud] = useState<HudState>({ score: 0, effects: [] });
+  const [countdown, setCountdown] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<{ score: number; newBest: boolean } | null>(null);
 
   const worldRef = useRef<World | null>(null);
@@ -52,6 +55,7 @@ export default function GameRoute() {
     input.reset();
     commands.set(buildSnapshot(world, ts, canvas.height));
     setHud({ score: 0, effects: [] });
+    setCountdown(countdownLabel(world));
     setLastResult(null);
     setStatus('playing');
   };
@@ -94,6 +98,9 @@ export default function GameRoute() {
     for (const e of events) {
       if (e.type === 'pickup') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (e.type === 'hit') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === 'launch') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === 'milestone') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (e.type === 'gameOver') finishRun(world);
     }
   };
@@ -102,6 +109,8 @@ export default function GameRoute() {
     const world = worldRef.current;
     if (!world || !size) return;
     commands.set(buildSnapshot(world, tileSize, size.height));
+    // countdown text changes exactly on time (setState bails out when unchanged)
+    setCountdown(countdownLabel(world));
     const now = Date.now();
     if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
       hudUpdatedAt.current = now;
@@ -147,6 +156,8 @@ export default function GameRoute() {
       {status !== 'over' && (
         <Hud score={hud.score} effects={hud.effects} topInset={insets.top} onPause={() => setStatus('paused')} />
       )}
+
+      {status === 'playing' && <Countdown label={countdown} />}
 
       {status === 'paused' && (
         <GameOverlay

@@ -9,6 +9,7 @@ const idle: StepInput = { dragging: false, dx: 0 };
 const config: GameConfig = {
   ...defaultGameConfig,
   camera: { ...defaultGameConfig.camera, autoScrollSpeed: 0, autoScrollPerDifficulty: 0 },
+  start: { ...defaultGameConfig.start, countdownMs: 0 }, // no countdown in physics tests
 };
 const HZ = config.hazards;
 

@@ -192,6 +192,34 @@ function bonusSource(type) {
 
 // ── cloud (32×16 → 256×128) ─────────────────────────────────────────
 
+// ── effects ─────────────────────────────────────────────────────────
+
+/** 5-pointed star (point up) on the 16×16 grid: outline, fill, a highlight on the upper-left arms. */
+function starPixel() {
+  const cx = 7.5, cy = 8.3, outer = 7.9, inner = 4.0;
+  const pts = Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 === 0 ? outer : inner;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  const inside = (x, y) => {
+    let hit = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+    }
+    return hit;
+  };
+  const filled = (x, y) => x >= 0 && y >= 0 && x < GRID && y < GRID && inside(x + 0.5, y + 0.5);
+  return (x, y) => {
+    if (!filled(x, y)) return null;
+    const edge = !filled(x - 1, y) || !filled(x + 1, y) || !filled(x, y - 1) || !filled(x, y + 1);
+    if (edge) return '#9A6B00';
+    if (x + y < 13 && (x - 7.5) ** 2 + (y - 7) ** 2 < 10) return '#FFF3B0';
+    return y > 9 ? '#F2A900' : '#F7C325';
+  };
+}
+
 function cloudPixel() {
   const inside = (x, y) =>
     y >= 0 && y < 16 && x >= 0 && x < 32 &&
@@ -298,5 +326,11 @@ for (const type of ['coin', 'double_score', 'double_jump']) {
   add(name, () => writeImage(name, pixelize(bonusSource(type), { cell: chick.cell, colors: 24, centerOnCharacter: true })));
 }
 add('cloud', () => writeSprite('cloud', 32, 16, cloudPixel()));
+add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
+// start: cracked egg shell the chick sits in (drawn in front of it); size set in config.start
+const eggSource = join(SOURCE_DIR, 'egg_shell.png');
+if (existsSync(eggSource)) {
+  add('start_egg', () => writeImage('start_egg', pixelize(eggSource, { size: 128, colors: 16 })));
+}
 
 console.log(`Wrote ${written.length} sprites to ${OUT_DIR}:\n  ${written.join('\n  ')}`);

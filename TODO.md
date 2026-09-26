@@ -281,3 +281,33 @@ Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel k
 - [x] H6 `player_hurt`: `chick_hurt.png` (villámsújtott csontváz) → 134×134, ugrópóz léptékében; találat után 0,5 mp folyamatos sérült póz, majd villogás a sérthetetlenség végéig; teszt + szimulátor
 - [x] H8 Esernyős siklás: nyitott ernyővel (esés póz) az esési sebesség a nyitáskori harmadára lassul (~3,6 tile/s), ~0,1 mp alatt fékez, nem lendül túl; normál ugrást nem érinti (`isFalling` közös az engine-ben és a rajzolásban); tesztek
 - [ ] H7 Eszközön kipróbálni: nehézség, hitbox érzet
+
+---
+
+# Epic 5 – Mérföldkő effekt (2026-09-26)
+
+- [x] M1 `effect_star` pixel art csillag (generátor, 16×16 ×8)
+- [x] M2 Engine: `milestones.every` (100) többszöröseinek első elérésekor `milestone` esemény + `Burst` (7–10 csillag, felváltva kicsi/nagy, körbe szórva, enyhén felfelé); visszaesés után nem ismétlődik; 1,5 mp után törlődik
+- [x] M3 Render: `starState` (felpattanás 80 ms, repülés + gravitáció, zsugorodás az élet utolsó 40%-ában), a csibét követi, előtte rajzolva; „siker” haptika
+- [x] M4 Tesztek (milestones.test.ts) + szimulátor (ideiglenesen `every: 2`-vel, visszaállítva)
+- [x] M4b Tűzijáték: a robbanás origója a csibe akkori helye a pályán (`Burst.x/y`), nem követi a csibét; teszt + szimulátor
+- [ ] M5 Ötletek: pontszám „pulzálás” a HUD-ban, egyedi csibe póz a mérföldkőnél
+
+---
+
+# Epic 6 – Haláljelenet (2026-09-26)
+
+- [x] D1 Kiváltás: talp a képernyő alján (`p.y <= cameraY`, pontosan a vonalra igazítva) → `death` esemény + erős haptika
+- [x] D2 Jelenet: csontváz póz végig, 0,5 mp után villogás (mint a narancsnál), utolsó felugrás (`death.jumpFactor` 0.85), zuhanás ernyő nélkül; nincs irányítás/ütközés/pontozás, a kamera áll
+- [x] D2b Halálugrás 2× magasabb (jumpFactor 0.85 → 1.2) és véletlen ív: oldalsodródás 1,5–4 tile/s véletlen irányba, a csibe arra néz; tesztek + szimulátor
+- [x] D3 `gameOver` csak ha teljesen kiesett (`exitMarginTiles` 1.5)
+- [x] D4 Tesztek (death.test.ts) + szimulátor; mérföldkő-tesztek a konfigból olvassák a határt (felhasználói `every: 10`)
+
+---
+
+# Epic 7 – Start: tojás + visszaszámlálás (2026-09-26)
+
+- [x] S1 `egg_shell.png` → `start_egg` (pixelesítve), 1,5 tile széles, a kezdőpont fölött középen, 0,1 tile-lal a talajba süllyesztve, a csibe előtt rajzolva; a pályán marad
+- [x] S2 Engine: `started` / `countdownRemainingMs` / `launchedAt`; visszaszámlálás alatt nincs fizika, irányítás, kamera; 3 mp után `launch` (normál ugrás a tojásból) + enyhe haptika
+- [x] S3 HUD: `Countdown` komponens (3 → 2 → 1 → GO!, felnagyító animáció), `countdownLabel` tiszta függvény
+- [x] S4 Tesztek (start.test.ts), a fizikatesztek `countdownMs: 0`-val futnak; szimulátor

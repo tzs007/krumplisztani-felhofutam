@@ -21,6 +21,14 @@ export type Pickup = { id: number; x: number; y: number; size: number; effect: E
  * `y` bobs between baseY and baseY + bobTiles. Touching it costs points.
  */
 export type Hazard = { id: number; x: number; y: number; baseY: number; size: number; spriteKey: string; phase: number };
+/** One star of a milestone burst, relative to the burst origin (tiles, y up). */
+export type StarParticle = { vx: number; vy: number; size: number; lifeMs: number };
+/**
+ * Star explosion like a firework: it stays where the player was when it went
+ * off (world space), the player flies on. Positions are computed from time.
+ */
+export type Burst = { id: number; startedAt: number; x: number; y: number; particles: StarParticle[] };
+
 /** A pickup that was just taken, kept briefly so the renderer can play a collect animation in its place. */
 export type CollectedPickup = Pickup & { collectedAt: number };
 export type Player = {
@@ -56,6 +64,11 @@ export type GameEvent =
   | { type: 'land'; platformId: number; points: number }
   | { type: 'pickup'; effect: EffectId }
   | { type: 'hit'; damage: number }
+  | { type: 'milestone'; score: number }
+  /** Feet reached the screen bottom: the death hop starts; gameOver follows once off screen. */
+  | { type: 'death' }
+  /** Countdown finished: the chick hops out of the egg. */
+  | { type: 'launch' }
   | { type: 'gameOver' };
 
 export type WorldOptions = {
@@ -79,6 +92,7 @@ export class World {
   pickups: Pickup[] = [];
   collected: CollectedPickup[] = [];
   hazards: Hazard[] = [];
+  bursts: Burst[] = [];
   cameraY = 0;
   /** Game clock in ms; only advances while stepping, so pausing freezes effects too. */
   time = 0;
@@ -86,6 +100,15 @@ export class World {
   scoreMultiplier = 1;
   jumpMultiplier = 1;
   over = false;
+  /** False during the start countdown: the chick sits in the egg, nothing moves. */
+  started: boolean;
+  /** Game time (ms) of the hop out of the egg. */
+  launchedAt = -Infinity;
+  /** Egg shell at the start: `x` = centre, `y` = bottom (tiles). Stays in the level. */
+  egg: { x: number; y: number; size: number };
+  /** Death sequence running (hurt pose, last hop, falling out); gameplay is frozen. */
+  dying = false;
+  diedAt = -Infinity;
   stats = { platforms: 0, pickups: 0, hits: 0 };
 
   private readonly gravity: number;
@@ -94,11 +117,16 @@ export class World {
   readonly glideFallSpeed: number;
   private readonly generator: LevelGenerator;
   private readonly visited = new Set<number>();
+  private readonly rng: Rng;
+  /** Next score that triggers a burst; only moves up, so dropping below and back doesn't re-fire. */
+  private nextMilestone: number;
   private nextId = 1;
 
   constructor({ config, viewHeight, rng = createRng(), chunks, startChunk }: WorldOptions) {
     this.config = config;
     this.viewHeight = viewHeight;
+    this.rng = rng;
+    this.nextMilestone = config.milestones.every;
     ({ gravity: this.gravity, jumpVelocity: this.jumpVelocity } = derivePhysics(config));
     // speed reached when the umbrella opens (after falling fallPoseAfterTiles from the apex), scaled down
     const openSpeed = Math.sqrt(2 * this.gravity * config.player.fallPoseAfterTiles);
@@ -135,11 +163,33 @@ export class World {
       targetOffset: 0,
       hurtAt: -Infinity,
     };
+    const { eggSizeTiles, eggSinkTiles, countdownMs } = config.start;
+    // no countdown: play from the first step (the chick drops onto the ground and bounces)
+    this.started = countdownMs <= 0;
+    this.egg = { x: this.player.x + w / 2, y: y - eggSinkTiles, size: eggSizeTiles };
     this.fillAhead();
+  }
+
+  /** Ms left of the start countdown (0 once the chick has launched). */
+  get countdownRemainingMs(): number {
+    return this.started ? 0 : Math.max(0, this.config.start.countdownMs - this.time);
   }
 
   step(dtSeconds: number, input: StepInput): GameEvent[] {
     if (this.over) return [];
+    if (this.dying) return this.stepDying(dtSeconds);
+    if (!this.started) {
+      // countdown: the chick waits in the egg; input is ignored
+      this.time += dtSeconds * 1000;
+      if (this.time < this.config.start.countdownMs) return [];
+      this.started = true;
+      this.launchedAt = this.time;
+      const p = this.player;
+      p.vy = this.jumpVelocity;
+      p.landedAt = this.time;
+      p.apexY = p.y;
+      return [{ type: 'launch' }];
+    }
     const events: GameEvent[] = [];
     const dt = dtSeconds;
     const p = this.player;
@@ -248,14 +298,43 @@ export class World {
       this.cameraY += (autoScrollSpeed + level * this.config.camera.autoScrollPerDifficulty) * dt;
     }
 
+    this.checkMilestones(events);
     this.fillAhead();
     this.cull();
 
-    if (p.y + p.h < this.cameraY) {
-      this.over = true;
-      events.push({ type: 'gameOver' });
+    // feet on the screen bottom line: start the death sequence
+    if (p.y <= this.cameraY) {
+      this.dying = true;
+      this.diedAt = this.time;
+      p.y = this.cameraY;
+      // last hop: high, along a random sideways arc
+      const { jumpFactor, driftSpeed } = this.config.death;
+      const drift = driftSpeed[0] + this.rng() * (driftSpeed[1] - driftSpeed[0]);
+      const dir = this.rng() < 0.5 ? -1 : 1;
+      p.vy = this.jumpVelocity * jumpFactor;
+      p.vx = drift * dir;
+      p.facing = dir;
+      p.targetOffset = 0;
+      events.push({ type: 'death' });
     }
     return events;
+  }
+
+  /**
+   * Death sequence: one last high hop along a random sideways arc, then down
+   * (no umbrella, no platforms, no input, camera frozen) until off screen → gameOver.
+   */
+  private stepDying(dt: number): GameEvent[] {
+    const p = this.player;
+    this.time += dt * 1000;
+    p.vy -= this.gravity * dt;
+    p.y += p.vy * dt;
+    p.x = wrap(p.x + p.vx * dt, this.config.columns);
+    if (p.y + this.config.death.exitMarginTiles < this.cameraY) {
+      this.over = true;
+      return [{ type: 'gameOver' }];
+    }
+    return [];
   }
 
   get isInvulnerable(): boolean {
@@ -266,12 +345,48 @@ export class World {
     return this.generator.difficultyAt(Math.floor(this.cameraY));
   }
 
+  private checkMilestones(events: GameEvent[]) {
+    const m = this.config.milestones;
+    while (this.score >= this.nextMilestone) {
+      events.push({ type: 'milestone', score: this.nextMilestone });
+      const { x, y, w, h } = this.player;
+      this.bursts.push({
+        id: this.nextId++,
+        startedAt: this.time,
+        x: x + w / 2,
+        y: y + h / 2,
+        particles: this.makeStars(),
+      });
+      this.nextMilestone += m.every;
+    }
+  }
+
+  /** 7–10 stars flying out all around, alternating small and large, slightly biased upward. */
+  private makeStars(): StarParticle[] {
+    const m = this.config.milestones;
+    const range = ([a, b]: [number, number]) => a + this.rng() * (b - a);
+    const count = Math.min(10, m.minStars + Math.floor(this.rng() * (m.maxStars - m.minStars + 1)));
+    const offset = this.rng() * Math.PI * 2;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = offset + (i / count) * Math.PI * 2 + (this.rng() - 0.5) * 0.5;
+      const speed = range(m.speed);
+      return {
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed + 1.5,
+        size: range(i % 2 === 0 ? m.largeSize : m.smallSize),
+        lifeMs: m.lifeMs * (0.8 + this.rng() * 0.4),
+      };
+    });
+  }
+
   private fillAhead() {
     const needed = this.cameraY + this.viewHeight * (1 + this.config.generation.aheadScreens);
     while (this.generator.topRow < needed) this.addChunk(this.generator.next());
   }
 
   private cull() {
+    const maxLife = this.config.milestones.lifeMs * 1.2;
+    this.bursts = this.bursts.filter((b) => this.time - b.startedAt < maxLife);
     this.collected = this.collected.filter((c) => this.time - c.collectedAt < COLLECTED_TTL_MS);
     const limit = this.cameraY - 1;
     this.platforms = this.platforms.filter((pl) => pl.y >= limit);

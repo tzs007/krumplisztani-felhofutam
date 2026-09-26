@@ -68,6 +68,40 @@ export type GameConfig = {
     doubleJumpMs: number;
     coinBonus: number;
   };
+  milestones: {
+    /** A star burst fires each time the score first reaches a multiple of this. */
+    every: number;
+    /** Star count per burst: random between min and max (max 10). */
+    minStars: number;
+    maxStars: number;
+    /** Star sizes in tiles: half the stars are small, half large. */
+    smallSize: [number, number];
+    largeSize: [number, number];
+    /** Launch speed range (tiles/s) and the gravity pulling the stars back (tiles/s²). */
+    speed: [number, number];
+    gravity: number;
+    /** Each star lives this long (± 20%), then it has shrunk away. */
+    lifeMs: number;
+  };
+  start: {
+    /** Countdown before the first hop; the chick waits in the egg meanwhile. 0 = start at once. */
+    countdownMs: number;
+    /** Egg shell width in tiles, centred on the spawn point, drawn in front of the chick. */
+    eggSizeTiles: number;
+    /** How far the egg sinks into the ground so the chick's feet are hidden. */
+    eggSinkTiles: number;
+  };
+  death: {
+    /**
+     * Last hop when the feet touch the screen bottom, relative to a normal
+     * jump's take-off speed (height grows with its square: 1.2 ≈ 1.45× a jump).
+     */
+    jumpFactor: number;
+    /** Random sideways speed range (tiles/s) of the death hop; direction is random too. */
+    driftSpeed: [number, number];
+    /** Game over once the player is this far (tiles) below the screen bottom (sprite fully gone). */
+    exitMarginTiles: number;
+  };
   hazards: {
     /** Points lost per hit (score never goes below 0). */
     damage: number;
@@ -102,10 +136,34 @@ export const defaultGameConfig: GameConfig = {
     releaseFriction: 7,
     maxGlideSpeed: 14,
   },
-  camera: { followRatio: 0.45, smoothing: 0.15, autoScrollSpeed: 0.5, autoScrollPerDifficulty: 0.25 },
+  camera: {
+    followRatio: 0.45,
+    smoothing: 0.15,
+    autoScrollSpeed: 0.5,
+    autoScrollPerDifficulty: 0.25,
+  },
   generation: { aheadScreens: 1.5, rowsPerDifficulty: 40, maxDifficulty: 3 },
-  effects: { doubleScoreMs: 10_000, doubleJumpMs: 5_000, coinBonus: 1 },
-  hazards: { damage: 1, invulnerableMs: 1000, hurtPoseMs: 500, bobTiles: 0.35, bobHz: 0.5, hitboxScale: 0.75 },
+  effects: { doubleScoreMs: 5_000, doubleJumpMs: 2_500, coinBonus: 1 },
+  milestones: {
+    every: 10,
+    minStars: 7,
+    maxStars: 10,
+    smallSize: [0.25, 0.4],
+    largeSize: [0.5, 0.75],
+    speed: [3, 6],
+    gravity: 7,
+    lifeMs: 1300,
+  },
+  start: { countdownMs: 3000, eggSizeTiles: 1.5, eggSinkTiles: 0.1 },
+  death: { jumpFactor: 1.2, driftSpeed: [1.5, 4], exitMarginTiles: 1.5 },
+  hazards: {
+    damage: 1,
+    invulnerableMs: 1000,
+    hurtPoseMs: 500,
+    bobTiles: 0.35,
+    bobHz: 0.5,
+    hitboxScale: 0.75,
+  },
 };
 
 export function derivePhysics(config: GameConfig) {
