@@ -1,9 +1,9 @@
 import type { EffectId } from '../engine/effects/EffectRegistry';
-import { getTile, type PlatformVariant } from './tiles';
+import { DEFAULT_PICKUP_SIZE, getTile, type PlatformVariant } from './tiles';
 
 /** A run of adjacent same-variant platform tiles. `row` is counted upward from the chunk bottom. */
 export type ParsedPlatform = { col: number; row: number; width: number; variant: PlatformVariant; spriteKey: string };
-export type ParsedPickup = { col: number; row: number; effect: EffectId; spriteKey: string };
+export type ParsedPickup = { col: number; row: number; effect: EffectId; spriteKey: string; size: number };
 export type ParsedChunk = {
   height: number;
   platforms: ParsedPlatform[];
@@ -41,7 +41,9 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
         continue;
       }
       run = null;
-      if (tile.kind === 'pickup') pickups.push({ col, row, effect: tile.effect, spriteKey: tile.spriteKey });
+      if (tile.kind === 'pickup') {
+        pickups.push({ col, row, effect: tile.effect, spriteKey: tile.spriteKey, size: tile.size ?? DEFAULT_PICKUP_SIZE });
+      }
       if (tile.kind === 'spawn') spawn = { col, row };
     }
   });

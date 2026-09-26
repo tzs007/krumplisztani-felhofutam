@@ -17,6 +17,7 @@ import { World } from '@/game/engine/World';
 import { useGameLoop } from '@/game/hooks/useGameLoop';
 import { DragInput } from '@/game/input/DragInput';
 import { GameCanvas } from '@/game/render/GameCanvas';
+import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
 
@@ -35,6 +36,8 @@ export default function GameRoute() {
 
   const worldRef = useRef<World | null>(null);
   const [input] = useState(() => new DragInput());
+  // normally decoded on the splash screen; deep links straight into /game load them here
+  const [sprites, setSprites] = useState(getLoadedSprites);
   const hudUpdatedAt = useRef(0);
   const commands = useSharedValue<number[]>([]);
   const addResult = useAppStore((s) => s.addResult);
@@ -56,6 +59,10 @@ export default function GameRoute() {
   const restart = () => {
     if (size) startRun(size);
   };
+
+  useEffect(() => {
+    if (!sprites) loadSprites().then(setSprites);
+  }, [sprites]);
 
   // pause when the app goes to background
   useEffect(() => {
@@ -106,7 +113,7 @@ export default function GameRoute() {
     }
   };
 
-  useGameLoop(status === 'playing' && size !== null, step, render);
+  useGameLoop(status === 'playing' && size !== null && sprites !== null, step, render);
 
   const pan = useMemo(
     () =>
@@ -132,7 +139,7 @@ export default function GameRoute() {
     <Box className="flex-1 bg-sky">
       <GestureDetector gesture={pan}>
         <Box className="flex-1" onLayout={onLayout}>
-          {size && <GameCanvas width={size.width} height={size.height} commands={commands} />}
+          {size && sprites && <GameCanvas width={size.width} height={size.height} commands={commands} sprites={sprites} />}
         </Box>
       </GestureDetector>
 

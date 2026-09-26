@@ -17,8 +17,12 @@ describe('parseChunk', () => {
       expect.objectContaining({ col: 4, row: 2, width: 2, variant: 'blue' }),
       expect.objectContaining({ col: 0, row: 0, width: 9, variant: 'grass' }),
     ]);
-    expect(parsed.pickups).toEqual([expect.objectContaining({ col: 2, row: 3, effect: 'bonus' })]);
+    expect(parsed.pickups).toEqual([expect.objectContaining({ col: 2, row: 3, effect: 'bonus', size: 1.2 })]);
     expect(parsed.spawn).toEqual({ col: 4, row: 1 });
+  });
+
+  it('uses the default size for pickups without their own', () => {
+    expect(parseChunk(['X'], columns).pickups[0].size).toBe(0.6);
   });
 
   it('pads short rows and rejects too wide ones', () => {

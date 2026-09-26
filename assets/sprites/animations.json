@@ -1,0 +1,39 @@
+{
+  "$comment": "Sprite sheet animations. A sheet is one PNG with `frames` equal-width frames side by side (frame width = PNG width / frames). Sprites not listed here are single images. mode \"time\" (default): plays at `fps`; loop=false stops on the last frame. mode \"velocity\": the jump phase picks the frame \u2014 the rising frames spread over the way up (first = take-off), the LAST frame is for landing and going down (no fps/loop). sourceFrames: which frames of the source strip (assets/sprite-sources) the generator keeps. Pixel density is fixed: 128 px of frame height = 1 tile, so a bigger frame is drawn bigger (anchored at the bottom centre).",
+  "pickup_coin": {
+    "frames": 7,
+    "fps": 12,
+    "loop": true
+  },
+  "pickup_double_score": {
+    "frames": 4,
+    "fps": 6,
+    "loop": true
+  },
+  "pickup_double_jump": {
+    "frames": 4,
+    "fps": 8,
+    "loop": true
+  },
+  "player_jump": {
+    "frames": 2,
+    "mode": "velocity",
+    "sourceFrames": [
+      0,
+      1
+    ]
+  },
+  "player_jump_double_jump": {
+    "frames": 2,
+    "mode": "velocity",
+    "sourceFrames": [
+      0,
+      2
+    ]
+  },
+  "pickup_coin_collect": {
+    "frames": 6,
+    "fps": 15,
+    "loop": false
+  }
+}

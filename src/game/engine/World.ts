@@ -16,7 +16,28 @@ export type Platform = {
   spriteKey: string;
 };
 export type Pickup = { id: number; x: number; y: number; size: number; effect: EffectId; spriteKey: string };
-export type Player = { x: number; y: number; w: number; h: number; vx: number; vy: number };
+/** A pickup that was just taken, kept briefly so the renderer can play a collect animation in its place. */
+export type CollectedPickup = Pickup & { collectedAt: number };
+export type Player = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  vx: number;
+  vy: number;
+  /** Last horizontal direction: 1 = right, -1 = left. */
+  facing: 1 | -1;
+  /** Game time (ms) until which the "got a bonus" pose is shown. */
+  bonusUntil: number;
+  /** spriteKey of the last pickup, so the renderer can show a bonus-specific pose. */
+  bonusSpriteKey: string | null;
+  /** Game time (ms) of the last take-off; drives jump animations and squash & stretch. */
+  landedAt: number;
+  /** Highest y reached since the last take-off; how far below it the player is = fall distance. */
+  apexY: number;
+  /** How far (tiles) the drag target is ahead of the player; the follow spring closes it. */
+  targetOffset: number;
+};
 
 /**
  * dx: horizontal finger movement since the last step, in tiles.
@@ -38,7 +59,8 @@ export type WorldOptions = {
   startChunk?: LevelChunk;
 };
 
-const PICKUP_SIZE = 0.6;
+/** How long a collected pickup is remembered for its collect animation. */
+const COLLECTED_TTL_MS = 1500;
 
 export class World {
   readonly config: GameConfig;
@@ -47,6 +69,7 @@ export class World {
   player: Player;
   platforms: Platform[] = [];
   pickups: Pickup[] = [];
+  collected: CollectedPickup[] = [];
   cameraY = 0;
   /** Game clock in ms; only advances while stepping, so pausing freezes effects too. */
   time = 0;
@@ -82,7 +105,21 @@ export class World {
     this.addChunk(start);
     const spawn = start.spawn ?? { col: Math.floor(config.columns / 2), row: 1 };
     const { widthTiles: w, heightTiles: h } = config.player;
-    this.player = { x: spawn.col + (1 - w) / 2, y: start.baseRow + spawn.row, w, h, vx: 0, vy: 0 };
+    const y = start.baseRow + spawn.row;
+    this.player = {
+      x: spawn.col + (1 - w) / 2,
+      y,
+      w,
+      h,
+      vx: 0,
+      vy: 0,
+      facing: 1,
+      bonusUntil: 0,
+      bonusSpriteKey: null,
+      landedAt: -Infinity,
+      apexY: y,
+      targetOffset: 0,
+    };
     this.fillAhead();
   }
 
@@ -94,18 +131,24 @@ export class World {
     const { input: inputCfg, columns } = this.config;
     this.time += dt * 1000;
 
-    // ── horizontal: follow the finger 1:1, glide out after release ──
-    p.x += input.dx * inputCfg.dragSensitivity;
-    if (input.dragging) {
+    // ── horizontal: the finger moves a target 1:1, a damped spring pulls the
+    //    player after it (slight lag + tiny overshoot = elastic, not rigid) ──
+    p.targetOffset += input.dx * inputCfg.dragSensitivity;
+    if (input.dx !== 0) p.facing = input.dx > 0 ? 1 : -1;
+    if (!input.dragging && input.releaseVelocity !== undefined) {
+      // glide: push the target a little further in the throw direction
+      const v = clamp(input.releaseVelocity * inputCfg.dragSensitivity, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
+      p.targetOffset += v / inputCfg.releaseFriction;
+    }
+    const w = inputCfg.followFrequency;
+    p.vx += (w * w * p.targetOffset - 2 * inputCfg.followDamping * w * p.vx) * dt;
+    const move = p.vx * dt;
+    p.x += move;
+    p.targetOffset -= move;
+    if (Math.abs(p.targetOffset) < 1e-3 && Math.abs(p.vx) < 0.01) {
+      p.x += p.targetOffset;
+      p.targetOffset = 0;
       p.vx = 0;
-    } else {
-      if (input.releaseVelocity !== undefined) {
-        const v = input.releaseVelocity * inputCfg.dragSensitivity;
-        p.vx = clamp(v, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
-      }
-      p.x += p.vx * dt;
-      p.vx *= Math.exp(-inputCfg.releaseFriction * dt);
-      if (Math.abs(p.vx) < 0.01) p.vx = 0;
     }
     p.x = wrap(p.x, columns);
 
@@ -113,6 +156,7 @@ export class World {
     const prevY = p.y;
     p.vy -= this.gravity * dt;
     p.y += p.vy * dt;
+    p.apexY = Math.max(p.apexY, p.y);
     if (p.vy <= 0) {
       let hit: Platform | null = null;
       for (const pl of this.platforms) {
@@ -123,6 +167,8 @@ export class World {
       if (hit) {
         p.y = hit.y;
         p.vy = this.jumpVelocity * Math.sqrt(this.jumpMultiplier);
+        p.landedAt = this.time;
+        p.apexY = p.y;
         if (!this.visited.has(hit.id)) {
           this.visited.add(hit.id);
           const points = this.scoreMultiplier;
@@ -139,7 +185,10 @@ export class World {
         overlapsX(p.x, p.w, pk.x, pk.size, columns) && p.y < pk.y + pk.size && p.y + p.h > pk.y;
       if (!touching) return true;
       this.effects.trigger(pk.effect, this.time);
+      p.bonusUntil = this.time + this.config.player.bonusPoseMs;
+      p.bonusSpriteKey = pk.spriteKey;
       this.stats.pickups++;
+      this.collected.push({ ...pk, collectedAt: this.time });
       events.push({ type: 'pickup', effect: pk.effect });
       return false;
     });
@@ -176,6 +225,7 @@ export class World {
   }
 
   private cull() {
+    this.collected = this.collected.filter((c) => this.time - c.collectedAt < COLLECTED_TTL_MS);
     const limit = this.cameraY - 1;
     this.platforms = this.platforms.filter((pl) => pl.y >= limit);
     this.pickups = this.pickups.filter((pk) => pk.y + pk.size >= limit);
@@ -195,9 +245,9 @@ export class World {
     for (const pk of chunk.pickups) {
       this.pickups.push({
         id: this.nextId++,
-        x: pk.col + (1 - PICKUP_SIZE) / 2,
+        x: pk.col + (1 - pk.size) / 2,
         y: chunk.baseRow + pk.row + 0.15,
-        size: PICKUP_SIZE,
+        size: pk.size,
         effect: pk.effect,
         spriteKey: pk.spriteKey,
       });

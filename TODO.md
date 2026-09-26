@@ -1,4 +1,4 @@
-# The Hiperventi Game – Executable TODO
+# Hiperventi in Krumplisztan – Executable TODO
 
 > Vertikális, végtelen "jump platform" játék (Doodle Jump / Climber stílus) Expo + React Native alapon.
 > Minden lépés után: `npx tsc --noEmit` + `npm test` zöld legyen, mielőtt a következőre lépünk.
@@ -8,16 +8,16 @@
 
 ## 0. Architektúra-döntések (javaslat)
 
-| Terület | Döntés | Indok |
-|---|---|---|
-| Keretrendszer | Expo SDK 57, TypeScript strict, **expo-router** | fájlalapú routing, a 4 screen triviálisan leképezhető |
-| Renderelés | **@shopify/react-native-skia** Canvas | 60fps sok négyzetnél is; iOS + Android + Expo Go kompatibilis; később sprite-ok (`<Image>` / atlas) cserélhetők be |
-| Game loop | Saját fix timestepes loop (`requestAnimationFrame`, dt clamp), tiszta TS engine | a `react-native-game-engine` nem karbantartott; a saját engine unit-tesztelhető |
-| Input | **react-native-gesture-handler** `Gesture.Pan()` a teljes képernyőn | relatív drag → csak X elmozdulás |
-| Állapot | **Zustand** (+ `persist` middleware + AsyncStorage) | app-szintű állapothoz elég, kevesebb boilerplate mint az RTK. A játékvilág NEM storeban van (ref-ben, perf miatt) |
-| UI (menük) | **gluestack-ui** + NativeWind (Tailwind) | a kért tailwind UI |
-| Perzisztencia | `@react-native-async-storage/async-storage` | leaderboard / korábbi statisztikák lokálisan |
-| Teszt | `jest-expo` + `@testing-library/react-native` | engine logika (ütközés, wrap, pontozás, pickupok) tesztelve |
+| Terület       | Döntés                                                                          | Indok                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Keretrendszer | Expo SDK 57, TypeScript strict, **expo-router**                                 | fájlalapú routing, a 4 screen triviálisan leképezhető                                                              |
+| Renderelés    | **@shopify/react-native-skia** Canvas                                           | 60fps sok négyzetnél is; iOS + Android + Expo Go kompatibilis; később sprite-ok (`<Image>` / atlas) cserélhetők be |
+| Game loop     | Saját fix timestepes loop (`requestAnimationFrame`, dt clamp), tiszta TS engine | a `react-native-game-engine` nem karbantartott; a saját engine unit-tesztelhető                                    |
+| Input         | **react-native-gesture-handler** `Gesture.Pan()` a teljes képernyőn             | relatív drag → csak X elmozdulás                                                                                   |
+| Állapot       | **Zustand** (+ `persist` middleware + AsyncStorage)                             | app-szintű állapothoz elég, kevesebb boilerplate mint az RTK. A játékvilág NEM storeban van (ref-ben, perf miatt)  |
+| UI (menük)    | **gluestack-ui** + NativeWind (Tailwind)                                        | a kért tailwind UI                                                                                                 |
+| Perzisztencia | `@react-native-async-storage/async-storage`                                     | leaderboard / korábbi statisztikák lokálisan                                                                       |
+| Teszt         | `jest-expo` + `@testing-library/react-native`                                   | engine logika (ütközés, wrap, pontozás, pickupok) tesztelve                                                        |
 
 ---
 
@@ -25,7 +25,7 @@
 
 - [x] 1.1 A meglévő `package.json` mentése (author: Zsolt Takács, name) → `npx create-expo-app@latest` egy ideiglenes mappába (`--template default`), a fájlok átmozgatása ide, `author` visszaírása
 - [x] 1.2 Template példakód eltávolítása (`npm run reset-project` vagy kézzel), üres `app/` marad
-- [x] 1.3 `app.json`: name `The Hiperventi Game`, slug `the-hiperventi-game`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
+- [x] 1.3 `app.json`: name `Hiperventi in Krumplisztán`, slug `the-hiperventi-game`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
 - [x] 1.4 `tsconfig.json`: `strict: true`, path alias `@/*` → `src/*`
 - [x] 1.5 `git init` + `.gitignore` + első commit
 - **Ellenőrzés:** `npx expo start` → Expo Go-ban üres app betölt
@@ -99,6 +99,7 @@ src/
 - [x] 5.2 `levelConfig.ts` a mintakód szerinti szerkezet: `id, name, tileSize, columns, player{width,height,speed,jumpForce,gravity}, physics{solidTiles, collectibleTiles…}, camera{followPlayer, smoothing, bounds}`
   - `columns = 9` (konfigurálható), `tileSize = screenWidth / columns` (runtime számolt)
 - [x] 5.3 `chunks.ts`: legalább 8 chunk, nehézségi szinttel (`difficulty: 0..3`), fentről lefelé olvasva, pl.:
+
   ```ts
   { id: 'easy-01', difficulty: 0, map: [
     "         ",
@@ -111,7 +112,9 @@ src/
     " ###C    ",
   ]}
   ```
+
   - Szabály: két egymást követő platformsor közötti függőleges távolság ≤ max ugrásmagasság (validáló teszt!)
+
 - [x] 5.4 `parser.ts`: egymás melletti azonos platform-tile-ok → egy platform entitás (merge), pickup a platform fölötti cellában
 - [x] 5.5 `generator.ts`: a kamera fölött mindig ≥ 1,5 képernyőnyi pálya legyen; chunkok véletlenszerű sorrendben; nehézség = f(magasság) → egyre keskenyebb platformok (4 → 3 → 2 → 1 tile); a képernyő alatt elhagyott entitások törlése
 - [x] 5.6 Tesztek: parser (merge, spawn, pickup pozíció), generator (elérhetőség, nehézség-növekedés, determinisztikus seeddel)
@@ -131,9 +134,24 @@ src/
 
 - [x] 7.1 Interfész:
   ```ts
-  interface GameEffectContext { addScore(n: number): void; setScoreMultiplier(m: number): void; setJumpMultiplier(m: number): void; now(): number }
-  interface EffectDef { id: EffectId; durationMs?: number; apply(ctx): void; expire?(ctx): void }
-  class EffectRegistry { register(def); trigger(id); tick(now); active(): ActiveEffect[] }
+  interface GameEffectContext {
+    addScore(n: number): void;
+    setScoreMultiplier(m: number): void;
+    setJumpMultiplier(m: number): void;
+    now(): number;
+  }
+  interface EffectDef {
+    id: EffectId;
+    durationMs?: number;
+    apply(ctx): void;
+    expire?(ctx): void;
+  }
+  class EffectRegistry {
+    register(def);
+    trigger(id);
+    tick(now);
+    active(): ActiveEffect[];
+  }
   ```
 - [x] 7.2 Beépített effektek: `addBonus(n)`, `doubleScore()` (időzített, pl. 10 s), `doubleJumpHeight()` (időzített, pl. 5 s)
 - [x] 7.3 Pickup ütközés (AABB) → `registry.trigger(tile.effect)` → pickup eltűnik
@@ -152,7 +170,7 @@ src/
 
 ## 9. Screenek
 
-- [x] 9.1 **Splash** (`app/index.tsx`): "The Hiperventi Game" felirat, loading indikátor; store hidratálás + asset preload után (min. ~1,5 s) → `router.replace('/menu')`
+- [x] 9.1 **Splash** (`app/index.tsx`): "Hiperventi in Krumplisztán" felirat, loading indikátor; store hidratálás + asset preload után (min. ~1,5 s) → `router.replace('/menu')`
 - [x] 9.2 **Menu**: cím, `Start Game` → `/game`, `Leaderboard` → `/leaderboard`; gluestack Button-ok
 - [x] 9.3 **Game**: teljes képernyős Canvas + Pan gesture, HUD (bal felül pause gomb, középen pontszám/magasság)
   - Pause modal: Resume / Restart / Menu
@@ -196,3 +214,56 @@ src/
 - Auto-scroll: az első pont után a képernyő lassan magától is emelkedik (`camera.autoScrollSpeed`, 0 = kikapcsolva) → „ha nem halad tovább és elhagyja a képernyő alját” eset
 - Renderelés: a JS loop egy lapos draw-listát ír egy Reanimated SharedValue-ba, a Skia a UI szálon rajzolja SkPicture-be (nincs React render frame-enként)
 - `@react-native/jest-preset` 0.86-ra rögzítve (az `expo install` 0.87-et hozott, ami nem kompatibilis RN 0.86-tal)
+
+---
+
+# Epic 2 – Sprite-ok (2026-09-26)
+
+Döntések: 128×128 PNG pixel art (16×16 logikai pixel × 8 nagyítás, retinán 64pt élesen), generált placeholder képek (később cserélhetők), karakter-állapotok, platform szélek külön sprite-tal.
+
+- [x] S1 Generátor script: `scripts/sprites/generate.mjs` (pngjs), `npm run sprites` → `assets/sprites/*.png`; minden sprite 16×16 karakter-mátrix + paletta → 128×128 nearest-neighbour nagyítás
+- [x] S2 Sprite lista:
+  - platform: `platform_{grass,blue,brick}_{left,mid,right,single}` (12 db)
+  - pickup: `pickup_coin`, `pickup_double_score`, `pickup_double_jump`
+  - player: `player_jump`, `player_fall`, `player_bonus` (jobbra néz; balra = tükrözés a rendererben)
+  - háttér: `cloud` (256×128)
+- [x] S3 Sprite regiszter `src/game/render/sprites.ts`: `spriteKey → require(png)`, típusos `SpriteKey`, index-sorrend a draw listához
+- [x] S4 Betöltés: `loadSprites()` (Skia `Data.fromURI` + `MakeImageFromEncoded`), modul-szintű cache; splash megvárja; game screen fallback ha közvetlenül nyílik
+- [x] S5 Engine: `player.facing` (utolsó vízszintes irány), `bonusUntil` (pickup után 600 ms bonus állapot); `playerSpriteKey(world)` tiszta függvény
+- [x] S6 Snapshot: új opok `3 = sprite`, `4 = sprite tükrözve`; platform tile → `_left/_mid/_right/_single`; pickup → `spriteKey`; felhő → `cloud`
+- [x] S7 GameCanvas: `drawImageRectOptions(..., FilterMode.Nearest, MipmapMode.None)`, hiányzó kép → magenta négyzet (jól látható hiba)
+- [x] S8 Tesztek: edge-sprite választás, player állapot (jump/fall/bonus/facing), minden `spriteKey` a tiles.ts-ben létezik a regiszterben, generátor mátrixok 16×16-osak
+- [x] S9 Ellenőrzés: tsc, jest, lint, iOS szimulátor screenshot
+- [x] S10 README: sprite csere leírása (fájlnév = spriteKey, 128×128 PNG, átlátszó háttér)
+
+Megjegyzések:
+- A Skia-betöltés külön fájlban van (`render/loadSprites.ts`), így a regiszter és a snapshot Skia nélkül tesztelhető
+- A karakter hitboxa 0.8 → 0.9 tile lett, hogy illeszkedjen a sprite-hoz
+- S9: iOS szimulátoron ellenőrizve (jump/fall állapot, platform szélek, coin, felhők); a bonus pose és a tükrözés csak unit teszttel ellenőrizve (nincs drag a szimulátorban)
+
+---
+
+# Epic 3 – Animációk + csibe karakter (2026-09-26)
+
+- [x] A1 Sprite sheet támogatás: vízszintes képkockák, kézzel írt leírás `assets/sprites/animations.json` (frames, fps, loop), a generátor és a játék is ezt olvassa
+- [x] A2 Renderer: draw command bővült `frame`/`frames` mezővel (STRIDE 8), a forrás-téglalap a sheetből vág
+- [x] A3 Csibe: `assets/sprite-sources/chick_jump.png` → pixelesítés (bbox kivágás, 128×128 területátlag, éles alfa, 16 színű k-means) → `player_jump`, `player_fall`, bónusz pózok
+- [x] A4 Bónuszonkénti póz: `player_bonus_<pickup>` (coin / double_score / double_jump), 4 kockás színes csillogás; fallback `player_bonus`
+- [x] A5 Animált pickupok: érme pörgés (6), ×2 pulzálás (4), dupla ugrás nyilak (4) + lebegés
+- [x] A6 Procedurális squash & stretch (felugrás/emelkedés)
+- [x] A7 Tesztek (80 db): frame választás, PNG szélesség = frames×128, bónusz póz + fallback, squash & stretch
+- [x] A8a Bónusz póz saját rajzzal: `chick_bonus.png` (láng + érme), minden bónusz típus ezt használja; 139×139, ugrópóz léptékével, talpponthoz igazítva (renderer: 128 px = 1 tile)
+- [x] A8b Esés póz: `chick_fall.png` → `player_fall` (135×135, ugrópóz léptékével); szimulátorban ellenőrizve (jump → fall → jump)
+- [x] A8c Ugrás futóciklus: `chick_run.png` (4 kocka, automatikus szétvágás az átlátszó hézagoknál, közös lépték/talpvonal/paletta, test-súlypontra igazítva) → `player_jump` 4 kocka, 10 fps, loop; szimulátorban ellenőrizve
+- [x] A8e Esés póz csak valódi zuhanásnál: a csúcsponttól (`player.apexY`) mért ≥ `fallPoseAfterTiles` (3 tile = 1 platform) esés után; normál ugrásnál a futóciklus marad; tesztekkel + szimulátorban ellenőrizve
+- [x] A8f Dupla ugrás boost: felvételkor `chick_bonus_double_jump.png` póz (146 px), utána az effekt 5 mp-e alatt `chick_run_double_jump.png` → `player_jump_double_jump` (4 kocka, 177 px, a futóciklus léptékében); általános szabály: aktív effekt + létező `player_jump_<effekt>` sprite; pixelizer: kis levált szegmensek összevonása, igazítás a nem-kék pixelekre; tesztek + szimulátor (érintés nélkül középen)
+- [x] A8g Esés póz küszöbe fél platformtávolság: `fallPoseAfterTiles` 3 → 1.5
+- [x] A9 Nyugodtabb ugrás: 2 kocka sebesség szerint (`mode: velocity`, `sourceFrames: [0,1]`) a futó és a lángoló futó animációra; squash 22% → 12%, stretch 10% → 6%; ugrásonként max. 1 kockaváltás (teszt + szimulátor)
+- [x] A10 Érme art: `gold_spin.png` (7×25px) → `pickup_coin` 7 kocka 12 fps loop; `gold_collect.png` (6×25px) → `pickup_coin_collect` 6 kocka 15 fps egyszeri, a felvétel helyén (`world.collected`, 1,5 s TTL); rács-import ×5 + 128-as kiegészítés; tesztek + szimulátor
+- [x] A11 Ugrás fázisai: földet érés (összenyomódás alatt) = összezárt láb, emelkedés végig = terpesz, csúcs után lefelé = összezárt láb (`jumpProgress` + velocity mód: utolsó kocka = lefelé); lángoló ugrás `sourceFrames [0,2]`
+- [x] A12 Pickup méret típusonként (`TileDef.size`, alap 0.6); érme 1.2 (rajz + ütközés + felvételi animáció)
+- [x] A13 Elasztikus húzás: az ujj 1:1-ben a célpontot mozgatja, csillapított rugó húzza utána a csibét (`followFrequency` 16, `followDamping` 0.7: kis késés + enyhe túllendülés); elengedéskor a célpont a dobás irányába tolódik (kicsúszás); tesztek, eszközön még kipróbálandó
+- [ ] A8d Valódi art: `chick_bonus_double_score.png` (a ×2 pont póz most az érmés); a pózok közti méretarány finomhangolása, ha eszközön zavaró
+- [ ] A9 Eszközön: bónusz póz, tükrözés és squash kézi ellenőrzése
+
+Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel került be, a kód nem használja.

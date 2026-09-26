@@ -6,7 +6,10 @@ export type TileDef =
   | { kind: 'empty' }
   | { kind: 'spawn' }
   | { kind: 'platform'; variant: PlatformVariant; spriteKey: string }
-  | { kind: 'pickup'; effect: EffectId; spriteKey: string };
+  /** size: drawn size and hitbox in tiles (default DEFAULT_PICKUP_SIZE), centred on its cell. */
+  | { kind: 'pickup'; effect: EffectId; spriteKey: string; size?: number };
+
+export const DEFAULT_PICKUP_SIZE = 0.6;
 
 /**
  * Tile legend for level matrices. Add a char here to introduce a new tile;
@@ -19,7 +22,7 @@ export const tiles: Record<string, TileDef> = {
   '#': { kind: 'platform', variant: 'grass', spriteKey: 'platform_grass' },
   '=': { kind: 'platform', variant: 'blue', spriteKey: 'platform_blue' },
   B: { kind: 'platform', variant: 'brick', spriteKey: 'platform_brick' },
-  C: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_coin' },
+  C: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_coin', size: 1.2 },
   X: { kind: 'pickup', effect: 'doubleScore', spriteKey: 'pickup_double_score' },
   J: { kind: 'pickup', effect: 'doubleJump', spriteKey: 'pickup_double_jump' },
 };

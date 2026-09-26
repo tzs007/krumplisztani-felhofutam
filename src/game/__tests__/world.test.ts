@@ -73,15 +73,38 @@ describe('World physics', () => {
     expect(world.score).toBe(1);
   });
 
-  it('moves 1:1 with the finger and wraps around the edge', () => {
+  it('follows the finger elastically: lags first, ends exactly 1:1, slight overshoot', () => {
     const world = makeWorld(['.........', '....P....', '#########']);
     const x0 = world.player.x;
+    const drag: StepInput = { dragging: true, dx: 0 };
     world.step(DT, { dragging: true, dx: 2 });
-    expect(world.player.x).toBeCloseTo(x0 + 2);
-    world.step(DT, { dragging: true, dx: 9 });
-    expect(world.player.x).toBeCloseTo(x0 + 2);
-    world.step(DT, { dragging: true, dx: -(x0 + 2) - 0.5 });
-    expect(world.player.x).toBeCloseTo(8.5);
+    expect(world.player.x - x0).toBeGreaterThan(0);
+    expect(world.player.x - x0).toBeLessThan(0.2); // lags behind the finger at first
+
+    let maxX = world.player.x;
+    for (let t = 0; t < 1; t += DT) {
+      world.step(DT, drag);
+      maxX = Math.max(maxX, world.player.x);
+    }
+    expect(world.player.x).toBeCloseTo(x0 + 2, 2); // arrives exactly where the finger went
+    expect(maxX - (x0 + 2)).toBeGreaterThan(0); // elastic overshoot…
+    expect(maxX - (x0 + 2)).toBeLessThan(0.2); // …but only a little
+  });
+
+  it('reaches the target within a few tenths of a second', () => {
+    const world = makeWorld(['.........', '....P....', '#########']);
+    const x0 = world.player.x;
+    world.step(DT, { dragging: true, dx: 1 });
+    for (let t = 0; t < 0.25; t += DT) world.step(DT, { dragging: true, dx: 0 });
+    expect(Math.abs(world.player.x - (x0 + 1))).toBeLessThan(0.1);
+  });
+
+  it('wraps around the screen edge while following', () => {
+    const world = makeWorld(['.........', '....P....', '#########']);
+    const x0 = world.player.x;
+    world.step(DT, { dragging: true, dx: -(x0 + 0.5) }); // target: 0.5 tiles past the left edge
+    for (let t = 0; t < 1; t += DT) world.step(DT, { dragging: true, dx: 0 });
+    expect(world.player.x).toBeCloseTo(8.5, 2);
   });
 
   it('glides a little after release, then stops', () => {

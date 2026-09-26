@@ -9,13 +9,31 @@ export type GameConfig = {
   maxJumpTiles: number;
   /** Seconds from take-off to apex; together with maxJumpTiles derives gravity + jump velocity. */
   jumpTimeToApex: number;
-  player: { widthTiles: number; heightTiles: number };
+  player: {
+    widthTiles: number;
+    heightTiles: number;
+    /** How long the "got a bonus" sprite is shown after a pickup. */
+    bonusPoseMs: number;
+    /**
+     * The falling sprite only shows after dropping this far below the jump's
+     * highest point (half a platform spacing). A normal hop to the next
+     * platform drops ~1 tile, so it never looks like a fall.
+     */
+    fallPoseAfterTiles: number;
+  };
   input: {
-    /** 1 = the character moves exactly as far as the finger. */
+    /** 1 = the character ends up exactly as far as the finger moved. */
     dragSensitivity: number;
-    /** Exponential decay (1/s) of the horizontal glide after the finger is released. */
+    /**
+     * Elastic follow: the finger moves a target, a spring pulls the character
+     * after it. Higher frequency (rad/s) = snappier, lower = more lag.
+     */
+    followFrequency: number;
+    /** Spring damping ratio: 1 = no overshoot, below 1 = a little elastic overshoot. */
+    followDamping: number;
+    /** Glide after release: extra distance = release speed / releaseFriction (tiles). */
     releaseFriction: number;
-    /** Cap for the glide speed in tiles/s. */
+    /** Cap for the release speed in tiles/s. */
     maxGlideSpeed: number;
   };
   camera: {
@@ -48,8 +66,14 @@ export const defaultGameConfig: GameConfig = {
   columns: 9,
   maxJumpTiles: 4,
   jumpTimeToApex: 0.45,
-  player: { widthTiles: 0.8, heightTiles: 0.8 },
-  input: { dragSensitivity: 1, releaseFriction: 7, maxGlideSpeed: 14 },
+  player: { widthTiles: 0.9, heightTiles: 0.9, bonusPoseMs: 600, fallPoseAfterTiles: 1.5 },
+  input: {
+    dragSensitivity: 1,
+    followFrequency: 16,
+    followDamping: 0.7,
+    releaseFriction: 7,
+    maxGlideSpeed: 14,
+  },
   camera: { followRatio: 0.45, smoothing: 0.15, autoScrollSpeed: 0.5, autoScrollPerDifficulty: 0.25 },
   generation: { aheadScreens: 1.5, rowsPerDifficulty: 40, maxDifficulty: 3 },
   effects: { doubleScoreMs: 10_000, doubleJumpMs: 5_000, coinBonus: 1 },
