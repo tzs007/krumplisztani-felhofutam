@@ -4,10 +4,12 @@ import { DEFAULT_PICKUP_SIZE, getTile, type PlatformVariant } from './tiles';
 /** A run of adjacent same-variant platform tiles. `row` is counted upward from the chunk bottom. */
 export type ParsedPlatform = { col: number; row: number; width: number; variant: PlatformVariant; spriteKey: string };
 export type ParsedPickup = { col: number; row: number; effect: EffectId; spriteKey: string; size: number };
+export type ParsedHazard = { col: number; row: number; spriteKey: string; size: number };
 export type ParsedChunk = {
   height: number;
   platforms: ParsedPlatform[];
   pickups: ParsedPickup[];
+  hazards: ParsedHazard[];
   spawn?: { col: number; row: number };
 };
 
@@ -19,6 +21,7 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
   const height = map.length;
   const platforms: ParsedPlatform[] = [];
   const pickups: ParsedPickup[] = [];
+  const hazards: ParsedHazard[] = [];
   let spawn: ParsedChunk['spawn'];
 
   map.forEach((line, lineIndex) => {
@@ -44,9 +47,10 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
       if (tile.kind === 'pickup') {
         pickups.push({ col, row, effect: tile.effect, spriteKey: tile.spriteKey, size: tile.size ?? DEFAULT_PICKUP_SIZE });
       }
+      if (tile.kind === 'hazard') hazards.push({ col, row, spriteKey: tile.spriteKey, size: tile.size });
       if (tile.kind === 'spawn') spawn = { col, row };
     }
   });
 
-  return { height, platforms, pickups, spawn };
+  return { height, platforms, pickups, hazards, spawn };
 }

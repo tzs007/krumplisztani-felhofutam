@@ -36,6 +36,10 @@ A pálya `src/game/level/chunks.ts`-ben lévő mátrixokból áll (fentről lefe
 
 Szabályok (a tesztek ellenőrzik): minden sor pontosan `columns` széles, két platformsor között legfeljebb `maxJumpTiles - 1` sor lehet (chunk-határon át is), pickup csak platform fölött állhat. Új tile: `src/game/level/tiles.ts` (a `spriteKey` a későbbi sprite-hoz).
 
+## Veszélyek (hazard)
+
+A `hazard` tile a platform fölött lebeg (`config.hazards.bobTiles` / `bobHz`), az ütközés az engine-ben számolt, lebegő pozícióval történik (a hitbox kicsit kisebb a rajznál: `hitboxScale`). Érintéskor `damage` pontot von le (0 alá nem megy), `hit` eseményt küld (erős rezgés), és `invulnerableMs` ideig nem sebezhető a játékos: először `hurtPoseMs` ideig a `player_hurt` póz látszik (forrás: `chick_hurt.png`), utána a sérthetetlenség végéig villog. Sprite: a `Fruit+.png` gyümölcs-atlasz (16×16-os cellák) egy cellája, ×6 → 128.
+
 ## Új pickup effekt
 
 ```ts
@@ -61,7 +65,7 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 - Méret: **128×128 px képkockánként** (négyzetes kockák; a karakterpózok lehetnek nagyobbak, lásd lent), átlátszó háttér (a felhő 256×128). A renderer nearest-neighbour szűréssel skáláz, így a pixel art éles marad.
 - **Animáció = sprite sheet** (időalapú: `fps`/`loop`, vagy ugrásnál sebességalapú: `"mode": "velocity"`): a képkockák egy PNG-ben, vízszintesen egymás mellett (pl. 6 kocka → 768×128). A kockaszám, fps és ismétlés az `assets/sprites/animations.json`-ban van, kézzel szerkeszthető. Ami nincs benne, az egyetlen kép.
 - Platformok: `platform_<variant>_{left,mid,right,single}` — a sprite **felső éle** a járható felület.
-- Karakter (csibe): `player_jump` (ugrás, futóciklus), `player_fall` (csak ha a csúcsponthoz képest legalább fél platformnyit — `config.player.fallPoseAfterTiles`, alapból 1.5 tile — zuhant), bónusz pózok. Mind **jobbra néz**, balra a renderer tükrözi; a talp a kép alján legyen.
+- Karakter (csibe): `player_jump` (ugrás), `player_fall` (esernyő: csak ha a csúcsponthoz képest legalább fél platformnyit — `config.player.fallPoseAfterTiles`, alapból 1.5 tile — zuhant; ekkor az esés az ernyőn siklásra lassul: `glideSpeedFactor` 1/3, `glideDrag`), bónusz pózok. Mind **jobbra néz**, balra a renderer tükrözi; a talp a kép alján legyen.
 - **Bónuszonként más póz**: pickup után 600 ms-ig (`config.player.bonusPoseMs`) a `player_bonus_<pickup neve>` látszik (pl. `pickup_coin` → `player_bonus_coin`); ha ilyen nincs, a `player_bonus`.
 - Procedurális mozgás (képkocka nélkül): felugráskor enyhe összenyomódás (12%), emelkedés közben nyúlás (6%), a pickupok lebegnek.
 
@@ -70,7 +74,7 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 **Karakter forrásképek** (`assets/sprite-sources/`, tetszőleges méretű, átlátszó hátterű PNG):
 - `chick_run.png` → `player_jump`: **2 kocka, az ugrás fázisa szerint** (`"mode": "velocity"`): felfelé az első (terpesz), földet éréskor és lefelé az utolsó (összezárt láb). A csíkból a `sourceFrames` kockái kerülnek be (most `[0, 1]`). Kockák balról jobbra, **átlátszó hézaggal elválasztva** (nem kell egyenletes rács); közös lépték, talpvonal és paletta.
 - `chick_jump.png` → `player_jump`, ha nincs `chick_run.png`. Ez adja a léptéket a többi pózhoz: a tartalma = 128×128 = 1 tile.
-- `chick_fall.png` → `player_fall` (ha nincs, az ugrópóz).
+- `chick_fall.png` → `player_fall` (most: esernyős csibe; ha nincs, az ugrópóz). Mivel a forrásképeken nem ugyanakkora a csibe, a generátorban pózonkénti léptékszorzó korrigál (`FALL_SOURCE_SCALE`), a középre igazítás pedig csak a test sávját nézi (`centerBand`), hogy a fej fölötti esernyő ne húzza el.
 - `chick_run_<effekt>.png` → `player_jump_<effekt>`: ugrás animáció, amíg az időzített effekt aktív (most: `chick_run_double_jump.png` → kék lángoló futás a dupla ugrás 5 mp-e alatt). Ugyanolyan csík, mint a `chick_run.png`, és ugyanabban a léptékben készül; a lángok miatt nagyobb kocka (177 px) a talpponthoz igazítva.
 - `chick_bonus.png` → minden bónusz póz; típusonként felülírható: `chick_bonus_coin.png`, `chick_bonus_double_score.png`, `chick_bonus_double_jump.png` (ez már megvan: kék lángoló csibe). A kék/cián effekt-pixeleket (láng, szikra) a script figyelmen kívül hagyja a középre igazításnál, így a csibe mindig középen van.
 - A többi póz az ugrópóz léptékével készül, így a csibe mindig ugyanakkora; ha a képen extra elem van (láng, érme), a sprite nagyobb lesz (pl. 139×139), és a játék a talppontjához igazítva nagyobbra rajzolja (**128 px = 1 tile**).

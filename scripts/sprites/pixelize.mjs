@@ -88,14 +88,18 @@ function sample(src, { size, cell, centerX, bottom, clipX0 = 0, clipX1 = src.wid
  */
 export function pixelize(
   path,
-  { size, cell: fixedCell, colors = 16, alphaThreshold = 0.5, centerOnCharacter = false } = {},
+  { size, cell: fixedCell, colors = 16, alphaThreshold = 0.5, centerOnCharacter = false, centerBand = [0, 1] } = {},
 ) {
   const src = readPng(path);
   const box = bbox(src);
   // centerOnCharacter: centre on the chick itself, not on flames/effects around it,
-  // and grow the square so nothing on the wider side gets cut off
+  // and grow the square so nothing on the wider side gets cut off.
+  // centerBand: vertical slice of the bbox (fractions) used for the centroid,
+  // e.g. [0.3, 1] ignores a prop held above the head (umbrella).
+  const bandY0 = Math.round(box.minY + box.h * centerBand[0]);
+  const bandY1 = Math.round(box.minY + box.h * centerBand[1]);
   const centerX = centerOnCharacter
-    ? characterCentroidX(src, box.minX, box.maxX, box.minY, box.maxY + 1)
+    ? characterCentroidX(src, box.minX, box.maxX, bandY0, bandY1)
     : (box.minX + box.maxX + 1) / 2;
   const content = Math.max(2 * Math.max(centerX - box.minX, box.maxX + 1 - centerX), box.h);
   if (!size) size = Math.ceil(content / fixedCell);
@@ -233,4 +237,33 @@ export function gridFrames(path, { frame, scale, pad = frame * scale }) {
     frames.push({ width: pad, height: pad, data });
   }
   return frames;
+}
+
+/**
+ * One cell of an even-grid sheet (e.g. a fruit/item atlas): cell (`col`, `row`)
+ * of `cell`px, upscaled by the integer `scale` and centred on a `pad`×`pad`
+ * transparent canvas.
+ * @returns {{ width: number, height: number, data: Uint8Array }}
+ */
+export function gridCell(path, { cell, col, row, scale, pad = cell * scale }) {
+  const src = readPng(path);
+  if (src.width % cell !== 0 || src.height % cell !== 0) {
+    throw new Error(`${path}: ${src.width}×${src.height} is not a grid of ${cell}px cells`);
+  }
+  const size = cell * scale;
+  if (pad < size) throw new Error(`${path}: pad ${pad} < scaled cell ${size}`);
+  const off = Math.floor((pad - size) / 2);
+  const data = new Uint8Array(pad * pad * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const sx = col * cell + Math.floor(x / scale);
+      const sy = row * cell + Math.floor(y / scale);
+      const s = (sy * src.width + sx) * 4;
+      if (src.data[s + 3] < ALPHA_ON) continue;
+      const o = ((off + y) * pad + off + x) * 4;
+      data.set(src.data.subarray(s, s + 3), o);
+      data[o + 3] = 255;
+    }
+  }
+  return { width: pad, height: pad, data };
 }

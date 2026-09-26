@@ -7,7 +7,9 @@ export type TileDef =
   | { kind: 'spawn' }
   | { kind: 'platform'; variant: PlatformVariant; spriteKey: string }
   /** size: drawn size and hitbox in tiles (default DEFAULT_PICKUP_SIZE), centred on its cell. */
-  | { kind: 'pickup'; effect: EffectId; spriteKey: string; size?: number };
+  | { kind: 'pickup'; effect: EffectId; spriteKey: string; size?: number }
+  /** Hovers above the platform below it; touching it hurts (see config.hazards). */
+  | { kind: 'hazard'; spriteKey: string; size: number };
 
 export const DEFAULT_PICKUP_SIZE = 0.6;
 
@@ -25,6 +27,7 @@ export const tiles: Record<string, TileDef> = {
   C: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_coin', size: 1.2 },
   X: { kind: 'pickup', effect: 'doubleScore', spriteKey: 'pickup_double_score' },
   J: { kind: 'pickup', effect: 'doubleJump', spriteKey: 'pickup_double_jump' },
+  O: { kind: 'hazard', spriteKey: 'hazard_orange', size: 1.2 },
 };
 
 export function getTile(char: string): TileDef {

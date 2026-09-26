@@ -93,6 +93,7 @@ export default function GameRoute() {
     const events = world.step(dt, input.consume(tileSize));
     for (const e of events) {
       if (e.type === 'pickup') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (e.type === 'hit') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       if (e.type === 'gameOver') finishRun(world);
     }
   };

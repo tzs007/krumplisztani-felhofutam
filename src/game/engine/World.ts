@@ -16,6 +16,11 @@ export type Platform = {
   spriteKey: string;
 };
 export type Pickup = { id: number; x: number; y: number; size: number; effect: EffectId; spriteKey: string };
+/**
+ * Hovering obstacle: `baseY` is its lowest point (just above the platform),
+ * `y` bobs between baseY and baseY + bobTiles. Touching it costs points.
+ */
+export type Hazard = { id: number; x: number; y: number; baseY: number; size: number; spriteKey: string; phase: number };
 /** A pickup that was just taken, kept briefly so the renderer can play a collect animation in its place. */
 export type CollectedPickup = Pickup & { collectedAt: number };
 export type Player = {
@@ -37,6 +42,8 @@ export type Player = {
   apexY: number;
   /** How far (tiles) the drag target is ahead of the player; the follow spring closes it. */
   targetOffset: number;
+  /** Game time (ms) of the last hazard hit; drives invulnerability, blinking and the hurt pose. */
+  hurtAt: number;
 };
 
 /**
@@ -48,6 +55,7 @@ export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: numbe
 export type GameEvent =
   | { type: 'land'; platformId: number; points: number }
   | { type: 'pickup'; effect: EffectId }
+  | { type: 'hit'; damage: number }
   | { type: 'gameOver' };
 
 export type WorldOptions = {
@@ -70,6 +78,7 @@ export class World {
   platforms: Platform[] = [];
   pickups: Pickup[] = [];
   collected: CollectedPickup[] = [];
+  hazards: Hazard[] = [];
   cameraY = 0;
   /** Game clock in ms; only advances while stepping, so pausing freezes effects too. */
   time = 0;
@@ -77,10 +86,12 @@ export class World {
   scoreMultiplier = 1;
   jumpMultiplier = 1;
   over = false;
-  stats = { platforms: 0, pickups: 0 };
+  stats = { platforms: 0, pickups: 0, hits: 0 };
 
   private readonly gravity: number;
   private readonly jumpVelocity: number;
+  /** Terminal fall speed under the umbrella (tiles/s). */
+  readonly glideFallSpeed: number;
   private readonly generator: LevelGenerator;
   private readonly visited = new Set<number>();
   private nextId = 1;
@@ -89,6 +100,9 @@ export class World {
     this.config = config;
     this.viewHeight = viewHeight;
     ({ gravity: this.gravity, jumpVelocity: this.jumpVelocity } = derivePhysics(config));
+    // speed reached when the umbrella opens (after falling fallPoseAfterTiles from the apex), scaled down
+    const openSpeed = Math.sqrt(2 * this.gravity * config.player.fallPoseAfterTiles);
+    this.glideFallSpeed = openSpeed * config.player.glideSpeedFactor;
     this.generator = new LevelGenerator(config, rng, chunks, startChunk);
 
     const ctx: EffectContext = {
@@ -119,6 +133,7 @@ export class World {
       landedAt: -Infinity,
       apexY: y,
       targetOffset: 0,
+      hurtAt: -Infinity,
     };
     this.fillAhead();
   }
@@ -154,7 +169,14 @@ export class World {
 
     // ── vertical: gravity + one-way platforms (only when falling onto the top) ──
     const prevY = p.y;
-    p.vy -= this.gravity * dt;
+    const glide = this.glideFallSpeed;
+    if (isFalling(p, this.config.player.fallPoseAfterTiles) && p.vy - this.gravity * dt < -glide) {
+      // umbrella open: instead of accelerating, ease toward the glide speed
+      // (brakes if faster, never overshoots it)
+      p.vy = -glide + (p.vy + glide) * Math.exp(-this.config.player.glideDrag * dt);
+    } else {
+      p.vy -= this.gravity * dt;
+    }
     p.y += p.vy * dt;
     p.apexY = Math.max(p.apexY, p.y);
     if (p.vy <= 0) {
@@ -194,6 +216,27 @@ export class World {
     });
     this.effects.tick(this.time);
 
+    // ── hazards: hover up and down; touching one costs points (then brief invulnerability) ──
+    const hz = this.config.hazards;
+    for (const h of this.hazards) {
+      h.y = h.baseY + ((1 - Math.cos((this.time / 1000) * hz.bobHz * 2 * Math.PI + h.phase)) / 2) * hz.bobTiles;
+    }
+    if (!this.isInvulnerable) {
+      const hit = this.hazards.find((h) => {
+        const box = h.size * hz.hitboxScale;
+        const inset = (h.size - box) / 2;
+        return (
+          overlapsX(p.x, p.w, h.x + inset, box, columns) && p.y < h.y + inset + box && p.y + p.h > h.y + inset
+        );
+      });
+      if (hit) {
+        this.score = Math.max(0, this.score - hz.damage);
+        p.hurtAt = this.time;
+        this.stats.hits++;
+        events.push({ type: 'hit', damage: hz.damage });
+      }
+    }
+
     // ── camera: only moves up ──
     const { followRatio, smoothing, autoScrollSpeed } = this.config.camera;
     const target = p.y - this.viewHeight * (1 - followRatio);
@@ -215,6 +258,10 @@ export class World {
     return events;
   }
 
+  get isInvulnerable(): boolean {
+    return this.time - this.player.hurtAt < this.config.hazards.invulnerableMs;
+  }
+
   get difficulty(): number {
     return this.generator.difficultyAt(Math.floor(this.cameraY));
   }
@@ -229,6 +276,7 @@ export class World {
     const limit = this.cameraY - 1;
     this.platforms = this.platforms.filter((pl) => pl.y >= limit);
     this.pickups = this.pickups.filter((pk) => pk.y + pk.size >= limit);
+    this.hazards = this.hazards.filter((h) => h.baseY + h.size >= limit);
   }
 
   private addChunk(chunk: PlacedChunk) {
@@ -252,7 +300,28 @@ export class World {
         spriteKey: pk.spriteKey,
       });
     }
+    for (const hz of chunk.hazards) {
+      const baseY = chunk.baseRow + hz.row + 0.15;
+      this.hazards.push({
+        id: this.nextId,
+        x: hz.col + (1 - hz.size) / 2,
+        y: baseY,
+        baseY,
+        size: hz.size,
+        spriteKey: hz.spriteKey,
+        // out of sync with each other, deterministic per id
+        phase: (this.nextId++ * 2.399) % (2 * Math.PI),
+      });
+    }
   }
+}
+
+/**
+ * Really falling (not just the top of a normal hop): moving down and at least
+ * `fallPoseAfterTiles` below the jump's apex. Drives the umbrella pose and glide.
+ */
+export function isFalling(player: Player, fallPoseAfterTiles: number): boolean {
+  return player.vy <= 0 && player.apexY - player.y >= fallPoseAfterTiles;
 }
 
 export function wrap(x: number, columns: number): number {

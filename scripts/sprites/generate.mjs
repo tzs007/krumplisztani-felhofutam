@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import pngjs from 'pngjs';
 
-import { gridFrames, pixelize, pixelizeStrip } from './pixelize.mjs';
+import { gridCell, gridFrames, pixelize, pixelizeStrip } from './pixelize.mjs';
 
 const { PNG } = pngjs;
 const GRID = 16;
@@ -229,6 +229,11 @@ add('pickup_coin', () =>
     ? writeImage('pickup_coin', gridFrames(goldSpin, { frame: 25, scale: 5, pad: 128 }))
     : writeSheet('pickup_coin', GRID, GRID, coin),
 );
+// hazards: cells of the 16px fruit atlas (Fruit+.png, 38×6 cells), ×6 → 96, padded to 128
+const fruits = join(SOURCE_DIR, 'Fruit+.png');
+if (existsSync(fruits)) {
+  add('hazard_orange', () => writeImage('hazard_orange', gridCell(fruits, { cell: 16, col: 9, row: 1, scale: 6, pad: 128 })));
+}
 if (existsSync(goldCollect)) {
   add('pickup_coin_collect', () =>
     writeImage('pickup_coin_collect', gridFrames(goldCollect, { frame: 25, scale: 5, pad: 128 })),
@@ -256,9 +261,37 @@ for (const effect of ['double_jump']) {
   );
 }
 const fallSource = join(SOURCE_DIR, 'chick_fall.png');
+/**
+ * Source images don't all draw the chick at the same size; this corrects a pose
+ * to the jump pose's scale (< 1 = the chick is smaller in that source image,
+ * measured by eye size).
+ */
+const FALL_SOURCE_SCALE = 0.85;
 add('player_fall', () =>
-  writeImage('player_fall', existsSync(fallSource) ? pixelize(fallSource, { cell: chick.cell, colors: 16 }) : chick),
+  writeImage(
+    'player_fall',
+    existsSync(fallSource)
+      ? // umbrella above the head: centre on the body (lower 70%) so the chick stays put
+        pixelize(fallSource, {
+          cell: chick.cell * FALL_SOURCE_SCALE,
+          colors: 20,
+          centerOnCharacter: true,
+          centerBand: [0.3, 1],
+        })
+      : chick,
+  ),
 );
+// hazard hit: chick_hurt.png → player_hurt (same scale correction idea as the fall pose)
+const hurtSource = join(SOURCE_DIR, 'chick_hurt.png');
+const HURT_SOURCE_SCALE = 1;
+if (existsSync(hurtSource)) {
+  add('player_hurt', () =>
+    writeImage(
+      'player_hurt',
+      pixelize(hurtSource, { cell: chick.cell * HURT_SOURCE_SCALE, colors: 24, centerOnCharacter: true }),
+    ),
+  );
+}
 add('player_bonus', () => writeImage('player_bonus', pixelize(bonusSource('generic'), { cell: chick.cell, colors: 24 })));
 for (const type of ['coin', 'double_score', 'double_jump']) {
   const name = `player_bonus_${type}`;

@@ -267,3 +267,17 @@ Megjegyzések:
 - [ ] A9 Eszközön: bónusz póz, tükrözés és squash kézi ellenőrzése
 
 Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel került be, a kód nem használja.
+
+---
+
+# Epic 4 – Veszélyek: narancs (2026-09-26)
+
+- [x] H1 Sprite: `Fruit+.png` (áthelyezve `assets/sprite-sources/`-ba) 9. oszlop / 1. sor → `hazard_orange` (×6, 128-ra kiegészítve); `gridCell` import
+- [x] H2 Tile `O` (`kind: 'hazard'`, size 1.2), parser + engine: lebegés (`bobTiles` 0.35, `bobHz` 0.5, egyedi fázis), AABB ütközés 75%-os hitbox-szal
+- [x] H3 Találat: −1 pont (min. 0), `hit` esemény + erős haptika, 1 mp sérthetetlenség villogással, `stats.hits`
+- [x] H4 Pályák: `easy-04`, `mid-04`, `hard-03` naranccsal; szabály + teszt: csak ≥ 3 széles platform fölé
+- [x] H5 Tesztek (hazards.test.ts): lebegés, pontlevonás, 0 alsó korlát, sérthetetlenség, villogás, sprite
+- [x] H6a Esés póz csere: esernyős csibe (`chick_fall.png`), léptékkorrekció 0.85 (szemméret alapján), igazítás a test alsó 70%-ára
+- [x] H6 `player_hurt`: `chick_hurt.png` (villámsújtott csontváz) → 134×134, ugrópóz léptékében; találat után 0,5 mp folyamatos sérült póz, majd villogás a sérthetetlenség végéig; teszt + szimulátor
+- [x] H8 Esernyős siklás: nyitott ernyővel (esés póz) az esési sebesség a nyitáskori harmadára lassul (~3,6 tile/s), ~0,1 mp alatt fékez, nem lendül túl; normál ugrást nem érinti (`isFalling` közös az engine-ben és a rajzolásban); tesztek
+- [ ] H7 Eszközön kipróbálni: nehézség, hitbox érzet

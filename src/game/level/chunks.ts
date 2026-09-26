@@ -8,7 +8,10 @@
  *   boundaries) is at most maxJumpTiles - 1
  * - a pickup must sit directly above a platform tile
  *
- * Legend: see tiles.ts ('.' or ' ' empty, '#' '=' 'B' platforms, C X J pickups, P spawn)
+ * - a hazard (O) hovers directly above a platform at least 3 tiles wide, so
+ *   there is always somewhere safe to land
+ *
+ * Legend: see tiles.ts ('.' or ' ' empty, '#' '=' 'B' platforms, C X J pickups, O hazard, P spawn)
  */
 export type LevelChunk = {
   id: string;
@@ -80,6 +83,21 @@ export const chunks: LevelChunk[] = [
       '....####.',
     ],
   },
+  {
+    id: 'easy-04',
+    difficulty: 0,
+    map: [
+      '.........',
+      '.O.......',
+      '.####....',
+      '.........',
+      '.........',
+      '....====.',
+      '.........',
+      '......C..',
+      '....####.',
+    ],
+  },
   // ── difficulty 1: 3-wide platforms ──────────────────────────
   {
     id: 'mid-01',
@@ -126,6 +144,21 @@ export const chunks: LevelChunk[] = [
       '#.......#',
     ],
   },
+  {
+    id: 'mid-04',
+    difficulty: 1,
+    map: [
+      '.........',
+      '.......O.',
+      '.....###.',
+      '.........',
+      '.........',
+      '.###.....',
+      '.........',
+      '.........',
+      '...###...',
+    ],
+  },
   // ── difficulty 2: 2-wide platforms ──────────────────────────
   {
     id: 'hard-01',
@@ -153,6 +186,21 @@ export const chunks: LevelChunk[] = [
       '.........',
       '.........',
       '##.......',
+      '.........',
+      '.....##..',
+    ],
+  },
+  {
+    id: 'hard-03',
+    difficulty: 2,
+    map: [
+      '.........',
+      '.........',
+      '.##......',
+      '.........',
+      '.O.......',
+      '.###.....',
+      '.........',
       '.........',
       '.....##..',
     ],

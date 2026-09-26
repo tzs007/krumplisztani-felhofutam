@@ -20,6 +20,14 @@ export type GameConfig = {
      * platform drops ~1 tile, so it never looks like a fall.
      */
     fallPoseAfterTiles: number;
+    /**
+     * Umbrella glide: once the falling pose shows, the fall speed eases to this
+     * fraction of the speed the player had when the umbrella opened
+     * (1 = no glide). Slower fall = more time to steer.
+     */
+    glideSpeedFactor: number;
+    /** How quickly (1/s) the umbrella brakes to the glide speed. */
+    glideDrag: number;
   };
   input: {
     /** 1 = the character ends up exactly as far as the finger moved. */
@@ -60,13 +68,33 @@ export type GameConfig = {
     doubleJumpMs: number;
     coinBonus: number;
   };
+  hazards: {
+    /** Points lost per hit (score never goes below 0). */
+    damage: number;
+    /** After a hit the player can't be hurt again for this long (and blinks). */
+    invulnerableMs: number;
+    /** How long the hurt sprite (player_hurt) is shown after a hit, if it exists. */
+    hurtPoseMs: number;
+    /** Hover: the hazard floats between its base and base + bobTiles above the platform. */
+    bobTiles: number;
+    bobHz: number;
+    /** Hitbox size relative to the drawn size (< 1 = forgiving). */
+    hitboxScale: number;
+  };
 };
 
 export const defaultGameConfig: GameConfig = {
   columns: 9,
   maxJumpTiles: 4,
   jumpTimeToApex: 0.45,
-  player: { widthTiles: 0.9, heightTiles: 0.9, bonusPoseMs: 600, fallPoseAfterTiles: 1.5 },
+  player: {
+    widthTiles: 0.9,
+    heightTiles: 0.9,
+    bonusPoseMs: 600,
+    fallPoseAfterTiles: 1.5,
+    glideSpeedFactor: 1 / 3,
+    glideDrag: 12,
+  },
   input: {
     dragSensitivity: 1,
     followFrequency: 16,
@@ -77,6 +105,7 @@ export const defaultGameConfig: GameConfig = {
   camera: { followRatio: 0.45, smoothing: 0.15, autoScrollSpeed: 0.5, autoScrollPerDifficulty: 0.25 },
   generation: { aheadScreens: 1.5, rowsPerDifficulty: 40, maxDifficulty: 3 },
   effects: { doubleScoreMs: 10_000, doubleJumpMs: 5_000, coinBonus: 1 },
+  hazards: { damage: 1, invulnerableMs: 1000, hurtPoseMs: 500, bobTiles: 0.35, bobHz: 0.5, hitboxScale: 0.75 },
 };
 
 export function derivePhysics(config: GameConfig) {

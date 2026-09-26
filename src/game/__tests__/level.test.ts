@@ -21,6 +21,12 @@ describe('parseChunk', () => {
     expect(parsed.spawn).toEqual({ col: 4, row: 1 });
   });
 
+  it('parses hazards', () => {
+    const parsed = parseChunk(['.O.......', '.###.....'], columns);
+    expect(parsed.hazards).toEqual([{ col: 1, row: 1, spriteKey: 'hazard_orange', size: 1.2 }]);
+    expect(parsed.pickups).toEqual([]);
+  });
+
   it('uses the default size for pickups without their own', () => {
     expect(parseChunk(['X'], columns).pickups[0].size).toBe(0.6);
   });
@@ -50,6 +56,15 @@ describe('authored chunks', () => {
     for (const pk of parsed.pickups) {
       const below = parsed.platforms.find((p) => p.row === pk.row - 1 && pk.col >= p.col && pk.col < p.col + p.width);
       expect(below).toBeDefined();
+    }
+  });
+
+  it.each(all.map((c) => [c.id, c] as const))('%s has hazards only above platforms ≥ 3 wide', (_, chunk) => {
+    const parsed = parseChunk(chunk.map, columns);
+    for (const hz of parsed.hazards) {
+      const below = parsed.platforms.find((p) => p.row === hz.row - 1 && hz.col >= p.col && hz.col < p.col + p.width);
+      expect(below).toBeDefined();
+      expect(below!.width).toBeGreaterThanOrEqual(3);
     }
   });
 

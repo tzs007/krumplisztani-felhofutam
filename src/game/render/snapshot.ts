@@ -1,5 +1,5 @@
 import { derivePhysics } from '../config';
-import type { Player, World } from '../engine/World';
+import { isFalling, type Player, type World } from '../engine/World';
 import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
@@ -28,6 +28,7 @@ export function platformPart(index: number, width: number): PlatformPart {
 const effectSuffix = (id: string) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 /**
+ * - Right after a hazard hit: player_hurt.
  * - Right after a pickup: the item's pose (pickup_coin → player_bonus_coin),
  *   or the generic player_bonus.
  * - Falling pose only after a real drop (≥ fallPoseAfterTiles below the jump's
@@ -40,13 +41,15 @@ export function playerSpriteKey(
   time: number,
   fallPoseAfterTiles: number,
   activeEffects: readonly string[] = [],
+  hurtPoseMs = 0,
 ): SpriteKey {
+  // hurt pose wins over everything
+  if (time - player.hurtAt < hurtPoseMs) return 'player_hurt';
   if (time < player.bonusUntil) {
     const specific = player.bonusSpriteKey?.replace(/^pickup_/, 'player_bonus_');
     return specific && hasSprite(specific) ? specific : 'player_bonus';
   }
-  const fallen = player.apexY - player.y;
-  if (player.vy <= 0 && fallen >= fallPoseAfterTiles) return 'player_fall';
+  if (isFalling(player, fallPoseAfterTiles)) return 'player_fall';
   for (const id of activeEffects) {
     const key = `player_jump_${effectSuffix(id)}`;
     if (hasSprite(key)) return key;
@@ -92,6 +95,12 @@ export function jumpProgress(player: Player, time: number, jumpVelocity: number)
   const since = time - player.landedAt;
   if ((since >= 0 && since < SQUASH_MS) || player.vy <= 0) return 1;
   return Math.min(0.999, 1 - Math.min(1, player.vy / jumpVelocity));
+}
+
+const BLINK_MS = 100;
+/** Invulnerability blink: hidden every other BLINK_MS. */
+export function isBlinkOff(sinceHitMs: number): boolean {
+  return Math.floor(sinceHitMs / BLINK_MS) % 2 === 1;
 }
 
 /** Cloud layout in tiles, repeating every CLOUD_PERIOD rows, drawn with parallax. */
@@ -162,6 +171,11 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, pk.x * t, sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
   }
 
+  for (const h of world.hazards) {
+    if (!visible(h.y, h.y + h.size)) continue;
+    sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, h.x * t, sy(h.y + h.size), h.size * t, h.size * t);
+  }
+
   // collect animations (<pickup>_collect) play once where the pickup was taken
   for (const c of world.collected) {
     const key = `${c.spriteKey}_collect`;
@@ -176,7 +190,8 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const p = world.player;
   const op = p.facing < 0 ? Op.spriteFlipped : Op.sprite;
   const active = world.effects.getActive(world.time).map((e) => e.id);
-  const key = playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active);
+  const { hurtPoseMs } = world.config.hazards;
+  const key = playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active, hurtPoseMs);
   const elapsed = playerAnimElapsed(p, world.time, world.config.player.bonusPoseMs);
   const { jumpVelocity } = derivePhysics(world.config);
   const { sx, sy: sY } = playerScale(p, world.time, jumpVelocity);
@@ -185,6 +200,9 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const h = t * sY;
   const drawPlayer = (px: number) =>
     sprite(op, key, elapsed, (px + p.w / 2) * t - w / 2, sy(p.y) - h, w, h, progress);
+  // after a hit: the hurt pose stays solid, then the player blinks for the rest of the invulnerability
+  const sinceHit = world.time - p.hurtAt;
+  if (world.isInvulnerable && sinceHit >= hurtPoseMs && isBlinkOff(sinceHit)) return out;
   drawPlayer(p.x);
   if (p.x + p.w > cols) drawPlayer(p.x - cols);
 

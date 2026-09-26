@@ -1,4 +1,4 @@
-import { defaultGameConfig, type GameConfig } from '../config';
+import { defaultGameConfig, derivePhysics, type GameConfig } from '../config';
 import { EffectRegistry, type EffectContext } from '../engine/effects/EffectRegistry';
 import { addBonus, doubleJumpHeight, doubleScore } from '../engine/effects/builtins';
 import { createRng } from '../engine/random';
@@ -146,6 +146,55 @@ describe('World physics', () => {
       expect(world.cameraY).toBeGreaterThanOrEqual(cam);
       cam = world.cameraY;
     }
+  });
+});
+
+describe('umbrella glide', () => {
+  // spawn 7 rows above the ground: a long drop
+  const highDrop = [
+    '.........', '....P....', '.........', '.........', '.........',
+    '.........', '.........', '.........', '#########',
+  ];
+  const dropTime = (config: GameConfig) => {
+    const world = makeWorld(highDrop, config);
+    let t = 0;
+    while (t < 5 && !world.step(DT, idle).some((e) => e.type === 'land')) t += DT;
+    return { t, world };
+  };
+
+  it('brakes to a third of the fall speed once the umbrella opens', () => {
+    const world = makeWorld(highDrop);
+    const { gravity } = derivePhysics(noScroll);
+    const openSpeed = Math.sqrt(2 * gravity * noScroll.player.fallPoseAfterTiles);
+    expect(world.glideFallSpeed).toBeCloseTo(openSpeed / 3);
+    let minVy = 0;
+    for (let t = 0; t < 0.8; t += DT) {
+      world.step(DT, idle);
+      minVy = Math.min(minVy, world.player.vy);
+    }
+    expect(world.player.vy).toBeLessThan(0); // still in the air
+    expect(world.player.vy).toBeCloseTo(-world.glideFallSpeed, 1); // settled at glide speed
+    expect(-minVy).toBeLessThan(openSpeed * 1.2); // never much faster than at opening
+  });
+
+  it('makes a long drop take much longer than without the umbrella', () => {
+    const glide = dropTime(noScroll).t;
+    const free = dropTime({ ...noScroll, player: { ...noScroll.player, glideSpeedFactor: 1e9 } }).t;
+    expect(glide).toBeGreaterThan(free * 2);
+  });
+
+  it('does not affect a normal hop to the next platform', () => {
+    const hop = ['.........', '....#....', '.........', '....P....', '#########'];
+    const landTime = (config: GameConfig) => {
+      const world = makeWorld(hop, config);
+      world.step(DT, idle); // take off from the ground
+      let t = 0;
+      while (t < 2 && !world.step(DT, idle).some((e) => e.type === 'land')) t += DT;
+      return t;
+    };
+    const withUmbrella = landTime(noScroll);
+    const without = landTime({ ...noScroll, player: { ...noScroll.player, glideSpeedFactor: 1e9 } });
+    expect(withUmbrella).toBeCloseTo(without, 5);
   });
 });
 
