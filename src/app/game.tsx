@@ -1,0 +1,175 @@
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type LayoutChangeEvent } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { GameOverlay } from '@/components/game/GameOverlay';
+import { Hud } from '@/components/game/Hud';
+import { Box } from '@/components/ui/box';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { defaultGameConfig } from '@/game/config';
+import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
+import { World } from '@/game/engine/World';
+import { useGameLoop } from '@/game/hooks/useGameLoop';
+import { DragInput } from '@/game/input/DragInput';
+import { GameCanvas } from '@/game/render/GameCanvas';
+import { buildSnapshot } from '@/game/render/snapshot';
+import { selectBestScore, useAppStore } from '@/store/useAppStore';
+
+type Status = 'playing' | 'paused' | 'over';
+type HudState = { score: number; effects: ActiveEffect[] };
+
+const config = defaultGameConfig;
+const HUD_INTERVAL_MS = 200;
+
+export default function GameRoute() {
+  const insets = useSafeAreaInsets();
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [status, setStatus] = useState<Status>('playing');
+  const [hud, setHud] = useState<HudState>({ score: 0, effects: [] });
+  const [lastResult, setLastResult] = useState<{ score: number; newBest: boolean } | null>(null);
+
+  const worldRef = useRef<World | null>(null);
+  const [input] = useState(() => new DragInput());
+  const hudUpdatedAt = useRef(0);
+  const commands = useSharedValue<number[]>([]);
+  const addResult = useAppStore((s) => s.addResult);
+  const bestScore = useAppStore(selectBestScore);
+
+  const tileSize = size ? size.width / config.columns : 1;
+
+  const startRun = (canvas: { width: number; height: number }) => {
+    const ts = canvas.width / config.columns;
+    const world = new World({ config, viewHeight: canvas.height / ts });
+    worldRef.current = world;
+    input.reset();
+    commands.set(buildSnapshot(world, ts, canvas.height));
+    setHud({ score: 0, effects: [] });
+    setLastResult(null);
+    setStatus('playing');
+  };
+
+  const restart = () => {
+    if (size) startRun(size);
+  };
+
+  // pause when the app goes to background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') setStatus((s) => (s === 'playing' ? 'paused' : s));
+    });
+    return () => sub.remove();
+  }, []);
+
+  const finishRun = (world: World) => {
+    const newBest = world.score > bestScore;
+    addResult({
+      score: world.score,
+      platforms: world.stats.platforms,
+      pickups: world.stats.pickups,
+      durationMs: world.time,
+      playedAt: Date.now(),
+    });
+    setLastResult({ score: world.score, newBest });
+    setHud({ score: world.score, effects: [] });
+    setStatus('over');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  };
+
+  const step = (dt: number) => {
+    const world = worldRef.current;
+    if (!world || world.over) return;
+    const events = world.step(dt, input.consume(tileSize));
+    for (const e of events) {
+      if (e.type === 'pickup') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (e.type === 'gameOver') finishRun(world);
+    }
+  };
+
+  const render = () => {
+    const world = worldRef.current;
+    if (!world || !size) return;
+    commands.set(buildSnapshot(world, tileSize, size.height));
+    const now = Date.now();
+    if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
+      hudUpdatedAt.current = now;
+      const effects = world.effects.getActive(world.time);
+      setHud((prev) =>
+        prev.score === world.score && prev.effects.length === 0 && effects.length === 0
+          ? prev
+          : { score: world.score, effects },
+      );
+    }
+  };
+
+  useGameLoop(status === 'playing' && size !== null, step, render);
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .minDistance(0)
+        .onBegin(() => input.begin())
+        .onChange((e) => input.move(e.changeX))
+        .onEnd((e) => input.release(e.velocityX))
+        .onFinalize(() => input.end()),
+    [input],
+  );
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (size) return; // portrait-locked: the first measurement is the canvas size
+    const canvas = { width, height };
+    setSize(canvas);
+    startRun(canvas);
+  };
+
+  return (
+    <Box className="flex-1 bg-sky">
+      <GestureDetector gesture={pan}>
+        <Box className="flex-1" onLayout={onLayout}>
+          {size && <GameCanvas width={size.width} height={size.height} commands={commands} />}
+        </Box>
+      </GestureDetector>
+
+      {status !== 'over' && (
+        <Hud score={hud.score} effects={hud.effects} topInset={insets.top} onPause={() => setStatus('paused')} />
+      )}
+
+      {status === 'paused' && (
+        <GameOverlay
+          title="Paused"
+          actions={[
+            { label: 'Resume', primary: true, onPress: () => setStatus('playing') },
+            { label: 'Restart', onPress: () => restart() },
+            { label: 'Menu', onPress: () => router.back() },
+          ]}
+        />
+      )}
+
+      {status === 'over' && lastResult && (
+        <GameOverlay
+          title="Game Over"
+          actions={[
+            { label: 'Play again', primary: true, onPress: () => restart() },
+            { label: 'Leaderboard', onPress: () => router.replace('/leaderboard') },
+            { label: 'Menu', onPress: () => router.back() },
+          ]}
+        >
+          <VStack space="xs" className="items-center">
+            <Text bold size="4xl" className="text-foreground">
+              {lastResult.score}
+            </Text>
+            <Text className="text-muted-foreground">
+              {lastResult.newBest ? 'New best score!' : `Best: ${Math.max(bestScore, lastResult.score)}`}
+            </Text>
+          </VStack>
+        </GameOverlay>
+      )}
+    </Box>
+  );
+}
