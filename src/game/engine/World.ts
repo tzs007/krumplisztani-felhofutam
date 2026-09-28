@@ -5,15 +5,14 @@ import type { PlatformVariant } from '../level/tiles';
 import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
 import { EffectRegistry, type EffectContext, type EffectId } from './effects/EffectRegistry';
 import { createRng, type Rng } from './random';
-import { easterEggs as easterEggContent } from '../easterEggs';
+import { getEasterEggs } from '../easterEggs';
 
-const easterEggIds = easterEggContent.map((e) => e.id);
 /** How far a "hover" item floats above its platform (like pickups). */
 const HOVER_LIFT = 0.15;
 
 /** The in-level object of an easter egg: its own `item` fields over the config default. */
 export function easterEggItemDef(eggId: string, config: GameConfig): EasterEggItemDef {
-  const own = easterEggContent.find((e) => e.id === eggId)?.item;
+  const own = getEasterEggs().find((e) => e.id === eggId)?.item;
   return { ...config.easterEggs.defaultItem, ...own };
 }
 
@@ -155,6 +154,8 @@ export class World {
   private readonly generator: LevelGenerator;
   private readonly visited = new Set<number>();
   private readonly rng: Rng;
+  /** Easter egg ids available to this game (content snapshot taken at start). */
+  private readonly easterEggIds: string[];
   /** Chunk number (after the start) that hides this game's easter egg; -1 = none this game. */
   private easterEggChunk: number;
   private chunksPlaced = 0;
@@ -167,9 +168,10 @@ export class World {
     this.viewHeight = viewHeight;
     this.rng = rng;
     // drop rate: one roll per game, at most one easter egg
+    this.easterEggIds = getEasterEggs().map((e) => e.id);
     const { chancePerGame, chunkRange } = config.easterEggs;
     this.easterEggChunk =
-      easterEggIds.length > 0 && rng() < chancePerGame
+      this.easterEggIds.length > 0 && rng() < chancePerGame
         ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
         : -1;
     this.nextMilestone = config.milestones.every;
@@ -412,7 +414,7 @@ export class World {
     );
     if (spots.length === 0) return false;
     const spot = spots[Math.floor(this.rng() * spots.length)];
-    const eggId = easterEggIds[Math.floor(this.rng() * easterEggIds.length)];
+    const eggId = this.easterEggIds[Math.floor(this.rng() * this.easterEggIds.length)];
     const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
     this.easterEggs.push({
       id: this.nextId++,

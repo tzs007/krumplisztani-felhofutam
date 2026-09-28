@@ -14,7 +14,7 @@ import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { defaultGameConfig } from '@/game/config';
-import { getEasterEgg, type EasterEgg } from '@/game/easterEggs';
+import { getEasterEgg, withEasterEggSettings, type EasterEgg } from '@/game/easterEggs';
 import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
 import { World } from '@/game/engine/World';
 import { useGameLoop } from '@/game/hooks/useGameLoop';
@@ -57,7 +57,8 @@ export default function GameRoute() {
 
   const startRun = (canvas: { width: number; height: number }) => {
     const ts = canvas.width / config.columns;
-    const world = new World({ config, viewHeight: canvas.height / ts });
+    // downloaded easter egg drop-rate settings (if any) apply from this run on
+    const world = new World({ config: withEasterEggSettings(config), viewHeight: canvas.height / ts });
     worldRef.current = world;
     input.reset();
     commands.set(buildSnapshot(world, ts, canvas.height));

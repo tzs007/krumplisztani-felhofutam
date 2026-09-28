@@ -47,7 +47,9 @@ A játék a kezdőpont fölött középre igazított tojáshéjjal indul (`start
 
 ## Easter eggek (rejtett mémek)
 
-A mémek listája: `src/game/easterEggs.ts` — ide kell felvenni az újakat (az `id` maradjon stabil). Minden mém két részből áll:
+A mémek **az adatbázisból jönnek** (Supabase: `easter_eggs` tábla, drop rate: `app_config` → `easter_eggs` kulcs), így app-kiadás nélkül, a Supabase dashboardon szerkeszthetők. A nyitóképernyő letölti őket (max. ~2,5 mp várakozással), elmenti a telefonra; offline az utoljára letöltött, annak híján a beépített lista (`src/game/easterEggs.ts`) él. A letöltött sorokat az app ellenőrzi: ismeretlen sprite / hibás érték → alapértelmezés. Mémképek: `memes` storage bucket (publikus), a kép URL-je az `image_url` oszlopba.
+
+Mezők (tábla oszlop → app mező): `title`, `description`, `heading`, `continue_label`, `image_url` → `image`, `image_aspect_ratio`, `item_sprite_key` / `item_size` / `item_placement` → `item`, `enabled` (kikapcsolt mém nem jelenik meg). Minden mém két részből áll:
 
 - **a pályán látható tárgy** (`item`): `spriteKey` (bármelyik regisztrált sprite), `size` (tile), `placement` (`"ground"`: a platformon áll, `"hover"`: felette lebeg, mint az érme). Ami hiányzik, az a `config.easterEggs.defaultItem`-ből jön (most: töklámpás, 1.125, ground). Pl. `item: { spriteKey: "pickup_coin", placement: "hover" }`.
 - **a „megtaláltad” kártya**: `title`, `description`, opcionálisan `heading`, `image`, `imageAspectRatio`, `continueLabel` — ezek egy az egyben az `EasterEggModal` propjai.
@@ -109,3 +111,18 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 - A többi póz az ugrópóz léptékével készül, így a csibe mindig ugyanakkora; ha a képen extra elem van (láng, érme), a sprite nagyobb lesz (pl. 139×139), és a játék a talppontjához igazítva nagyobbra rajzolja (**128 px = 1 tile**).
 
 **Generálás:** `npm run sprites` — pixelesít (kivágás, területátlag, éles alfa, 16–24 színű paletta) és legyártja a placeholder platformokat/pickupokat. ⚠️ Minden generált fájlt felülír, a kézzel cserélteket is.
+
+## Backend: Supabase (előkészítve)
+
+- Kliens: `src/lib/supabase.ts` (auth session `expo-sqlite` localStorage-ban, token-frissítés csak előtérben). Amíg nincs beállítva, `supabase === null` és `isSupabaseConfigured === false`, a játék backend nélkül fut.
+- Környezet: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (minta: `.env.example`; a valódi `.env.local` git-ignored). Mindkettő publikus kulcs — secret/service-role kulcs soha ne kerüljön az appba.
+- Séma: `supabase/migrations/…_init_schema.sql` és `…_easter_eggs_config.sql` (mémek, `app_config`, `memes` bucket; mindenki olvashatja, írni csak a dashboardról lehet) — `profiles` (regisztrációkor automatikusan), `game_results` (csak hozzáfűzés), `top_scores(limit)` publikus ranglista függvény; minden táblán RLS, a kijelentkezett (anon) szerep közvetlenül semmit nem ér el. Helyben tesztelve (`npx supabase db start`).
+- Típusok: `src/lib/database.types.ts` (kézzel, a migráció alapján; összekötés után: `npx supabase gen types typescript --linked > src/lib/database.types.ts`).
+
+**Összekötés (egyszer, böngészős bejelentkezéssel):**
+```bash
+npx eas-cli@latest integrations:supabase:connect   # projekt létrehozása/linkelése, régió: emea
+npx supabase link --project-ref <ref>              # CLI ↔ hosztolt projekt
+npx supabase db push                               # séma feltöltése
+```
+Az `expo-sqlite` natív modul: Expo Go-ban működik, de a meglévő preview APK-ban nincs benne — mielőtt a játék használja a klienst, új build kell.

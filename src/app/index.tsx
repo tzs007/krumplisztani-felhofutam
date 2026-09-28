@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { loadSprites } from "@/game/render/loadSprites";
+import { syncEasterEggs } from "@/lib/remoteEasterEggs";
 import { useAppStore } from "@/store/useAppStore";
 
 const MIN_SPLASH_MS = 1500;
@@ -18,16 +19,19 @@ const BG_LOAD_TIMEOUT_MS = 1000;
 
 /**
  * Opening / loading screen over the splash-bg illustration: waits for
- * persisted data, decoded sprites and a minimum display time.
+ * persisted data, decoded sprites, the easter egg content (backend, with a
+ * short timeout and offline fallbacks) and a minimum display time.
  */
 export default function SplashRoute() {
   const insets = useSafeAreaInsets();
   const hasHydrated = useAppStore((s) => s.hasHydrated);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [spritesLoaded, setSpritesLoaded] = useState(false);
+  const [contentSynced, setContentSynced] = useState(false);
 
   useEffect(() => {
     loadSprites().then(() => setSpritesLoaded(true));
+    syncEasterEggs().finally(() => setContentSynced(true));
     const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
     const splashTimer = setTimeout(
       () => SplashScreen.hideAsync(),
@@ -40,8 +44,10 @@ export default function SplashRoute() {
   }, []);
 
   useEffect(() => {
-    if (hasHydrated && spritesLoaded && minTimeElapsed) router.replace("/menu");
-  }, [hasHydrated, spritesLoaded, minTimeElapsed]);
+    if (hasHydrated && spritesLoaded && contentSynced && minTimeElapsed) {
+      router.replace("/menu");
+    }
+  }, [hasHydrated, spritesLoaded, contentSynced, minTimeElapsed]);
 
   return (
     <Box className="flex-1 bg-sky">

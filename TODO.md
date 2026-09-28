@@ -327,3 +327,19 @@ Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel k
 - [x] E3c Absztrakt pályatárgy: mémenként `item` (spriteKey, size, placement ground/hover), alapérték `config.easterEggs.defaultItem` (töklámpás); az engine a mémből veszi; tesztek (létező sprite, fallback, felülírás, hover)
 - [ ] E6 Valódi mémek (szöveg, később kép a modalban)
 - [ ] E7 Ötlet: megtalált mémek mentése + gyűjtemény képernyő
+
+---
+
+# Epic 9 – Backend: Supabase (előkészítés, 2026-09-28)
+
+- [x] B1 SDK: `@supabase/supabase-js`, `expo-sqlite` (+ config plugin) — `npx expo install`
+- [x] B2 Kliens: `src/lib/supabase.ts` (Expo guide szerint; nincs konfig → null, a játék offline fut)
+- [x] B3 `.env.example`, `supabase/` projekt (`supabase init`)
+- [x] B4 Séma tervezet (`init_schema` migráció): profiles + trigger, game_results (append-only, check constraintek), `top_scores()` ranglista; RLS mindenhol, anon jogok visszavonva; helyi Postgresen lefuttatva és RLS-tesztelve
+- [x] B5 Típusok: `src/lib/database.types.ts`
+- [x] B5b Easter egg konfig adatbázisból: `easter_eggs` + `app_config` + `memes` bucket (read-only a kliensnek, két szintű írásvédelem), `syncEasterEggs()` a nyitóképernyőn (timeout, cache, beépített fallback, validálás), lusta Supabase kliens (régi APK-n `expo-sqlite` nélkül is biztonságos); helyben tesztelve + 8 unit teszt
+- [ ] B6 Összekötés (felhasználó): `eas integrations:supabase:connect` (régió), `supabase link`, `supabase db push`, típusgenerálás
+- [ ] B7 Auth epic: bejelentkezés (email+jelszó vagy magic link / OAuth → deep link), profil név
+- [ ] B8 Eredmények feltöltése (offline sor, szinkron), online ranglista képernyő
+- [ ] B9 Anti-cheat: pontszám-ellenőrzés Edge Functionnel (ha kell)
+- [ ] B10 Új build az `expo-sqlite` miatt, mielőtt a kliens élesbe kerül
