@@ -1,5 +1,5 @@
 import { derivePhysics } from '../config';
-import { isFalling, type Player, type StarParticle, type World } from '../engine/World';
+import { deathScale, isFalling, type Player, type StarParticle, type World } from '../engine/World';
 import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
@@ -10,8 +10,12 @@ import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKe
  *  op 2 = line           (arg = palette color;  x1, y1, x2, y2)
  *  op 3 = sprite         (arg = sprite index, frame of `frames` in the sheet;  x, y, w, h)
  *  op 4 = sprite, mirrored horizontally
+ *  op 5 = backdrop       (arg = sprite index;  _, bottom y, canvas width, height): the image is
+ *         scaled to `height` keeping its aspect ratio, centred horizontally, bottom at `bottom y`
+ *  op 6 = image by width (arg = sprite index;  x, bottom y, width, _): the whole image at `width`,
+ *         height from its own aspect ratio, bottom at `bottom y` (for free-size art like clouds)
  */
-export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4 } as const;
+export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4, backdrop: 5, imageByWidth: 6 } as const;
 export const STRIDE = 8;
 
 export type PlatformPart = 'left' | 'mid' | 'right' | 'single';
@@ -124,6 +128,15 @@ export function isBlinkOff(sinceHitMs: number): boolean {
   return Math.floor(sinceHitMs / BLINK_MS) % 2 === 1;
 }
 
+/**
+ * Backdrop scroll in screen px: 0 at the start (image bottom on the screen
+ * bottom), growing very slowly as the camera climbs, capped when the image
+ * top reaches the screen top.
+ */
+export function backdropOffsetPx(cameraPx: number, parallax: number, maxScrollPx: number): number {
+  return Math.min(maxScrollPx, Math.max(0, cameraPx * parallax));
+}
+
 /** Cloud layout in tiles, repeating every CLOUD_PERIOD rows, drawn with parallax. */
 const CLOUD_PERIOD = 24;
 const CLOUD_PARALLAX = 0.3;
@@ -161,15 +174,21 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
   };
 
-  // background clouds (parallax), 2:1 sprite
+  // backdrop sky: taller than the screen, scrolls down very slowly as the camera climbs
+  const bg = world.config.background;
+  const bgHeight = screenHeight * bg.heightScreens;
+  const bgOffset = backdropOffsetPx(world.cameraY * t, bg.parallax, bgHeight - screenHeight);
+  out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight + bgOffset, cols * t, bgHeight);
+
+  // background clouds (parallax), drawn with the cloud image's own aspect ratio
   const cloudCam = world.cameraY * CLOUD_PARALLAX;
   const firstPeriod = Math.floor(cloudCam / CLOUD_PERIOD) - 1;
   for (let k = firstPeriod; k <= firstPeriod + 3; k++) {
     for (const c of clouds) {
       const bottom = screenHeight - (k * CLOUD_PERIOD + c.y - cloudCam) * t;
-      const h = (c.w / 2) * t;
+      const h = (c.w / 2) * t; // upper bound for culling (clouds are wider than tall)
       if (bottom < 0 || bottom - h > screenHeight) continue;
-      out.push(Op.sprite, cloudSprite, 0, 1, c.x * t, bottom - h, c.w * t, h);
+      out.push(Op.imageByWidth, cloudSprite, 0, 1, c.x * t, bottom, c.w * t, 0);
     }
   }
 
@@ -188,7 +207,7 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   for (const pk of world.pickups) {
     if (!visible(pk.y, pk.y + pk.size)) continue;
     const phase = world.time + pickupPhaseMs(pk.id);
-    const bob = Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES;
+    const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
     sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, pk.x * t, sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
   }
 
@@ -231,8 +250,21 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const progress = jumpProgress(p, world.time, jumpVelocity);
   const w = t * sx;
   const h = t * sY;
+  // dying: zoom towards the viewer around the sprite's centre; otherwise feet on the hitbox bottom
+  const zoom = world.dying ? deathScale(world.time - world.diedAt, world.config) : 1;
   const drawPlayer = (px: number) =>
-    sprite(op, key, elapsed, (px + p.w / 2) * t - w / 2, sy(p.y) - h, w, h, progress);
+    world.dying
+      ? sprite(
+          op,
+          key,
+          elapsed,
+          (px + p.w / 2) * t - (w * zoom) / 2,
+          sy(p.y + p.h / 2) - (h * zoom) / 2,
+          w * zoom,
+          h * zoom,
+          progress,
+        )
+      : sprite(op, key, elapsed, (px + p.w / 2) * t - w / 2, sy(p.y) - h, w, h, progress);
   // after a hit: the hurt pose stays solid, then the player blinks for the rest of the invulnerability;
   // the death sequence blinks the same way until the player has fallen out
   const sinceHit = world.time - p.hurtAt;

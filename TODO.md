@@ -1,4 +1,4 @@
-# Hiperventi in Krumplisztan – Executable TODO
+# Krumplisztáni Felhőfutam: Hiperventi Kalandjai – Executable TODO
 
 > Vertikális, végtelen "jump platform" játék (Doodle Jump / Climber stílus) Expo + React Native alapon.
 > Minden lépés után: `npx tsc --noEmit` + `npm test` zöld legyen, mielőtt a következőre lépünk.
@@ -25,7 +25,7 @@
 
 - [x] 1.1 A meglévő `package.json` mentése (author: Zsolt Takács, name) → `npx create-expo-app@latest` egy ideiglenes mappába (`--template default`), a fájlok átmozgatása ide, `author` visszaírása
 - [x] 1.2 Template példakód eltávolítása (`npm run reset-project` vagy kézzel), üres `app/` marad
-- [x] 1.3 `app.json`: name `Hiperventi in Krumplisztán`, slug `the-hiperventi-game`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
+- [x] 1.3 `app.json`: name `Krumplisztáni Felhőfutam: Hiperventi Kalandjai`, slug `krumplisztani-felhofutam-hiperventi-kalandjai`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
 - [x] 1.4 `tsconfig.json`: `strict: true`, path alias `@/*` → `src/*`
 - [x] 1.5 `git init` + `.gitignore` + első commit
 - **Ellenőrzés:** `npx expo start` → Expo Go-ban üres app betölt
@@ -170,7 +170,7 @@ src/
 
 ## 9. Screenek
 
-- [x] 9.1 **Splash** (`app/index.tsx`): "Hiperventi in Krumplisztán" felirat, loading indikátor; store hidratálás + asset preload után (min. ~1,5 s) → `router.replace('/menu')`
+- [x] 9.1 **Splash** (`app/index.tsx`): "Krumplisztáni Felhőfutam: Hiperventi Kalandjai" felirat, loading indikátor; store hidratálás + asset preload után (min. ~1,5 s) → `router.replace('/menu')`
 - [x] 9.2 **Menu**: cím, `Start Game` → `/game`, `Leaderboard` → `/leaderboard`; gluestack Button-ok
 - [x] 9.3 **Game**: teljes képernyős Canvas + Pan gesture, HUD (bal felül pause gomb, középen pontszám/magasság)
   - Pause modal: Resume / Restart / Menu
@@ -237,6 +237,7 @@ Döntések: 128×128 PNG pixel art (16×16 logikai pixel × 8 nagyítás, retin�
 - [x] S10 README: sprite csere leírása (fájlnév = spriteKey, 128×128 PNG, átlátszó háttér)
 
 Megjegyzések:
+
 - A Skia-betöltés külön fájlban van (`render/loadSprites.ts`), így a regiszter és a snapshot Skia nélkül tesztelhető
 - A karakter hitboxa 0.8 → 0.9 tile lett, hogy illeszkedjen a sprite-hoz
 - S9: iOS szimulátoron ellenőrizve (jump/fall állapot, platform szélek, coin, felhők); a bonus pose és a tükrözés csak unit teszttel ellenőrizve (nincs drag a szimulátorban)

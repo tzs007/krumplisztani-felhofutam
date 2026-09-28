@@ -1,9 +1,16 @@
 import type { EffectId } from '../engine/effects/EffectRegistry';
-import { DEFAULT_PICKUP_SIZE, getTile, type PlatformVariant } from './tiles';
+import { DEFAULT_PICKUP_BOB, DEFAULT_PICKUP_SIZE, getTile, type PickupBob, type PlatformVariant } from './tiles';
 
 /** A run of adjacent same-variant platform tiles. `row` is counted upward from the chunk bottom. */
 export type ParsedPlatform = { col: number; row: number; width: number; variant: PlatformVariant; spriteKey: string };
-export type ParsedPickup = { col: number; row: number; effect: EffectId; spriteKey: string; size: number };
+export type ParsedPickup = {
+  col: number;
+  row: number;
+  effect: EffectId;
+  spriteKey: string;
+  size: number;
+  bob: PickupBob;
+};
 export type ParsedHazard = { col: number; row: number; spriteKey: string; size: number };
 export type ParsedChunk = {
   height: number;
@@ -45,7 +52,14 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
       }
       run = null;
       if (tile.kind === 'pickup') {
-        pickups.push({ col, row, effect: tile.effect, spriteKey: tile.spriteKey, size: tile.size ?? DEFAULT_PICKUP_SIZE });
+        pickups.push({
+          col,
+          row,
+          effect: tile.effect,
+          spriteKey: tile.spriteKey,
+          size: tile.size ?? DEFAULT_PICKUP_SIZE,
+          bob: tile.bob ?? DEFAULT_PICKUP_BOB,
+        });
       }
       if (tile.kind === 'hazard') hazards.push({ col, row, spriteKey: tile.spriteKey, size: tile.size });
       if (tile.kind === 'spawn') spawn = { col, row };

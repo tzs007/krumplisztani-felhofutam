@@ -95,6 +95,17 @@ export type GameConfig = {
     /** Each star lives this long (± 20%), then it has shrunk away. */
     lifeMs: number;
   };
+  background: {
+    /** Backdrop image (not a tile sprite: drawn with its own aspect ratio, sides cropped to fit). */
+    spriteKey: string;
+    /** Drawn height relative to the screen; the extra part is what the parallax scrolls through. */
+    heightScreens: number;
+    /**
+     * Very slow parallax: backdrop pixels moved per pixel the camera climbs.
+     * It starts showing the bottom of the image and stops once the top is reached.
+     */
+    parallax: number;
+  };
   easterEggs: {
     /**
      * Drop rate per game: chance (0–1) that this run hides an easter egg at
@@ -128,7 +139,13 @@ export type GameConfig = {
     jumpFactor: number;
     /** Random sideways speed range (tiles/s) of the death hop; direction is random too. */
     driftSpeed: [number, number];
-    /** Game over once the player is this far (tiles) below the screen bottom (sprite fully gone). */
+    /**
+     * Falling "towards the viewer": the sprite grows from 1× to zoomMaxScale
+     * over zoomDurationMs (ease-in), around its centre.
+     */
+    zoomMaxScale: number;
+    zoomDurationMs: number;
+    /** Game over once the (zoomed) sprite is fully below the screen bottom, plus this margin (tiles). */
     exitMarginTiles: number;
   };
   hazards: {
@@ -191,6 +208,11 @@ export const defaultGameConfig: GameConfig = {
     gravity: 7,
     lifeMs: 1300,
   },
+  background: {
+    spriteKey: "bg_sky",
+    heightScreens: 1.5,
+    parallax: 0.05,
+  },
   easterEggs: {
     chancePerGame: 0.1,
     chunkRange: [2, 12],
@@ -205,7 +227,9 @@ export const defaultGameConfig: GameConfig = {
   death: {
     jumpFactor: 1.2,
     driftSpeed: [1.5, 4],
-    exitMarginTiles: 1.5,
+    zoomMaxScale: 3,
+    zoomDurationMs: 1200,
+    exitMarginTiles: 0.2,
   },
   hazards: {
     damage: 1,

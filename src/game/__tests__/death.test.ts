@@ -1,6 +1,6 @@
 import { defaultGameConfig, type GameConfig } from '../config';
 import { createRng } from '../engine/random';
-import { World, type GameEvent, type StepInput } from '../engine/World';
+import { deathScale, World, type GameEvent, type StepInput } from '../engine/World';
 import { buildSnapshot, Op, STRIDE } from '../render/snapshot';
 import { SPRITE_KEYS } from '../render/sprites';
 
@@ -78,7 +78,9 @@ describe('death sequence', () => {
     expect(events.filter((e) => e.type === 'land')).toEqual([]);
     expect(world.cameraY).toBe(camera);
     expect(world.player.x).toBeCloseTo(reference.player.x, 9);
-    expect(world.player.y).toBeLessThan(camera - config.death.exitMarginTiles);
+    // even the zoomed sprite is fully below the screen
+    const half = deathScale(world.time - world.diedAt, config) / 2;
+    expect(world.player.y + world.player.h / 2 + half).toBeLessThan(camera);
     expect(world.over).toBe(true);
   });
 
@@ -125,5 +127,35 @@ describe('death sequence', () => {
     const diedAt = world.time;
     runUntil(world, (e) => e.some((x) => x.type === 'gameOver'));
     expect(world.time - diedAt).toBeGreaterThan(500);
+  });
+
+  it('zooms towards the viewer: 1× at the start, growing faster and faster, capped', () => {
+    const { zoomMaxScale, zoomDurationMs } = config.death;
+    expect(deathScale(0, config)).toBe(1);
+    const a = deathScale(zoomDurationMs * 0.25, config) - 1;
+    const b = deathScale(zoomDurationMs * 0.5, config) - deathScale(zoomDurationMs * 0.25, config);
+    expect(b).toBeGreaterThan(a); // ease-in
+    expect(deathScale(zoomDurationMs, config)).toBeCloseTo(zoomMaxScale);
+    expect(deathScale(zoomDurationMs * 5, config)).toBeCloseTo(zoomMaxScale);
+  });
+
+  it('draws the dying chick bigger and bigger, centred on the player', () => {
+    const world = makeWorld();
+    runUntil(world, (e) => e.some((x) => x.type === 'death'));
+    const sizes: number[] = [];
+    runUntil(world, (e) => {
+      const cmds = buildSnapshot(world, 40, 720);
+      for (let i = 0; i < cmds.length; i += STRIDE) {
+        if (SPRITE_KEYS[cmds[i + 1]] === 'player_hurt') {
+          sizes.push(cmds[i + 6]);
+          const centreX = (cmds[i + 4] + cmds[i + 6] / 2) / 40;
+          expect(centreX).toBeCloseTo(world.player.x + world.player.w / 2, 5);
+        }
+      }
+      return e.some((x) => x.type === 'gameOver');
+    });
+    expect(sizes[0]).toBeCloseTo(40, 0);
+    expect(Math.max(...sizes)).toBeGreaterThan(40 * 2);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1] - 1e-9);
   });
 });

@@ -26,7 +26,16 @@ export type Platform = {
   variant: PlatformVariant;
   spriteKey: string;
 };
-export type Pickup = { id: number; x: number; y: number; size: number; effect: EffectId; spriteKey: string };
+export type Pickup = {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  effect: EffectId;
+  spriteKey: string;
+  /** Visual float (tiles / Hz); the hitbox stays at `y`. */
+  bob: { tiles: number; hz: number };
+};
 /**
  * Hovering obstacle: `baseY` is its lowest point (just above the platform),
  * `y` bobs between baseY and baseY + bobTiles. Touching it costs points.
@@ -375,7 +384,9 @@ export class World {
     p.vy -= this.gravity * dt;
     p.y += p.vy * dt;
     p.x = wrap(p.x + p.vx * dt, this.config.columns);
-    if (p.y + this.config.death.exitMarginTiles < this.cameraY) {
+    // gone once even the zoomed sprite (centred on the player) is below the screen
+    const halfSprite = deathScale(this.time - this.diedAt, this.config) / 2;
+    if (p.y + p.h / 2 + halfSprite + this.config.death.exitMarginTiles < this.cameraY) {
       this.over = true;
       return [{ type: 'gameOver' }];
     }
@@ -484,6 +495,7 @@ export class World {
         size: pk.size,
         effect: pk.effect,
         spriteKey: pk.spriteKey,
+        bob: pk.bob,
       });
     }
     if (mayHideEasterEgg) {
@@ -506,6 +518,17 @@ export class World {
       });
     }
   }
+}
+
+/**
+ * Death zoom: sprite size (in tiles, 1 = normal) `sinceDeathMs` into the death
+ * sequence. Ease-in, so it swells slowly at first and fast at the end, like
+ * falling towards the viewer.
+ */
+export function deathScale(sinceDeathMs: number, config: GameConfig): number {
+  const { zoomMaxScale, zoomDurationMs } = config.death;
+  const k = Math.min(1, Math.max(0, sinceDeathMs / zoomDurationMs));
+  return 1 + (zoomMaxScale - 1) * k * k;
 }
 
 /**

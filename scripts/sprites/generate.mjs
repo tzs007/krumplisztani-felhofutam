@@ -14,8 +14,8 @@
  * frame, and update animations.json if the frame count changes.
  * Run: npm run sprites   (overwrites every generated file!)
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import pngjs from 'pngjs';
@@ -268,6 +268,13 @@ const pumpkins = join(SOURCE_DIR, 'pixel_pumpkins.png');
 if (existsSync(pumpkins)) {
   add('easter_pumpkin', () => writeImage('easter_pumpkin', gridCell(pumpkins, { cell: 16, col: 1, row: 2, scale: 8, pad: 128 })));
 }
+// score card: 4-frame twinkling card strip (card.png), frames split at the transparent gaps
+const cardSource = join(SOURCE_DIR, 'card.png');
+if (existsSync(cardSource)) {
+  add('pickup_card', () =>
+    writeImage('pickup_card', pixelizeStrip(cardSource, { size: 128, colors: 24, expectedFrames: framesOf('pickup_card') }).frames),
+  );
+}
 if (existsSync(goldCollect)) {
   add('pickup_coin_collect', () =>
     writeImage('pickup_coin_collect', gridFrames(goldCollect, { frame: 25, scale: 5, pad: 128 })),
@@ -297,17 +304,23 @@ for (const effect of ['double_jump']) {
 const fallSource = join(SOURCE_DIR, 'chick_fall.png');
 /**
  * Source images don't all draw the chick at the same size; this corrects a pose
- * to the jump pose's scale (< 1 = the chick is smaller in that source image,
- * measured by eye size).
+ * to the jump pose's scale: how big the chick is in that file compared with
+ * chick_jump.png (measured by eye size; < 1 = smaller, > 1 = bigger).
+ * Files not listed are assumed to match (1).
  */
-const FALL_SOURCE_SCALE = 0.85;
+const SOURCE_SCALE = {
+  'chick_fall.png': 0.85,
+  'chick_hurt.png': 1,
+  'chick_bonus.png': 1.15, // squinting: sized by body width, not eyes
+};
+const cellFor = (path) => chick.cell * (SOURCE_SCALE[basename(path)] ?? 1);
 add('player_fall', () =>
   writeImage(
     'player_fall',
     existsSync(fallSource)
       ? // umbrella above the head: centre on the body (lower 70%) so the chick stays put
         pixelize(fallSource, {
-          cell: chick.cell * FALL_SOURCE_SCALE,
+          cell: cellFor(fallSource),
           colors: 20,
           centerOnCharacter: true,
           centerBand: [0.3, 1],
@@ -317,21 +330,32 @@ add('player_fall', () =>
 );
 // hazard hit: chick_hurt.png → player_hurt (same scale correction idea as the fall pose)
 const hurtSource = join(SOURCE_DIR, 'chick_hurt.png');
-const HURT_SOURCE_SCALE = 1;
 if (existsSync(hurtSource)) {
   add('player_hurt', () =>
     writeImage(
       'player_hurt',
-      pixelize(hurtSource, { cell: chick.cell * HURT_SOURCE_SCALE, colors: 24, centerOnCharacter: true }),
+      pixelize(hurtSource, { cell: cellFor(hurtSource), colors: 24, centerOnCharacter: true }),
     ),
   );
 }
-add('player_bonus', () => writeImage('player_bonus', pixelize(bonusSource('generic'), { cell: chick.cell, colors: 24 })));
-for (const type of ['coin', 'double_score', 'double_jump']) {
+// bonus poses: centre on the body, ignoring what floats above the head (coin, sparkles)
+const bonusPose = (src) =>
+  pixelize(src, { cell: cellFor(src), colors: 24, centerOnCharacter: true, centerBand: [0.3, 1] });
+add('player_bonus', () => writeImage('player_bonus', bonusPose(bonusSource('generic'))));
+for (const type of ['card', 'coin', 'double_score', 'double_jump']) {
   const name = `player_bonus_${type}`;
-  add(name, () => writeImage(name, pixelize(bonusSource(type), { cell: chick.cell, colors: 24, centerOnCharacter: true })));
+  add(name, () => writeImage(name, bonusPose(bonusSource(type))));
 }
-add('cloud', () => writeSprite('cloud', 32, 16, cloudPixel()));
+// cloud: hand-made art (sprite-sources/cloud.png, any landscape size) if present, else the placeholder
+const cloudSource = join(SOURCE_DIR, 'cloud.png');
+add('cloud', () =>
+  existsSync(cloudSource)
+    ? copyFileSync(cloudSource, join(OUT_DIR, 'cloud.png'))
+    : writeSprite('cloud', 32, 16, cloudPixel()),
+);
+// backdrop: used as is (already pixel art, drawn with its own aspect ratio — see config.background)
+const skySource = join(SOURCE_DIR, 'sky.png');
+if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
 // start: cracked egg shell the chick sits in (drawn in front of it); size set in config.start
 const eggSource = join(SOURCE_DIR, 'egg_shell.png');

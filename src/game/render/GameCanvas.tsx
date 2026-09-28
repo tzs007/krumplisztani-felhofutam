@@ -52,6 +52,27 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
         let w = cmds[i + 6];
         let h = cmds[i + 7];
 
+        if (op === 5) {
+          // backdrop: fit to height (h), keep aspect ratio, centre horizontally in the canvas (w), bottom at y
+          const img = sprites[arg];
+          if (!img) continue;
+          const bw = (h * img.width()) / img.height();
+          const src = Skia.XYWHRect(0, 0, img.width(), img.height());
+          const dst = Skia.XYWHRect((w - bw) / 2, y - h, bw, h);
+          canvas.drawImageRectOptions(img, src, dst, FilterMode.Nearest, MipmapMode.None);
+          continue;
+        }
+
+        if (op === 6) {
+          // whole image at width w, height from its aspect ratio, bottom at y
+          const img = sprites[arg];
+          if (!img) continue;
+          const ih = (w * img.height()) / img.width();
+          const src = Skia.XYWHRect(0, 0, img.width(), img.height());
+          canvas.drawImageRectOptions(img, src, Skia.XYWHRect(x, y - ih, w, ih), FilterMode.Nearest, MipmapMode.None);
+          continue;
+        }
+
         if (op === 3 || op === 4) {
           const img = sprites[arg];
           if (!img) {

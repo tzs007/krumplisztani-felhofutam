@@ -11,7 +11,7 @@
  * - a hazard (O) hovers directly above a platform at least 3 tiles wide, so
  *   there is always somewhere safe to land
  *
- * Legend: see tiles.ts ('.' or ' ' empty, '#' '=' 'B' platforms, C X J pickups, O hazard, P spawn)
+ * Legend: see tiles.ts ('.' or ' ' empty, '#' '=' 'B' platforms, K X J pickups (C coin: spare), O hazard, P spawn)
  */
 export type LevelChunk = {
   id: string;
@@ -49,7 +49,7 @@ export const chunks: LevelChunk[] = [
       '.........',
       '.====....',
       '.........',
-      '...C.....',
+      '...K.....',
       '..####...',
     ],
   },
@@ -94,7 +94,7 @@ export const chunks: LevelChunk[] = [
       '.........',
       '....====.',
       '.........',
-      '......C..',
+      '......K..',
       '....####.',
     ],
   },
@@ -110,7 +110,7 @@ export const chunks: LevelChunk[] = [
       '.........',
       '.....===.',
       '.........',
-      '..C......',
+      '..K......',
       '.###.....',
     ],
   },
@@ -217,7 +217,7 @@ export const chunks: LevelChunk[] = [
       '.........',
       '......=..',
       '.........',
-      '...C.....',
+      '...K.....',
       '...B.....',
     ],
   },

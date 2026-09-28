@@ -217,7 +217,8 @@ describe('sprite sheets', () => {
   it.each(SPRITE_KEYS.map((k) => [k]))('%s PNG matches its frame count (square frames, ≥128px)', (key) => {
     const frames = spriteAnimations[key]?.frames ?? 1;
     const { width, height } = pngSize(key);
-    if (key === 'cloud') return expect([width, height]).toEqual([256, 128]);
+    if (key === 'cloud') return expect(width).toBeGreaterThan(height); // free-size landscape art
+    if (key.startsWith('bg_')) return expect(height).toBeGreaterThan(width); // portrait backdrop, any size
     expect(height).toBeGreaterThanOrEqual(128);
     expect(width).toBe(height * frames);
   });

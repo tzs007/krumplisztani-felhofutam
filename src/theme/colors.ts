@@ -3,7 +3,7 @@
  * referenced by the render snapshot, so append new colors at the end.
  */
 export const palette = [
-  '#2E8BEA', // 0 sky
+  '#2081DC', // 0 sky (= top colour of the bg_sky backdrop, so the sky continues above it)
   '#FF00FF', // 1 missing sprite marker
 ] as const;
 

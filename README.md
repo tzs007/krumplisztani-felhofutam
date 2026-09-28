@@ -1,4 +1,4 @@
-# Hiperventi in Krumplisztan
+# Krumplisztáni Felhőfutam: Hiperventi Kalandjai
 
 Vertikális, végtelen „jump platform” játék (Expo SDK 57 · React Native · TypeScript · Skia · Zustand · gluestack-ui v5 / NativeWind v5).
 
@@ -27,11 +27,12 @@ src/store/          Zustand + AsyncStorage (korábbi eredmények)
 
 A pálya `src/game/level/chunks.ts`-ben lévő mátrixokból áll (fentről lefelé olvasva), a generátor véletlenszerűen rakja őket egymásra, a nehézség (`difficulty`) a megmászott magassággal nő.
 
-| Karakter        | Jelentés                                              |
-| --------------- | ----------------------------------------------------- |
-| `.` vagy ` `    | üres                                                  |
-| `#` / `=` / `B` | platform (fű / kék / tégla)                           |
-| `P`             | kezdőpozíció (csak a start chunkban)                  |
+| Karakter        | Jelentés                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.` vagy ` `    | üres                                                                                                                                                                                                    |
+| `#` / `=` / `B` | platform (fű / kék / tégla)                                                                                                                                                                             |
+| `P`             | kezdőpozíció (csak a start chunkban)                                                                                                                                                                    |
+| `K` | pontkártya (+1 pont), 4 kockás csillogás, erősen lebeg (`bob` a `tiles.ts`-ben) — a pályákon ez szerepel |
 | `C` / `X` / `J` | pickup: +1 pont / ×2 pont 10 s / ×2 ugrásmagasság 5 s (méret tile-onként: `size` a `tiles.ts`-ben, alap 0.6; érme 1.2, ×2 ikonok 0.96 — a látható méretük így az érméével egyezik, ezt teszt ellenőrzi) |
 
 Szabályok (a tesztek ellenőrzik): minden sor pontosan `columns` széles, két platformsor között legfeljebb `maxJumpTiles - 1` sor lehet (chunk-határon át is), pickup csak platform fölött állhat. Új tile: `src/game/level/tiles.ts` (a `spriteKey` a későbbi sprite-hoz).
@@ -81,6 +82,10 @@ export const slowMotion = (ms: number): EffectDefinition => ({
 
 Regisztráld a `World` konstruktorában (`this.effects.register(...)`), adj neki tile karaktert a `tiles.ts`-ben és színt a `render/snapshot.ts`-ben.
 
+## Háttér
+
+A játék hátterében a `bg_sky` égbolt látszik (forrás: `assets/sprite-sources/sky.png`, a generátor változatlanul másolja). A képernyő 1,5-szerese magasan rajzolódik, oldalt levágva, és nagyon lassú parallaxszal csúszik lefelé, ahogy a csibe mászik (`config.background`: `heightScreens`, `parallax`). Az elején az alja (a felhőpad) látszik; amikor a teteje eléri a képernyő tetejét, megáll, fölötte a vászon a kép felső színével folytatódik. Előtte maradnak a kis felhők (gyorsabb parallax).
+
 ## Sprite-ok és animációk
 
 Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (lista: `src/game/render/sprites.ts`).
@@ -95,6 +100,7 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 **Csere:** írd felül a PNG-t azonos néven (ha animált, a kockaszámot is frissítsd az `animations.json`-ban), majd `npx expo start -c`. Új sprite: PNG + egy sor a `spriteSources`-ba. Hiányzó kép helyén magenta négyzet jelenik meg; a tesztek ellenőrzik, hogy a PNG szélessége = kockaszám × 128.
 
 **Karakter forrásképek** (`assets/sprite-sources/`, tetszőleges méretű, átlátszó hátterű PNG):
+
 - `chick_run.png` → `player_jump`: **2 kocka, az ugrás fázisa szerint** (`"mode": "velocity"`): felfelé az első (terpesz), földet éréskor és lefelé az utolsó (összezárt láb). A csíkból a `sourceFrames` kockái kerülnek be (most `[0, 1]`). Kockák balról jobbra, **átlátszó hézaggal elválasztva** (nem kell egyenletes rács); közös lépték, talpvonal és paletta.
 - `chick_jump.png` → `player_jump`, ha nincs `chick_run.png`. Ez adja a léptéket a többi pózhoz: a tartalma = 128×128 = 1 tile.
 - `chick_fall.png` → `player_fall` (most: esernyős csibe; ha nincs, az ugrópóz). Mivel a forrásképeken nem ugyanakkora a csibe, a generátorban pózonkénti léptékszorzó korrigál (`FALL_SOURCE_SCALE`), a középre igazítás pedig csak a test sávját nézi (`centerBand`), hogy a fej fölötti esernyő ne húzza el.
