@@ -13,6 +13,8 @@ type AuthState = {
   /** Generated "Csibe #1234" until the player renames it. */
   displayName: string | null;
   isAnonymous: boolean;
+  /** Set once the account is saved with email + password. */
+  email: string | null;
 };
 
 export const useAuthStore = create<AuthState>()(() => ({
@@ -20,4 +22,5 @@ export const useAuthStore = create<AuthState>()(() => ({
   userId: null,
   displayName: null,
   isAnonymous: false,
+  email: null,
 }));

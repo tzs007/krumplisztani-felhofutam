@@ -369,10 +369,10 @@ Döntések (2026-09-28):
 ## A – Auth alap
 - [x] A1 Session store (Zustand): `session`, `user`, `status` (loading / offline / signedIn), `provider` (anonymous / email / google); `onAuthStateChange`; `getSupabase()` null → offline mód
 - [x] A2 Első indításkor automatikus **anonim bejelentkezés** (`signInAnonymously`); sikertelen → helyi mód, következő indításkor újrapróbálja
-- [ ] A3 **Email + jelszó**: belépés / regisztráció képernyő (gluestack form, validáció, magyar hibaüzenetek); anonim fiók **átalakítása** emailesre (`updateUser({ email, password })` — ugyanaz a user id, az eredmények megmaradnak); másik fiókba belépésnél figyelmeztetés, hogy az anonim eredmények nem kerülnek át
+- [x] A3 **Email + jelszó**: belépés / regisztráció képernyő (gluestack form, validáció, magyar hibaüzenetek); anonim fiók **átalakítása** emailesre (`updateUser({ email, password })` — ugyanaz a user id, az eredmények megmaradnak); másik fiókba belépésnél figyelmeztetés, hogy az anonim eredmények nem kerülnek át
 - [ ] A4 **Google (natív)**: `@react-native-google-signin/google-signin` + `signInWithIdToken`; anonim fiókhoz hozzákötés (`linkIdentity` / ID token); config plugin, dev/preview build kell (Expo Go-ban nem megy)
-- [ ] A5 Fiók képernyő (menüből): név (szerkeszthető), fiók típusa, „Mentsd el a fiókod” (email / Google hozzákötése anonimnak), kijelentkezés (anonimnál figyelmeztetés: a fiók elveszik)
-- [~] A6 Tesztek: (anonim + offline kész; email átalakítás az A3-mal) store állapotátmenetek, anonim → email átalakítás, offline mód (mockolt kliens)
+- [x] A5 Fiók képernyő (menüből): név (szerkeszthető), fiók típusa, „Mentsd el a fiókod” (email / Google hozzákötése anonimnak), kijelentkezés (anonimnál figyelmeztetés: a fiók elveszik)
+- [x] A6 Tesztek: store állapotátmenetek, anonim → email átalakítás, offline mód (mockolt kliens)
 
 ## N – Név
 - [x] N1 Migráció: a `handle_new_user` trigger **„Csibe #xxxx”** nevet ad (4 számjegy, egyedi: ütközésnél újrasorsol; ha elfogyna, 5 számjegy)
@@ -401,6 +401,8 @@ Döntések (2026-09-28):
 Megjegyzés (1–3. lépés, 2026-09-29): a migráció (`player_names_and_ranks`) helyi Postgresen tesztelve; az app végig kipróbálva helyi Supabase stacken (anonim belépés → „Csibe #xxxx”, feltöltés, ranglista 11. piros sorral). A névváltoztatás UI-ja (N2) az A5 fiók képernyővel jön; a szerver oldal kész.
 
 Megjegyzés (2026-09-30): a hosztolt projekten P1 (db push) és P2 (anonim belépés be, email megerősítés ki) kész, az eredmények felkerülnek. Sikertelen belépés után az app újrapróbál (előtérbe kerüléskor, játék végén, ranglista megnyitásakor; legfeljebb 15 mp-enként) — addig csak újraindítás segített.
+
+Megjegyzés (4. lépés, 2026-09-30): Fiók képernyő (név, vendég fiók mentése email + jelszóval, kijelentkezés) és Belépés képernyő; menüben „Fiók · <név>” gomb, a ranglista figyelmeztetésében „Fiók” gomb. Az anonim → emailes átalakítás egy `updateUser({ email, password })` hívás (helyi Supabase-en kipróbálva: ugyanaz a user id, azonnal megerősítve, utána jelszóval belép). Vendég fióknál nincs kijelentkezés gomb (a fiók elveszne). Jelszó-visszaállítás még nincs (email küldés kellene hozzá).
 
 ## Javasolt sorrend
 1. N + R4 + L1 migrációk (helyi Postgresen tesztelve) → P1 feltöltés

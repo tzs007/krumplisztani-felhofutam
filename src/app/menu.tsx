@@ -7,11 +7,15 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { selectBestScore, useAppStore } from "@/store/useAppStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 /** Main menu over the splash illustration; buttons sit below the chick. */
 export default function MenuRoute() {
   const insets = useSafeAreaInsets();
   const best = useAppStore(selectBestScore);
+  const displayName = useAuthStore((s) =>
+    s.status === "signedIn" ? s.displayName : null,
+  );
 
   return (
     <Box className="flex-1 bg-sky">
@@ -40,6 +44,15 @@ export default function MenuRoute() {
             onPress={() => router.push("/leaderboard")}
           >
             <ButtonText>Leaderboard</ButtonText>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onPress={() => router.push("/account")}
+          >
+            <ButtonText numberOfLines={1}>
+              {displayName ? `Fiók · ${displayName}` : "Fiók"}
+            </ButtonText>
           </Button>
         </VStack>
       </VStack>

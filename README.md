@@ -121,6 +121,8 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 
 **Játékosfiók és online ranglista:** első indításkor automatikus anonim belépés (`src/lib/auth.ts`, állapot: `useAuthStore`), a szerver „Csibe #xxxx” nevet ad (később szabadon átírható). A játék végén és induláskor a telefonon lévő, még fel nem töltött eredmények felmennek (`src/lib/resultsSync.ts`; első belépéskor az összes korábbi is, `client_id` miatt duplikáció nélkül). Ranglista: Globális fül (top 10 + saját sor; top 10-en kívül pirossal, valós helyezéssel; fiók nélkül figyelmeztetés + a helyi legjobb beinjektálva, `src/lib/leaderboard.ts`) és Saját fül (eszközön tárolt előzmények). Holtverseny: aki előbb érte el. Fiók / backend nélkül a játék offline megy.
 
+**Fiók képernyő** (menü → Fiók, `src/app/account.tsx`): névváltoztatás; vendégként „Fiók mentése” email + jelszóval — ugyanaz a fiók marad (név, eredmények), a backend email-megerősítés nélkül azonnal élesíti; belépés meglévő fiókba (`src/app/login.tsx`, figyelmeztet, hogy a vendég fiók eredményei nem kerülnek át); kijelentkezés után új vendég fiókkal folytatódik. Validáció és magyar hibaüzenetek: `src/lib/accountForm.ts`.
+
 Helyi teszteléshez: `npx supabase start` (Docker), majd egy ideiglenes `.env.development.local` a `supabase status` URL-jével és publishable kulcsával (felülírja a `.env.local`-t; git-ignored). A helyi configban az anonim belépés be van kapcsolva.
 
 **Összekötés (egyszer, böngészős bejelentkezéssel):**

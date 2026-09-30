@@ -1,14 +1,17 @@
 /**
  * Player accounts. Every player gets an account automatically: on the first
  * launch the app signs in anonymously (Supabase anonymous sign-in), and the
- * database names the player "Csibe #1234". Email / Google come later and are
- * linked to this same account, so nothing is lost.
+ * database names the player "Csibe #1234". Saving the account with email +
+ * password keeps the same user id, so nothing is lost; Google comes later.
  *
  * Nothing here ever blocks the game: without backend, network or when the
  * sign-in fails, the status is "offline" and results stay on the device.
  */
+import type { User } from '@supabase/supabase-js';
+
 import { useAuthStore } from '@/store/useAuthStore';
 
+import { authErrorMessage, validateCredentials, validateDisplayName } from './accountForm';
 import { getSupabase } from './supabase';
 import { withTimeout } from './withTimeout';
 
@@ -17,15 +20,25 @@ let inFlight: Promise<AuthResult> | null = null;
 let lastAttemptAt = -Infinity;
 
 type AuthResult = 'offline' | 'signedIn';
+/** null on success, otherwise a message for the player (Hungarian). */
+export type ActionError = string | null;
 
 /** A failed sign-in is retried by ensureSignedIn at most this often. */
 export const RETRY_INTERVAL_MS = 15_000;
 
-async function loadProfile(userId: string, isAnonymous: boolean) {
+const OFFLINE_MESSAGE = 'Nincs kapcsolat a szerverrel. Próbáld újra később.';
+
+async function loadProfile(user: User) {
   const supabase = getSupabase();
   if (!supabase) return;
-  const { data } = await supabase.from('profiles').select('display_name').eq('id', userId).maybeSingle();
-  useAuthStore.setState({ status: 'signedIn', userId, isAnonymous, displayName: data?.display_name ?? null });
+  const { data } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+  useAuthStore.setState({
+    status: 'signedIn',
+    userId: user.id,
+    isAnonymous: user.is_anonymous ?? false,
+    email: user.email || null,
+    displayName: data?.display_name ?? null,
+  });
 }
 
 /** Restores the session or signs in anonymously; resolves with the resulting status. Never throws. */
@@ -61,11 +74,11 @@ async function signIn(timeoutMs: number): Promise<AuthResult> {
     listening = true;
     supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        useAuthStore.setState({ status: 'offline', userId: null, displayName: null, isAnonymous: false });
+        useAuthStore.setState({ status: 'offline', userId: null, displayName: null, isAnonymous: false, email: null });
         return;
       }
       // profile load is async; don't await inside the auth callback (Supabase advice)
-      setTimeout(() => loadProfile(session.user.id, session.user.is_anonymous ?? false).catch(() => {}), 0);
+      setTimeout(() => loadProfile(session.user).catch(() => {}), 0);
     });
   }
 
@@ -78,12 +91,77 @@ async function signIn(timeoutMs: number): Promise<AuthResult> {
       user = signIn.data.user;
     }
     if (!user) throw new Error('no user after sign-in');
-    useAuthStore.setState({ status: 'signedIn', userId: user.id, isAnonymous: user.is_anonymous ?? false });
-    await withTimeout(loadProfile(user.id, user.is_anonymous ?? false), timeoutMs).catch(() => {});
+    useAuthStore.setState({
+      status: 'signedIn',
+      userId: user.id,
+      isAnonymous: user.is_anonymous ?? false,
+      email: user.email || null,
+    });
+    await withTimeout(loadProfile(user), timeoutMs).catch(() => {});
     return 'signedIn';
   } catch (e) {
     console.warn('Sign-in failed, playing offline', e);
     useAuthStore.setState({ status: 'offline' });
     return 'offline';
   }
+}
+
+/**
+ * Registration. An anonymous player's account gets the email + password
+ * (same user id: the name and the uploaded results stay); without any
+ * session a new account is created. Email confirmation is off on the
+ * backend, so the account is ready right away.
+ */
+export async function saveAccount(email: string, password: string): Promise<ActionError> {
+  const invalid = validateCredentials(email, password);
+  if (invalid) return invalid;
+  const supabase = getSupabase();
+  if (!supabase) return OFFLINE_MESSAGE;
+  const creds = { email: email.trim(), password };
+
+  const { status, isAnonymous } = useAuthStore.getState();
+  const { data, error } =
+    status === 'signedIn' && isAnonymous
+      ? await supabase.auth.updateUser(creds)
+      : await supabase.auth.signUp(creds);
+  if (error) return authErrorMessage(error);
+  if (data.user) await loadProfile(data.user).catch(() => {});
+  return null;
+}
+
+/** Signs in to an existing account (switching away from the current, e.g. anonymous, one). */
+export async function signInWithEmail(email: string, password: string): Promise<ActionError> {
+  const invalid = validateCredentials(email, password);
+  if (invalid) return invalid;
+  const supabase = getSupabase();
+  if (!supabase) return OFFLINE_MESSAGE;
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) return authErrorMessage(error);
+  await loadProfile(data.user).catch(() => {});
+  return null;
+}
+
+/** Signs out, then continues as a new anonymous player (playing never needs an account). */
+export async function signOut(): Promise<ActionError> {
+  const supabase = getSupabase();
+  if (!supabase) return OFFLINE_MESSAGE;
+  const { error } = await supabase.auth.signOut();
+  if (error) return authErrorMessage(error);
+  useAuthStore.setState({ status: 'offline', userId: null, displayName: null, isAnonymous: false, email: null });
+  await initAuth();
+  return null;
+}
+
+/** Renames the player (2–24 characters; someone else's generated "Csibe #…" name is taken). */
+export async function updateDisplayName(name: string): Promise<ActionError> {
+  const invalid = validateDisplayName(name);
+  if (invalid) return invalid;
+  const supabase = getSupabase();
+  const { status, userId } = useAuthStore.getState();
+  if (!supabase || status !== 'signedIn' || !userId) return OFFLINE_MESSAGE;
+  const displayName = name.trim();
+  const { error } = await supabase.from('profiles').update({ display_name: displayName }).eq('id', userId);
+  if (error) return authErrorMessage(error);
+  useAuthStore.setState({ displayName });
+  return null;
 }

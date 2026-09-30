@@ -138,7 +138,7 @@ export default function LeaderboardRoute() {
         <Button
           variant="secondary"
           size="sm"
-          disabled={tab !== 'mine' || history.length === 0}
+          isDisabled={tab !== 'mine' || history.length === 0}
           onPress={confirmClear}
         >
           <ButtonText>Clear</ButtonText>
@@ -158,9 +158,12 @@ export default function LeaderboardRoute() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#fff" />}
           ListHeaderComponent={
             noAccount && authStatus !== 'loading' ? (
-              <Box className="mb-2 rounded-md border-l-4 border-destructive bg-card px-4 py-3">
-                <Text className="text-foreground">Az eredményeid csak a saját eszközödön jelennek meg.</Text>
-              </Box>
+              <HStack space="md" className="mb-2 items-center rounded-md border-l-4 border-destructive bg-card px-4 py-3">
+                <Text className="flex-1 text-foreground">Az eredményeid csak a saját eszközödön jelennek meg.</Text>
+                <Button size="sm" onPress={() => router.push('/account')}>
+                  <ButtonText>Fiók</ButtonText>
+                </Button>
+              </HStack>
             ) : null
           }
           renderItem={({ item, index }) => {
