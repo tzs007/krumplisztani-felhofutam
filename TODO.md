@@ -338,8 +338,73 @@ Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel k
 - [x] B4 Séma tervezet (`init_schema` migráció): profiles + trigger, game_results (append-only, check constraintek), `top_scores()` ranglista; RLS mindenhol, anon jogok visszavonva; helyi Postgresen lefuttatva és RLS-tesztelve
 - [x] B5 Típusok: `src/lib/database.types.ts`
 - [x] B5b Easter egg konfig adatbázisból: `easter_eggs` + `app_config` + `memes` bucket (read-only a kliensnek, két szintű írásvédelem), `syncEasterEggs()` a nyitóképernyőn (timeout, cache, beépített fallback, validálás), lusta Supabase kliens (régi APK-n `expo-sqlite` nélkül is biztonságos); helyben tesztelve + 8 unit teszt
-- [ ] B6 Összekötés (felhasználó): `eas integrations:supabase:connect` (régió), `supabase link`, `supabase db push`, típusgenerálás
-- [ ] B7 Auth epic: bejelentkezés (email+jelszó vagy magic link / OAuth → deep link), profil név
-- [ ] B8 Eredmények feltöltése (offline sor, szinkron), online ranglista képernyő
+- [~] B6 Összekötés (felhasználó): `eas integrations:supabase:connect --link rxwmqokvvywapunsjmld` ✅ (van `.env.local`); hátra: `supabase link`, `supabase db push`, típusgenerálás
+- [ ] B7 Auth epic → részletesen: **Epic 10**
+- [ ] B8 Eredmények feltöltése + online ranglista → részletesen: **Epic 10** (R, L pontok)
 - [ ] B9 Anti-cheat: pontszám-ellenőrzés Edge Functionnel (ha kell)
 - [ ] B10 Új build az `expo-sqlite` miatt, mielőtt a kliens élesbe kerül
+
+---
+
+# Epic 10 – Auth, játékosnév, online ranglista (terv, 2026-09-28)
+
+Döntések (2026-09-28):
+- Bejelentkezés: **anonim** (automatikus, első indításkor) + **email/jelszó** + **Google (natív)**; magic link nincs
+- Nem kötelező; az **anonim játékos teljes értékű user**: az eredményei felkerülnek a ranglistára, nincs külön „vendég” jelölés
+- „Az eredményeid csak a saját eszközödön jelennek meg” figyelmeztetés csak akkor, ha **nincs session** (offline, backend nélkül, sikertelen anonim belépés)
+- Név: generált **„Csibe #xxxx”** (egyedi), utána **szabadon átírható** (2–24 karakter)
+- Ranglista: **mindenkori**; két fül: **Globális** (top 10 + saját sor) és **Saját** (a telefonon tárolt előzmények, a mostani képernyő)
+- A saját legjobb eredmény injektálva: top 10-en belül a helyén kiemelve; kívül 11. sorként **piros háttérrel**, a valós helyezéssel („#3441”), előtte „…” elválasztó
+- Holtverseny: **aki előbb érte el, az van előrébb** (pontszám csökkenő, majd időpont növekvő)
+- Email megerősítés **kikapcsolva** (azonnal játszhat)
+- Első bejelentkezéskor a telefonon lévő **összes** korábbi eredmény feltöltődik
+
+## Előfeltételek (felhasználó, Supabase / Google dashboard)
+- [x] P1 `npx supabase link --project-ref rxwmqokvvywapunsjmld` + `npx supabase db push` (init_schema, easter_eggs_config, + az új auth migráció)
+- [x] P2 Supabase → Authentication → Sign In / Providers: **Anonymous sign-ins** be; **Email** be, **Confirm email ki**
+- [ ] P3 Supabase → Auth → **Manual linking** be (anonim fiókhoz Google hozzákötése)
+- [ ] P4 Google Cloud Console: OAuth kliensek (Web + iOS + Android; Android SHA-1 az EAS keystore-ból: `eas credentials`); Supabase → Providers → Google: Web client ID + secret, iOS/Android client ID-k az „Authorized Client IDs”-be
+- [ ] P5 (ajánlott) Supabase → Auth: rate limit / CAPTCHA az anonim regisztrációkra (spam ellen)
+
+## A – Auth alap
+- [x] A1 Session store (Zustand): `session`, `user`, `status` (loading / offline / signedIn), `provider` (anonymous / email / google); `onAuthStateChange`; `getSupabase()` null → offline mód
+- [x] A2 Első indításkor automatikus **anonim bejelentkezés** (`signInAnonymously`); sikertelen → helyi mód, következő indításkor újrapróbálja
+- [ ] A3 **Email + jelszó**: belépés / regisztráció képernyő (gluestack form, validáció, magyar hibaüzenetek); anonim fiók **átalakítása** emailesre (`updateUser({ email, password })` — ugyanaz a user id, az eredmények megmaradnak); másik fiókba belépésnél figyelmeztetés, hogy az anonim eredmények nem kerülnek át
+- [ ] A4 **Google (natív)**: `@react-native-google-signin/google-signin` + `signInWithIdToken`; anonim fiókhoz hozzákötés (`linkIdentity` / ID token); config plugin, dev/preview build kell (Expo Go-ban nem megy)
+- [ ] A5 Fiók képernyő (menüből): név (szerkeszthető), fiók típusa, „Mentsd el a fiókod” (email / Google hozzákötése anonimnak), kijelentkezés (anonimnál figyelmeztetés: a fiók elveszik)
+- [~] A6 Tesztek: (anonim + offline kész; email átalakítás az A3-mal) store állapotátmenetek, anonim → email átalakítás, offline mód (mockolt kliens)
+
+## N – Név
+- [x] N1 Migráció: a `handle_new_user` trigger **„Csibe #xxxx”** nevet ad (4 számjegy, egyedi: ütközésnél újrasorsol; ha elfogyna, 5 számjegy)
+- [x] N2 Szabad névváltoztatás (2–24 karakter, trim, egyedi generált névvel ütközés nem gond); profil `update` policy már megvan
+- [x] N3 Tesztek: minden új profil egyedi „Csibe #xxxx” nevet kap (helyi Postgresen), névváltoztatás validáció
+
+## R – Eredmények feltöltése
+- [x] R1 Játék végén: helyi mentés (mint most) + feltöltés `game_results`-ba, ha van session (anonim is)
+- [x] R2 Offline sor: a fel nem töltött eredmények a telefonon várnak; induláskor / hálózat visszatértekor szinkron; idempotens (helyi azonosító → egyedi `client_id` oszlop, nem duplikál)
+- [x] R3 Első bejelentkezéskor **az összes** korábbi, csak eszközön lévő eredmény feltöltése (az eredeti `played_at` időponttal)
+- [x] R4 Migráció: `game_results.client_id` (egyedi / user), `played_at` beküldhető (de nem jövőbeli)
+- [x] R5 Tesztek: sor, újrapróbálás, duplikáció elleni védelem, első belépéses feltöltés
+
+## L – Online ranglista képernyő
+- [x] L1 Migráció: `top_scores(10)` (megvan; holtverseny: pont ↓, időpont ↑) + `rank_for_score(score, played_at)` (publikus: hányadik lenne egy eredmény — kijelentkezett injektáláshoz) + `my_rank()` (bejelentkezett: saját legjobb + helyezés)
+- [x] L2 UI: fülek (Globális / Saját); Globális: top 10 (helyezés, név, pont), saját sor kiemelve
+- [x] L3 Nincs session: figyelmeztetés a lista fölött — „Az eredményeid csak a saját eszközödön jelennek meg.” + bejelentkezés gomb
+- [x] L4 Saját legjobb injektálása: top 10-en belül a helyén kiemelve; kívül „…” + 11. sor **piros háttérrel**, valós helyezéssel („#3441”)
+- [x] L5 Offline / backend nélkül: Globális fülön „nincs kapcsolat” állapot, a Saját fül működik
+- [x] L6 Lehúzásra frissítés, betöltés / hiba állapotok
+- [x] L7 Tesztek: injektálás (top 10-en belül / kívül / holtverseny az időpont szerint), helyezésszámítás
+
+## Build
+- [ ] X1 Új preview build (expo-sqlite + natív Google Sign-In), utána OTA-k a `preview` csatornán
+
+Megjegyzés (1–3. lépés, 2026-09-29): a migráció (`player_names_and_ranks`) helyi Postgresen tesztelve; az app végig kipróbálva helyi Supabase stacken (anonim belépés → „Csibe #xxxx”, feltöltés, ranglista 11. piros sorral). A névváltoztatás UI-ja (N2) az A5 fiók képernyővel jön; a szerver oldal kész.
+
+Megjegyzés (2026-09-30): a hosztolt projekten P1 (db push) és P2 (anonim belépés be, email megerősítés ki) kész, az eredmények felkerülnek. Sikertelen belépés után az app újrapróbál (előtérbe kerüléskor, játék végén, ranglista megnyitásakor; legfeljebb 15 mp-enként) — addig csak újraindítás segített.
+
+## Javasolt sorrend
+1. N + R4 + L1 migrációk (helyi Postgresen tesztelve) → P1 feltöltés
+2. A1–A2 (anonim) + R1–R3 (feltöltés) → az eredmények már a szerveren
+3. L (ranglista képernyő)
+4. A3 (email) + A5 (fiók képernyő)
+5. A4 (Google) + X1 (build) — ehhez kellenek a P4 kulcsok

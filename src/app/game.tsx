@@ -24,6 +24,7 @@ import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { SPRITE_KEYS } from '@/game/render/sprites';
 import { countdownLabel } from '@/game/render/countdown';
 import { buildSnapshot } from '@/game/render/snapshot';
+import { connectAndSync } from '@/lib/resultsSync';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
 
 type Status = 'playing' | 'paused' | 'easterEgg' | 'over';
@@ -93,6 +94,8 @@ export default function GameRoute() {
       durationMs: world.time,
       playedAt: Date.now(),
     });
+    // upload it (plus anything queued while offline), signing in first if that failed earlier; fire and forget
+    connectAndSync();
     setLastResult({ score: world.score, newBest });
     setHud({ score: world.score, effects: [] });
     setStatus('over');

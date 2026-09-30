@@ -15,8 +15,11 @@ export const MAX_HISTORY = 50;
 
 type AppState = {
   history: GameResult[];
+  /** Ids of results already uploaded to the backend (the rest wait in the upload queue). */
+  uploadedIds: string[];
   hasHydrated: boolean;
-  addResult: (result: Omit<GameResult, 'id'>) => void;
+  addResult: (result: Omit<GameResult, 'id'>) => GameResult;
+  markUploaded: (ids: string[]) => void;
   clearHistory: () => void;
 };
 
@@ -31,20 +34,34 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       history: [],
+      uploadedIds: [],
       hasHydrated: false,
-      addResult: (result) =>
-        set((s) => ({
-          history: insertResult(s.history, { ...result, id: `${result.playedAt}-${Math.random().toString(36).slice(2, 8)}` }),
-        })),
-      clearHistory: () => set({ history: [] }),
+      addResult: (result) => {
+        const saved = { ...result, id: `${result.playedAt}-${Math.random().toString(36).slice(2, 8)}` };
+        set((s) => ({ history: insertResult(s.history, saved) }));
+        return saved;
+      },
+      markUploaded: (ids) =>
+        set((s) => {
+          // only remember ids still in the (capped) history
+          const keep = new Set(s.history.map((r) => r.id));
+          return { uploadedIds: [...new Set([...s.uploadedIds, ...ids])].filter((id) => keep.has(id)) };
+        }),
+      clearHistory: () => set({ history: [], uploadedIds: [] }),
     }),
     {
       name: 'hiperventi-app',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ history: s.history }),
+      partialize: (s) => ({ history: s.history, uploadedIds: s.uploadedIds }),
       onRehydrateStorage: () => () => useAppStore.setState({ hasHydrated: true }),
     },
   ),
 );
 
 export const selectBestScore = (s: AppState) => s.history[0]?.score ?? 0;
+
+/** Results on this device not uploaded yet (all of them before the first sign-in). */
+export const selectPendingUploads = (s: AppState) => {
+  const done = new Set(s.uploadedIds);
+  return s.history.filter((r) => !done.has(r.id));
+};

@@ -119,6 +119,10 @@ Minden grafika az `assets/sprites/` mappában van, a **fájlnév = spriteKey** (
 - Séma: `supabase/migrations/…_init_schema.sql` és `…_easter_eggs_config.sql` (mémek, `app_config`, `memes` bucket; mindenki olvashatja, írni csak a dashboardról lehet) — `profiles` (regisztrációkor automatikusan), `game_results` (csak hozzáfűzés), `top_scores(limit)` publikus ranglista függvény; minden táblán RLS, a kijelentkezett (anon) szerep közvetlenül semmit nem ér el. Helyben tesztelve (`npx supabase db start`).
 - Típusok: `src/lib/database.types.ts` (kézzel, a migráció alapján; összekötés után: `npx supabase gen types typescript --linked > src/lib/database.types.ts`).
 
+**Játékosfiók és online ranglista:** első indításkor automatikus anonim belépés (`src/lib/auth.ts`, állapot: `useAuthStore`), a szerver „Csibe #xxxx” nevet ad (később szabadon átírható). A játék végén és induláskor a telefonon lévő, még fel nem töltött eredmények felmennek (`src/lib/resultsSync.ts`; első belépéskor az összes korábbi is, `client_id` miatt duplikáció nélkül). Ranglista: Globális fül (top 10 + saját sor; top 10-en kívül pirossal, valós helyezéssel; fiók nélkül figyelmeztetés + a helyi legjobb beinjektálva, `src/lib/leaderboard.ts`) és Saját fül (eszközön tárolt előzmények). Holtverseny: aki előbb érte el. Fiók / backend nélkül a játék offline megy.
+
+Helyi teszteléshez: `npx supabase start` (Docker), majd egy ideiglenes `.env.development.local` a `supabase status` URL-jével és publishable kulcsával (felülírja a `.env.local`-t; git-ignored). A helyi configban az anonim belépés be van kapcsolva.
+
 **Összekötés (egyszer, böngészős bejelentkezéssel):**
 ```bash
 npx eas-cli@latest integrations:supabase:connect   # projekt létrehozása/linkelése, régió: emea

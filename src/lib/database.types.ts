@@ -9,9 +9,9 @@ export type Database = {
   public: {
     Tables: {
       profiles: {
-        Row: { id: string; display_name: string | null; created_at: string };
-        Insert: { id: string; display_name?: string | null; created_at?: string };
-        Update: { display_name?: string | null };
+        Row: { id: string; display_name: string; created_at: string };
+        Insert: { id: string; display_name?: string; created_at?: string };
+        Update: { display_name?: string };
         Relationships: [];
       };
       easter_eggs: {
@@ -49,6 +49,7 @@ export type Database = {
           pickups: number;
           duration_ms: number;
           played_at: string;
+          client_id: string | null;
         };
         Insert: {
           user_id?: string;
@@ -57,6 +58,7 @@ export type Database = {
           pickups: number;
           duration_ms: number;
           played_at?: string;
+          client_id?: string | null;
         };
         Update: never;
         Relationships: [];
@@ -64,10 +66,20 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      /** Public leaderboard: best score per player, highest first (max 100 rows). */
+      /** Public leaderboard: best score per player; score desc, then who reached it first (max 100 rows). */
       top_scores: {
         Args: { limit_count?: number };
-        Returns: { user_id: string; display_name: string | null; best_score: number; played_at: string }[];
+        Returns: { user_id: string; display_name: string; best_score: number; played_at: string }[];
+      };
+      /** Public: where a (device-only) result would rank among all players' bests (1-based). */
+      rank_for_score: {
+        Args: { p_score: number; p_played_at?: string };
+        Returns: number;
+      };
+      /** Signed-in player's name, best result and rank; empty if no results yet. */
+      my_rank: {
+        Args: Record<string, never>;
+        Returns: { display_name: string; best_score: number; played_at: string; rank: number }[];
       };
     };
     Enums: Record<string, never>;

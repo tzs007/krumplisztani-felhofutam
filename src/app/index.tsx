@@ -11,6 +11,7 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { loadSprites } from "@/game/render/loadSprites";
 import { syncEasterEggs } from "@/lib/remoteEasterEggs";
+import { startBackgroundSync } from "@/lib/resultsSync";
 import { useAppStore } from "@/store/useAppStore";
 
 const MIN_SPLASH_MS = 1500;
@@ -32,6 +33,9 @@ export default function SplashRoute() {
   useEffect(() => {
     loadSprites().then(() => setSpritesLoaded(true));
     syncEasterEggs().finally(() => setContentSynced(true));
+    // player account (anonymous on first launch) + upload of results waiting on
+    // this device; runs in the background (retried on foreground), the menu doesn't wait for it
+    startBackgroundSync();
     const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
     const splashTimer = setTimeout(
       () => SplashScreen.hideAsync(),

@@ -14,6 +14,7 @@ import { hasSprite } from '@/game/render/sprites';
 
 import type { Database } from './database.types';
 import { getSupabase } from './supabase';
+import { withTimeout } from './withTimeout';
 
 type EasterEggRow = Database['public']['Tables']['easter_eggs']['Row'];
 
@@ -58,13 +59,6 @@ export function parseEasterEggSettings(value: unknown): EasterEggSettings {
     settings.chunkRange = [range[0], range[1]];
   }
   return settings;
-}
-
-function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms)),
-  ]);
 }
 
 async function download(timeoutMs: number): Promise<Cached | null> {
