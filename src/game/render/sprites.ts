@@ -2,7 +2,8 @@ import animationsJson from '@/assets/sprites/animations.json';
 
 /**
  * Sprite registry: spriteKey → PNG. The file name IS the key, so a sprite
- * can be replaced by dropping a new PNG (128×128 per frame; cloud: 256×128)
+ * can be replaced by dropping a new PNG (128×128 per frame; cloud: 256×128;
+ * platforms: 128 wide, may be taller)
  * into assets/sprites/. Regenerate the placeholders with `npm run sprites`.
  * Animated sprites are horizontal sheets described in animations.json.
  */
@@ -19,6 +20,11 @@ export const spriteSources = {
   platform_brick_mid: require('@/assets/sprites/platform_brick_mid.png'),
   platform_brick_right: require('@/assets/sprites/platform_brick_right.png'),
   platform_brick_single: require('@/assets/sprites/platform_brick_single.png'),
+  // drawn art: 128 wide, taller than a tile (the rocks hang below the walkable top)
+  platform_byzantine_left: require('@/assets/sprites/platform_byzantine_left.png'),
+  platform_byzantine_mid: require('@/assets/sprites/platform_byzantine_mid.png'),
+  platform_byzantine_right: require('@/assets/sprites/platform_byzantine_right.png'),
+  platform_byzantine_single: require('@/assets/sprites/platform_byzantine_single.png'),
   pickup_card: require('@/assets/sprites/pickup_card.png'),
   pickup_coin: require('@/assets/sprites/pickup_coin.png'),
   pickup_coin_collect: require('@/assets/sprites/pickup_coin_collect.png'),

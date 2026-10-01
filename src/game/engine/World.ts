@@ -1,11 +1,18 @@
 import { derivePhysics, type EasterEggItemDef, type GameConfig } from '../config';
 import { LevelGenerator, type PlacedChunk } from '../level/generator';
 import type { LevelChunk } from '../level/chunks';
-import type { PlatformVariant } from '../level/tiles';
+import { platformSpriteKey, type PlatformVariant } from '../level/tiles';
 import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
 import { EffectRegistry, type EffectContext, type EffectId } from './effects/EffectRegistry';
 import { createRng, type Rng } from './random';
 import { getEasterEggs } from '../easterEggs';
+
+/** Platform theme after `milestones` milestones (null = as authored in the chunks). */
+export function platformTheme(milestones: number, { sequence, loop }: GameConfig['platformThemes']): PlatformVariant | null {
+  if (sequence.length === 0) return null;
+  const i = loop ? milestones % sequence.length : Math.min(milestones, sequence.length - 1);
+  return sequence[i];
+}
 
 /** How far a "hover" item floats above its platform (like pickups). */
 const HOVER_LIFT = 0.15;
@@ -161,6 +168,8 @@ export class World {
   private chunksPlaced = 0;
   /** Next score that triggers a burst; only moves up, so dropping below and back doesn't re-fire. */
   private nextMilestone: number;
+  /** Milestones reached so far; picks the platform theme (see config.platformThemes). */
+  private milestonesReached = 0;
   private nextId = 1;
 
   constructor({ config, viewHeight, rng = createRng(), chunks, startChunk }: WorldOptions) {
@@ -441,6 +450,20 @@ export class World {
         particles: this.makeStars(),
       });
       this.nextMilestone += m.every;
+      this.milestonesReached++;
+      this.rethemeAbove(this.player.y);
+    }
+  }
+
+  /** Everything whose top is above `y` (the player's feet) takes the current theme. */
+  private rethemeAbove(y: number) {
+    const theme = platformTheme(this.milestonesReached, this.config.platformThemes);
+    if (!theme) return;
+    for (const pl of this.platforms) {
+      if (pl.y > y) {
+        pl.variant = theme;
+        pl.spriteKey = platformSpriteKey(theme);
+      }
     }
   }
 
@@ -479,14 +502,15 @@ export class World {
   }
 
   private addChunk(chunk: PlacedChunk, mayHideEasterEgg: boolean) {
+    const theme = platformTheme(this.milestonesReached, this.config.platformThemes);
     for (const pl of chunk.platforms) {
       this.platforms.push({
         id: this.nextId++,
         x: pl.col,
         y: chunk.baseRow + pl.row + 1,
         width: pl.width,
-        variant: pl.variant,
-        spriteKey: pl.spriteKey,
+        variant: theme ?? pl.variant,
+        spriteKey: theme ? platformSpriteKey(theme) : pl.spriteKey,
       });
     }
     for (const pk of chunk.pickups) {

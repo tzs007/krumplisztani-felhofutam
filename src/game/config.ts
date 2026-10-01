@@ -1,3 +1,5 @@
+import type { PlatformVariant } from "./level/tiles";
+
 /**
  * Central tuning config. All world units are TILES (1 = one grid cell);
  * the renderer converts to pixels via tileSize = screenWidth / columns.
@@ -94,6 +96,17 @@ export type GameConfig = {
     gravity: number;
     /** Each star lives this long (± 20%), then it has shrunk away. */
     lifeMs: number;
+  };
+  /**
+   * Platform look per milestone: after the n-th milestone everything above
+   * the player switches to sequence[n] right away (with the fireworks), and so
+   * does the level generated from then on; the platform under the player and
+   * those below keep their look. Past the end: start over (loop) or stay on
+   * the last one. Empty: the variants authored in the chunks.
+   */
+  platformThemes: {
+    sequence: PlatformVariant[];
+    loop: boolean;
   };
   background: {
     /** Backdrop image (not a tile sprite: drawn with its own aspect ratio, sides cropped to fit). */
@@ -208,6 +221,11 @@ export const defaultGameConfig: GameConfig = {
     gravity: 7,
     lifeMs: 1300,
   },
+  platformThemes: {
+    // one look per stretch from the start: grass until 100, then blue, brick, byzantine, then again
+    sequence: ["byzantine", "grass", "blue", "brick", "byzantine"],
+    loop: true,
+  },
   background: {
     spriteKey: "bg_sky",
     heightScreens: 1.5,
@@ -217,7 +235,11 @@ export const defaultGameConfig: GameConfig = {
     chancePerGame: 0.1,
     chunkRange: [2, 12],
     // 1.125 → the pumpkin looks as big as the coin
-    defaultItem: { spriteKey: "easter_pumpkin", size: 1.125, placement: "ground" },
+    defaultItem: {
+      spriteKey: "easter_pumpkin",
+      size: 1.125,
+      placement: "ground",
+    },
   },
   start: {
     countdownMs: 3000,

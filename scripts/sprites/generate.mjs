@@ -13,6 +13,7 @@
  * Replace any PNG by hand later: keep the file name (= spriteKey), 128×128 per
  * frame, and update animations.json if the frame count changes.
  * Run: npm run sprites   (overwrites every generated file!)
+ *      npm run sprites -- platform_byzantine   (only sprites whose name starts with an argument)
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import pngjs from 'pngjs';
 
+import { platformTilesFromArt } from './platformArt.mjs';
 import { gridCell, gridFrames, pixelize, pixelizeStrip } from './pixelize.mjs';
 
 const { PNG } = pngjs;
@@ -238,7 +240,9 @@ function cloudPixel() {
 
 mkdirSync(OUT_DIR, { recursive: true });
 const written = [];
+const only = process.argv.slice(2);
 const add = (name, fn) => {
+  if (only.length > 0 && !only.some((prefix) => name.startsWith(prefix))) return;
   fn();
   written.push(name);
 };
@@ -247,6 +251,20 @@ for (const variant of Object.keys(platformPalettes)) {
   for (const part of ['left', 'mid', 'right', 'single']) {
     const name = `platform_${variant}_${part}`;
     add(name, () => writeSprite(name, GRID, GRID, platformPixel(variant, part)));
+  }
+}
+// drawn platform art: platform_<variant>_{left,single,right}.png in sprite-sources → 1-tile pieces
+// (128 wide, walkable top at y = 0, the rocks hang below; see platformArt.mjs)
+for (const variant of ['byzantine']) {
+  const src = (part) => join(SOURCE_DIR, `platform_${variant}_${part}.png`);
+  if (!['left', 'single', 'right'].every((part) => existsSync(src(part)))) continue;
+  let tiles;
+  for (const part of ['left', 'mid', 'right', 'single']) {
+    const name = `platform_${variant}_${part}`;
+    add(name, () => {
+      tiles ??= platformTilesFromArt({ left: src('left'), single: src('single'), right: src('right') });
+      writeImage(name, tiles[part]);
+    });
   }
 }
 // hand-made coin art (25px frames ×5 → 125, padded to 128); procedural placeholder otherwise

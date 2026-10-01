@@ -1,6 +1,6 @@
 import type { EffectId } from '../engine/effects/EffectRegistry';
 
-export type PlatformVariant = 'grass' | 'blue' | 'brick';
+export type PlatformVariant = 'grass' | 'blue' | 'brick' | 'byzantine';
 
 export type TileDef =
   | { kind: 'empty' }
@@ -15,6 +15,11 @@ export type TileDef =
   | { kind: 'hazard'; spriteKey: string; size: number };
 
 export const DEFAULT_PICKUP_SIZE = 0.6;
+
+/** Sprite family of a platform variant (as in the tile legend below): "platform_<variant>". */
+export function platformSpriteKey(variant: PlatformVariant): string {
+  return `platform_${variant}`;
+}
 
 /** Floating motion of a pickup: amplitude in tiles, frequency in Hz. */
 export type PickupBob = { tiles: number; hz: number };
@@ -31,6 +36,7 @@ export const tiles: Record<string, TileDef> = {
   '#': { kind: 'platform', variant: 'grass', spriteKey: 'platform_grass' },
   '=': { kind: 'platform', variant: 'blue', spriteKey: 'platform_blue' },
   B: { kind: 'platform', variant: 'brick', spriteKey: 'platform_brick' },
+  Z: { kind: 'platform', variant: 'byzantine', spriteKey: 'platform_byzantine' },
   // score card: what the levels use for points now; floats clearly, like it's hovering
   K: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_card', size: 1.2, bob: { tiles: 0.15, hz: 0.5 } },
   // coin: kept as a component for later (not placed in the levels at the moment)

@@ -1,15 +1,14 @@
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { readableOnArt, SplashBackground } from "@/components/SplashBackground";
+import { SplashBackground } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { selectBestScore, useAppStore } from "@/store/useAppStore";
 import { useAuthStore } from "@/store/useAuthStore";
 
-/** Main menu over the splash illustration; buttons sit below the chick. */
+/** Main menu over the splash illustration; buttons centred on the screen. */
 export default function MenuRoute() {
   const insets = useSafeAreaInsets();
   const best = useAppStore(selectBestScore);
@@ -22,14 +21,9 @@ export default function MenuRoute() {
       <SplashBackground />
       <VStack
         space="lg"
-        className="flex-1 items-center justify-end px-8"
-        style={{ paddingBottom: insets.bottom + 40 }}
+        className="flex-1 items-center justify-center px-8"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
-        {best > 0 && (
-          <Text bold size="lg" className="text-sky-foreground" style={readableOnArt}>
-            Best: {best}
-          </Text>
-        )}
         <VStack space="lg" className="w-full max-w-sm">
           <Button
             size="lg"

@@ -15,8 +15,10 @@ import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKe
  *  op 6 = image by width (arg = sprite index;  x, bottom y, width, _): the whole image at `width`,
  *         height from its own aspect ratio, bottom at `bottom y` (for free-size art like clouds)
  */
-export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4, backdrop: 5, imageByWidth: 6 } as const;
+export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4, backdrop: 5, imageByWidth: 6, tile: 7 } as const;
 export const STRIDE = 8;
+/** Platform art may reach this many tiles below the walkable top (for culling). */
+const PLATFORM_MAX_HANG = 2;
 
 export type PlatformPart = 'left' | 'mid' | 'right' | 'single';
 
@@ -194,13 +196,14 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
 
   const visible = (bottom: number, top: number) => top >= world.cameraY && bottom <= world.cameraY + world.viewHeight;
 
-  // platforms: one sprite per tile; the sprite's top edge is the walkable surface
+  // platforms: one sprite per tile; the sprite's top edge is the walkable surface,
+  // drawn art may hang below the tile (height from the image, see Op.tile)
   for (const pl of world.platforms) {
-    if (!visible(pl.y - 1, pl.y)) continue;
+    if (!visible(pl.y - PLATFORM_MAX_HANG, pl.y)) continue;
     const y = sy(pl.y);
     for (let i = 0; i < pl.width; i++) {
       const key = `${pl.spriteKey}_${platformPart(i, pl.width)}` as SpriteKey;
-      sprite(Op.sprite, key, world.time, ((pl.x + i) % cols) * t, y, t, t);
+      sprite(Op.tile, key, world.time, ((pl.x + i) % cols) * t, y, t, t);
     }
   }
 

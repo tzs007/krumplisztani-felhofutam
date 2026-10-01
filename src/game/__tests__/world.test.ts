@@ -2,8 +2,9 @@ import { defaultGameConfig, derivePhysics, type GameConfig } from '../config';
 import { EffectRegistry, type EffectContext } from '../engine/effects/EffectRegistry';
 import { addBonus, doubleJumpHeight, doubleScore } from '../engine/effects/builtins';
 import { createRng } from '../engine/random';
-import { overlapsX, World, wrap, type StepInput } from '../engine/World';
+import { overlapsX, platformTheme, World, wrap, type StepInput } from '../engine/World';
 import type { LevelChunk } from '../level/chunks';
+import { platformSpriteKey, tiles, type PlatformVariant } from '../level/tiles';
 
 const DT = 1 / 120;
 const idle: StepInput = { dragging: false, dx: 0 };
@@ -263,5 +264,51 @@ describe('EffectRegistry', () => {
     reg.trigger('jackpot', 0);
     expect(state.score).toBe(100);
     expect(() => reg.trigger('nope', 0)).toThrow(/not registered/);
+  });
+});
+
+describe('platform themes per milestone', () => {
+  it('picks the theme by the number of milestones reached', () => {
+    const t = { sequence: ['grass', 'blue', 'brick'] as PlatformVariant[], loop: true };
+    expect([0, 1, 2, 3, 4].map((n) => platformTheme(n, t))).toEqual(['grass', 'blue', 'brick', 'grass', 'blue']);
+    expect([0, 1, 2, 5].map((n) => platformTheme(n, { ...t, loop: false }))).toEqual(['grass', 'blue', 'brick', 'brick']);
+    expect(platformTheme(3, { sequence: [], loop: true })).toBeNull();
+  });
+
+  it('matches the sprite families of the tile legend', () => {
+    for (const tile of Object.values(tiles)) {
+      if (tile.kind === 'platform') expect(platformSpriteKey(tile.variant)).toBe(tile.spriteKey);
+    }
+  });
+
+  it('switches everything above the player at the milestone, and the level generated after it', () => {
+    const mixed: LevelChunk = { id: 'mixed', difficulty: 0, map: ['.........', '.===.....', '.........', '.....BBB.'] };
+    const world = new World({
+      config: { ...noScroll, platformThemes: { sequence: ['grass', 'brick'], loop: false } },
+      viewHeight: 18,
+      rng: createRng(1),
+      chunks: [mixed],
+      startChunk: { id: 'test-start', difficulty: 0, map: ['.........', '....P....', '#########'] },
+    });
+    // from the start: one theme, whatever the chunks say
+    expect(world.platforms.every((p) => p.variant === 'grass')).toBe(true);
+    run(world, 0.05); // standing on the start platform
+    const feet = world.player.y;
+    const ids = new Set(world.platforms.map((p) => p.id));
+
+    world.score = defaultGameConfig.milestones.every;
+    expect(run(world, DT).some((e) => e.type === 'milestone')).toBe(true);
+    const above = world.platforms.filter((p) => p.y > feet);
+    const rest = world.platforms.filter((p) => p.y <= feet);
+    expect(above.length).toBeGreaterThan(0);
+    expect(above.every((p) => p.variant === 'brick' && p.spriteKey === 'platform_brick')).toBe(true);
+    expect(rest.length).toBeGreaterThan(0); // the platform under the player keeps its look
+    expect(rest.every((p) => p.variant === 'grass')).toBe(true);
+
+    world.cameraY += 40; // climb: more level is generated above
+    run(world, DT);
+    const added = world.platforms.filter((p) => !ids.has(p.id));
+    expect(added.length).toBeGreaterThan(0);
+    expect(added.every((p) => p.variant === 'brick')).toBe(true);
   });
 });

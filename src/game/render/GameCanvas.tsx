@@ -73,6 +73,22 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
           continue;
         }
 
+        if (op === 7) {
+          // tile (platform): width w, height from the image (drawn art may hang below the tile), top at y
+          const img = sprites[arg];
+          if (!img) {
+            paint.setStyle(PaintStyle.Fill);
+            paint.setColor(colors[Color.missing]);
+            canvas.drawRect(Skia.XYWHRect(x, y, w, h), paint);
+            continue;
+          }
+          const fw = img.width() / frames;
+          const src = Skia.XYWHRect(frame * fw, 0, fw, img.height());
+          const th = (w * img.height()) / fw;
+          canvas.drawImageRectOptions(img, src, Skia.XYWHRect(x, y, w, th), FilterMode.Nearest, MipmapMode.None);
+          continue;
+        }
+
         if (op === 3 || op === 4) {
           const img = sprites[arg];
           if (!img) {

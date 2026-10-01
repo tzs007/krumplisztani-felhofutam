@@ -219,13 +219,20 @@ describe('sprite sheets', () => {
     const { width, height } = pngSize(key);
     if (key === 'cloud') return expect(width).toBeGreaterThan(height); // free-size landscape art
     if (key.startsWith('bg_')) return expect(height).toBeGreaterThan(width); // portrait backdrop, any size
+    if (key.startsWith('platform_')) return expect(width).toBe(128); // may hang below the tile (see next test)
     expect(height).toBeGreaterThanOrEqual(128);
     expect(width).toBe(height * frames);
   });
 
   it('tiles are exactly 128px so they line up on the grid', () => {
-    for (const key of SPRITE_KEYS.filter((k) => k.startsWith('platform_') || k.startsWith('pickup_'))) {
+    for (const key of SPRITE_KEYS.filter((k) => k.startsWith('pickup_'))) {
       expect(pngSize(key).height).toBe(128);
+    }
+    // platforms: 128 wide, top edge = walkable surface; drawn art (rocks underneath) may be taller
+    for (const key of SPRITE_KEYS.filter((k) => k.startsWith('platform_'))) {
+      const { width, height } = pngSize(key);
+      expect(width).toBe(128);
+      expect(height).toBeGreaterThanOrEqual(128);
     }
   });
 
@@ -311,7 +318,7 @@ describe('buildSnapshot', () => {
     const cmds = buildSnapshot(world, 40, 720);
     const keys: string[] = [];
     for (let i = 0; i < cmds.length; i += STRIDE) {
-      if (cmds[i] === Op.sprite && SPRITE_KEYS[cmds[i + 1]].startsWith('platform_')) keys.push(SPRITE_KEYS[cmds[i + 1]]);
+      if (cmds[i] === Op.tile && SPRITE_KEYS[cmds[i + 1]].startsWith('platform_')) keys.push(SPRITE_KEYS[cmds[i + 1]]);
     }
     expect(keys).toEqual(['platform_grass_left', 'platform_grass_mid', 'platform_grass_mid', 'platform_grass_right']);
   });
