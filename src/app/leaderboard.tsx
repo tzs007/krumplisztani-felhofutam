@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SkyBackground } from '@/components/SkyBackground';
+import { readableOnArt } from '@/components/SplashBackground';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -128,11 +130,12 @@ export default function LeaderboardRoute() {
 
   return (
     <Box className="flex-1 bg-sky" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+      <SkyBackground />
       <HStack className="items-center justify-between px-4 py-3">
         <Button variant="secondary" size="sm" onPress={() => router.back()}>
           <ButtonText>Back</ButtonText>
         </Button>
-        <Heading size="xl" className="text-sky-foreground">
+        <Heading size="xl" className="text-sky-foreground" style={readableOnArt}>
           Leaderboard
         </Heading>
         <Button
@@ -171,7 +174,7 @@ export default function LeaderboardRoute() {
             return (
               <VStack space="sm">
                 {gapBefore && (
-                  <Text bold className="text-center text-sky-foreground">
+                  <Text bold className="text-center text-sky-foreground" style={readableOnArt}>
                     …
                   </Text>
                 )}
@@ -183,7 +186,7 @@ export default function LeaderboardRoute() {
             load.state === 'loading' ? (
               <Spinner size="large" className="mt-8 text-sky-foreground" />
             ) : (
-              <Text className="mt-8 text-center text-sky-foreground">
+              <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>
                 {load.state === 'offline'
                   ? 'Nincs kapcsolat a szerverrel — a Saját fülön látod az eredményeidet.'
                   : load.state === 'error'
@@ -200,7 +203,7 @@ export default function LeaderboardRoute() {
           contentContainerStyle={{ padding: 16, gap: 8 }}
           renderItem={({ item, index }) => <ResultRow item={item} rank={index + 1} />}
           ListEmptyComponent={
-            <Text className="mt-8 text-center text-sky-foreground">No games played yet. Go jump!</Text>
+            <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>No games played yet. Go jump!</Text>
           }
         />
       )}

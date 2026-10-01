@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormMessage } from '@/components/account/FormMessage';
 import { ScreenHeader } from '@/components/account/ScreenHeader';
 import { TextField } from '@/components/account/TextField';
+import { SkyBackground } from '@/components/SkyBackground';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -175,6 +176,7 @@ export default function AccountRoute() {
 
   return (
     <Box className="flex-1 bg-sky" style={{ paddingTop: insets.top }}>
+      <SkyBackground />
       <ScreenHeader title="Fiók" />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
