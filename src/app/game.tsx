@@ -11,8 +11,6 @@ import { EasterEggModal } from '@/components/game/EasterEggModal';
 import { GameOverlay } from '@/components/game/GameOverlay';
 import { Hud } from '@/components/game/Hud';
 import { Box } from '@/components/ui/box';
-import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
 import { defaultGameConfig } from '@/game/config';
 import { getEasterEgg, withEasterEggSettings, type EasterEgg } from '@/game/easterEggs';
 import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
@@ -40,7 +38,6 @@ export default function GameRoute() {
   const [hud, setHud] = useState<HudState>({ score: 0, effects: [] });
   const [countdown, setCountdown] = useState<string | null>(null);
   const [foundEgg, setFoundEgg] = useState<EasterEgg | null>(null);
-  const [lastResult, setLastResult] = useState<{ score: number; newBest: boolean } | null>(null);
 
   const worldRef = useRef<World | null>(null);
   const [input] = useState(() => new DragInput());
@@ -65,7 +62,6 @@ export default function GameRoute() {
     commands.set(buildSnapshot(world, ts, canvas.height));
     setHud({ score: 0, effects: [] });
     setCountdown(countdownLabel(world));
-    setLastResult(null);
     setStatus('playing');
   };
 
@@ -86,7 +82,6 @@ export default function GameRoute() {
   }, []);
 
   const finishRun = (world: World) => {
-    const newBest = world.score > bestScore;
     addResult({
       score: world.score,
       platforms: world.stats.platforms,
@@ -96,10 +91,10 @@ export default function GameRoute() {
     });
     // upload it (plus anything queued while offline), signing in first if that failed earlier; fire and forget
     connectAndSync();
-    setLastResult({ score: world.score, newBest });
-    setHud({ score: world.score, effects: [] });
     setStatus('over');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    // the death sequence has played: on to the game over screen (best = before this run)
+    router.replace({ pathname: '/game-over', params: { score: String(world.score), best: String(bestScore) } });
   };
 
   const step = (dt: number) => {
@@ -199,26 +194,6 @@ export default function GameRoute() {
           continueLabel={foundEgg.continueLabel}
           onContinue={() => setStatus('playing')}
         />
-      )}
-
-      {status === 'over' && lastResult && (
-        <GameOverlay
-          title="Game Over"
-          actions={[
-            { label: 'Play again', primary: true, onPress: () => restart() },
-            { label: 'Leaderboard', onPress: () => router.replace('/leaderboard') },
-            { label: 'Menu', onPress: () => router.back() },
-          ]}
-        >
-          <VStack space="xs" className="items-center">
-            <Text bold size="4xl" className="text-foreground">
-              {lastResult.score}
-            </Text>
-            <Text className="text-muted-foreground">
-              {lastResult.newBest ? 'New best score!' : `Best: ${Math.max(bestScore, lastResult.score)}`}
-            </Text>
-          </VStack>
-        </GameOverlay>
       )}
     </Box>
   );
