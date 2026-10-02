@@ -1,6 +1,6 @@
 import { derivePhysics } from '../config';
 import { deathScale, isFalling, type Player, type StarParticle, type World } from '../engine/World';
-import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
+import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
  * Flat, serialisable draw list handed to the UI-thread renderer every frame.
@@ -17,6 +17,8 @@ import { animationDurationMs, hasSprite, spriteFrame, spriteIndex, type SpriteKe
  */
 export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4, backdrop: 5, imageByWidth: 6, tile: 7 } as const;
 export const STRIDE = 8;
+/** Sprite px per tile (fixed pixel density of the art). */
+const TILE_PX = 128;
 /** Platform art may reach this many tiles below the walkable top (for culling). */
 const PLATFORM_MAX_HANG = 2;
 
@@ -203,7 +205,9 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     const y = sy(pl.y);
     for (let i = 0; i < pl.width; i++) {
       const key = `${pl.spriteKey}_${platformPart(i, pl.width)}` as SpriteKey;
-      sprite(Op.tile, key, world.time, ((pl.x + i) % cols) * t, y, t, t);
+      // art above the walkable surface (surfaceY px of 128 per tile) is drawn above the platform's y
+      const lift = ((spriteAnimations[key]?.surfaceY ?? 0) / TILE_PX) * t;
+      sprite(Op.tile, key, world.time, ((pl.x + i) % cols) * t, y - lift, t, t);
     }
   }
 

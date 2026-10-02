@@ -1,6 +1,6 @@
 import type { EffectId } from '../engine/effects/EffectRegistry';
 
-export type PlatformVariant = 'grass' | 'blue' | 'brick' | 'byzantine';
+export type PlatformVariant = 'grass' | 'blue' | 'brick' | 'byzantine' | 'emerald' | 'topaz' | 'ruby' | 'planks';
 
 export type TileDef =
   | { kind: 'empty' }
@@ -37,6 +37,10 @@ export const tiles: Record<string, TileDef> = {
   '=': { kind: 'platform', variant: 'blue', spriteKey: 'platform_blue' },
   B: { kind: 'platform', variant: 'brick', spriteKey: 'platform_brick' },
   Z: { kind: 'platform', variant: 'byzantine', spriteKey: 'platform_byzantine' },
+  E: { kind: 'platform', variant: 'emerald', spriteKey: 'platform_emerald' },
+  T: { kind: 'platform', variant: 'topaz', spriteKey: 'platform_topaz' },
+  R: { kind: 'platform', variant: 'ruby', spriteKey: 'platform_ruby' },
+  W: { kind: 'platform', variant: 'planks', spriteKey: 'platform_planks' },
   // score card: what the levels use for points now; floats clearly, like it's hovering
   K: { kind: 'pickup', effect: 'bonus', spriteKey: 'pickup_card', size: 1.2, bob: { tiles: 0.15, hz: 0.5 } },
   // coin: kept as a component for later (not placed in the levels at the moment)

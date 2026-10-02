@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import pngjs from 'pngjs';
 
-import { platformTilesFromArt } from './platformArt.mjs';
+import { platformTilesFromArt, platformTilesFromPieces, splitStrip } from './platformArt.mjs';
 import { gridCell, gridFrames, pixelize, pixelizeStrip } from './pixelize.mjs';
 
 const { PNG } = pngjs;
@@ -247,8 +247,41 @@ const add = (name, fn) => {
   written.push(name);
 };
 
-for (const variant of Object.keys(platformPalettes)) {
-  for (const part of ['left', 'mid', 'right', 'single']) {
+const PARTS = ['left', 'mid', 'right', 'single'];
+const platformSource = (variant, part) => join(SOURCE_DIR, `platform_${variant}_${part}.png`);
+// drawn pieces replace the placeholder: either one strip platform_<variant>.png with the four
+// pieces side by side (left, mid, right, single; transparent gaps between) or four files
+// platform_<variant>_{left,mid,right,single}.png
+const stripSource = (variant) => join(SOURCE_DIR, `platform_${variant}.png`);
+function drawnPieces(variant) {
+  if (existsSync(stripSource(variant))) {
+    const imgs = splitStrip(stripSource(variant), PARTS.length);
+    return Object.fromEntries(PARTS.map((part, i) => [part, imgs[i]]));
+  }
+  if (PARTS.every((part) => existsSync(platformSource(variant, part)))) {
+    return Object.fromEntries(PARTS.map((part) => [part, platformSource(variant, part)]));
+  }
+  return null;
+}
+
+// platform themes that only exist as drawn art (no procedural placeholder)
+const DRAWN_PLATFORMS = ['emerald', 'topaz', 'ruby', 'planks'];
+for (const variant of [...Object.keys(platformPalettes), ...DRAWN_PLATFORMS]) {
+  const hasArt = existsSync(stripSource(variant)) || PARTS.every((part) => existsSync(platformSource(variant, part)));
+  if (hasArt) {
+    let tiles;
+    for (const part of PARTS) {
+      const name = `platform_${variant}_${part}`;
+      if (animations[name]?.surfaceY === undefined) throw new Error(`${name}: drawn pieces need surfaceY in animations.json`);
+      add(name, () => {
+        tiles ??= platformTilesFromPieces(drawnPieces(variant), { headroom: animations[name].surfaceY });
+        writeImage(name, tiles[part]);
+      });
+    }
+    continue;
+  }
+  if (!platformPalettes[variant]) throw new Error(`platform_${variant}: no art in sprite-sources and no placeholder palette`);
+  for (const part of PARTS) {
     const name = `platform_${variant}_${part}`;
     add(name, () => writeSprite(name, GRID, GRID, platformPixel(variant, part)));
   }

@@ -222,8 +222,16 @@ export const defaultGameConfig: GameConfig = {
     lifeMs: 1300,
   },
   platformThemes: {
-    // one look per stretch from the start: grass until 100, then blue, brick, byzantine, then again
-    sequence: ["byzantine", "grass", "blue", "brick", "byzantine"],
+    // one look per 100 points from the start, then again from the first
+    sequence: [
+      "grass",
+      "planks",
+      "brick",
+      "byzantine",
+      "topaz",
+      "emerald",
+      "ruby",
+    ],
     loop: true,
   },
   background: {

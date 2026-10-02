@@ -17,7 +17,37 @@ const { PNG } = pngjs;
 
 function readPng(path) {
   const png = PNG.sync.read(readFileSync(path));
-  return { width: png.width, height: png.height, data: png.data };
+  return keyOutBackground({ width: png.width, height: png.height, data: png.data });
+}
+
+/**
+ * Art saved without transparency (opaque corners, e.g. on black): the
+ * background colour connected to the image border becomes transparent
+ * (flood fill, so dark shading inside the art is kept).
+ */
+function keyOutBackground(img, tolerance = 24) {
+  const { width: W, height: H, data } = img;
+  const at = (x, y) => (y * W + x) * 4;
+  const corners = [at(0, 0), at(W - 1, 0), at(0, H - 1), at(W - 1, H - 1)];
+  if (!corners.every((i) => data[i + 3] === 255)) return img;
+  const bg = data.subarray(corners[0], corners[0] + 3);
+  const isBg = (i) =>
+    data[i + 3] !== 0 &&
+    Math.abs(data[i] - bg[0]) <= tolerance &&
+    Math.abs(data[i + 1] - bg[1]) <= tolerance &&
+    Math.abs(data[i + 2] - bg[2]) <= tolerance;
+  const stack = [];
+  for (let x = 0; x < W; x++) stack.push([x, 0], [x, H - 1]);
+  for (let y = 0; y < H; y++) stack.push([0, y], [W - 1, y]);
+  while (stack.length > 0) {
+    const [x, y] = stack.pop();
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    const i = at(x, y);
+    if (!isBg(i)) continue;
+    data[i + 3] = 0;
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  return img;
 }
 
 const alphaAt = (img, x, y) => img.data[(y * img.width + x) * 4 + 3];
@@ -261,4 +291,115 @@ export function platformTilesFromArt(paths, { tile = 128, modules = 3, height = 
 
   const info = (m) => ({ p: m.p, phase: m.phase, top: m.top, thickness: m.thickness, scale: +scaleOf(m).toFixed(4) });
   return { left, mid, right, single, info: { midScale: +midScale.toFixed(4), left: info(L), single: info(S), right: info(R) } };
+}
+
+/** Walkable surface: first row that is opaque across most of the piece (tufts sticking up don't count). */
+function surfaceRow(img) {
+  const counts = [];
+  for (let y = 0; y < img.height; y++) {
+    let n = 0;
+    for (let x = 0; x < img.width; x++) if (alphaAt(img, x, y) > 128) n++;
+    counts.push(n);
+  }
+  const widest = Math.max(...counts);
+  return counts.findIndex((n) => n > widest * 0.6);
+}
+
+/** Crops columns [x0, x1] of an image (full height). */
+function cropColumns(img, x0, x1) {
+  const width = x1 + 1 - x0;
+  const out = { width, height: img.height, data: new Uint8Array(width * img.height * 4) };
+  for (let y = 0; y < img.height; y++) {
+    out.data.set(img.data.subarray((y * img.width + x0) * 4, (y * img.width + x1 + 1) * 4), y * width * 4);
+  }
+  return out;
+}
+
+/**
+ * Splits a strip of pieces laid out left → right with transparent gaps
+ * between them (small split-off bits, like a stray leaf, are merged into the
+ * nearest piece). Throws unless exactly `count` pieces are found.
+ */
+export function splitStrip(path, count) {
+  const img = readPng(path);
+  const filled = [];
+  for (let x = 0; x < img.width; x++) {
+    let n = 0;
+    for (let y = 0; y < img.height; y++) if (alphaAt(img, x, y) > 128) n++;
+    filled.push(n > 2);
+  }
+  let runs = [];
+  for (let x = 0; x < img.width; x++) {
+    if (!filled[x]) continue;
+    const last = runs.at(-1);
+    if (last && x - last[1] <= 8) last[1] = x;
+    else runs.push([x, x]);
+  }
+  // merge slivers (< 4% of the width) into the closer neighbour
+  const minWidth = img.width * 0.04;
+  for (let i = 0; i < runs.length && runs.length > 1; ) {
+    const [a, b] = runs[i];
+    if (b - a >= minWidth) {
+      i++;
+      continue;
+    }
+    const prev = runs[i - 1];
+    const next = runs[i + 1];
+    const toPrev = !next || (prev && a - prev[1] <= next[0] - b);
+    if (toPrev) prev[1] = b;
+    else next[0] = a;
+    runs.splice(i, 1);
+  }
+  if (runs.length !== count) throw new Error(`${path}: found ${runs.length} pieces, expected ${count}`);
+  return runs.map(([a, b]) => cropColumns(img, a, b));
+}
+
+/**
+ * Drawn art that already comes as four pieces (left end, seamless mid, right
+ * end, single): each becomes a TILE px wide sprite with the walkable surface
+ * at y = `headroom` (grass tufts etc. may stick up into that strip; the game
+ * reads it as `surfaceY` from animations.json).
+ *
+ * The mid piece sets the scale (its width = one tile), so the ends join it
+ * at the same thickness: the left end is drawn flush right, the right end
+ * flush left (their outer, rounded ends may leave a little room). The single
+ * piece stands alone: it fills the tile width, but grows at most 25% thicker
+ * than the others (narrower art stays centred).
+ * The sprite height fits the tallest piece (≥ one tile).
+ *
+ * @param {{ left, mid, right, single }} sources file paths or images ({ width, height, data })
+ * @param {{ tile?: number, headroom?: number }} opts
+ */
+export function platformTilesFromPieces(sources, { tile = 128, headroom = 16 } = {}) {
+  const pieces = Object.fromEntries(
+    Object.entries(sources).map(([part, src]) => {
+      const img = typeof src === 'string' ? readPng(src) : src;
+      return [part, { img, surface: surfaceRow(img), bottom: contentBottom(img), ...contentColumns(img) }];
+    }),
+  );
+  const midScale = tile / (pieces.mid.right + 1 - pieces.mid.left);
+  const single = pieces.single;
+  const singleScale = Math.min(tile / (single.right + 1 - single.left), midScale * 1.25);
+  const scales = { left: midScale, mid: midScale, right: midScale, single: singleScale };
+  const tallest = Math.max(
+    ...Object.entries(pieces).map(([part, m]) => headroom + (m.bottom + 1 - m.surface) * scales[part]),
+  );
+  const height = Math.max(tile, Math.ceil(tallest / 16) * 16);
+
+  const draw = (m, scale, align) => {
+    const out = blank(tile, height);
+    const sw = m.right + 1 - m.left;
+    const dw = Math.min(tile, Math.round(sw * scale));
+    const dx = align === 'right' ? tile - dw : align === 'left' ? 0 : Math.floor((tile - dw) / 2);
+    const s = dw / sw; // = scale unless the piece had to be squeezed into the tile
+    resample(m.img, { sx: m.left, sy: m.surface - headroom / s, sw, sh: height / s }, out, { dx, dw });
+    return out;
+  };
+
+  return {
+    left: draw(pieces.left, scales.left, 'right'),
+    mid: draw(pieces.mid, scales.mid, 'left'),
+    right: draw(pieces.right, scales.right, 'left'),
+    single: draw(single, scales.single, 'center'),
+  };
 }

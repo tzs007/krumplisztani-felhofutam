@@ -25,6 +25,23 @@ export const spriteSources = {
   platform_byzantine_mid: require('@/assets/sprites/platform_byzantine_mid.png'),
   platform_byzantine_right: require('@/assets/sprites/platform_byzantine_right.png'),
   platform_byzantine_single: require('@/assets/sprites/platform_byzantine_single.png'),
+  // gem themes: drawn strips, crystals stick up above the walkable surface (surfaceY in animations.json)
+  platform_emerald_left: require('@/assets/sprites/platform_emerald_left.png'),
+  platform_emerald_mid: require('@/assets/sprites/platform_emerald_mid.png'),
+  platform_emerald_right: require('@/assets/sprites/platform_emerald_right.png'),
+  platform_emerald_single: require('@/assets/sprites/platform_emerald_single.png'),
+  platform_topaz_left: require('@/assets/sprites/platform_topaz_left.png'),
+  platform_topaz_mid: require('@/assets/sprites/platform_topaz_mid.png'),
+  platform_topaz_right: require('@/assets/sprites/platform_topaz_right.png'),
+  platform_topaz_single: require('@/assets/sprites/platform_topaz_single.png'),
+  platform_ruby_left: require('@/assets/sprites/platform_ruby_left.png'),
+  platform_ruby_mid: require('@/assets/sprites/platform_ruby_mid.png'),
+  platform_ruby_right: require('@/assets/sprites/platform_ruby_right.png'),
+  platform_ruby_single: require('@/assets/sprites/platform_ruby_single.png'),
+  platform_planks_left: require('@/assets/sprites/platform_planks_left.png'),
+  platform_planks_mid: require('@/assets/sprites/platform_planks_mid.png'),
+  platform_planks_right: require('@/assets/sprites/platform_planks_right.png'),
+  platform_planks_single: require('@/assets/sprites/platform_planks_single.png'),
   pickup_card: require('@/assets/sprites/pickup_card.png'),
   pickup_coin: require('@/assets/sprites/pickup_coin.png'),
   pickup_coin_collect: require('@/assets/sprites/pickup_coin_collect.png'),
@@ -79,6 +96,8 @@ export type SpriteAnimation = {
   loop?: boolean;
   /** Generator only: which frames of the source strip to keep. */
   sourceFrames?: number[];
+  /** Platforms: px from the frame top down to the walkable surface (drawn art may stick up above it). */
+  surfaceY?: number;
 };
 
 const { $comment: _, ...animationEntries } = animationsJson;

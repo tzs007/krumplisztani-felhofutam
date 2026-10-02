@@ -1,5 +1,5 @@
 {
-  "$comment": "Sprite sheet animations. A sheet is one PNG with `frames` equal-width frames side by side (frame width = PNG width / frames). Sprites not listed here are single images. mode \"time\" (default): plays at `fps`; loop=false stops on the last frame. mode \"velocity\": the jump phase picks the frame \u2014 the rising frames spread over the way up (first = take-off), the LAST frame is for landing and going down (no fps/loop). sourceFrames: which frames of the source strip (assets/sprite-sources) the generator keeps. Pixel density is fixed: 128 px of frame height = 1 tile, so a bigger frame is drawn bigger (anchored at the bottom centre).",
+  "$comment": "Sprite sheet animations. A sheet is one PNG with `frames` equal-width frames side by side (frame width = PNG width / frames). Sprites not listed here are single images. mode \"time\" (default): plays at `fps`; loop=false stops on the last frame. mode \"velocity\": the jump phase picks the frame \u2014 the rising frames spread over the way up (first = take-off), the LAST frame is for landing and going down (no fps/loop). sourceFrames: which frames of the source strip (assets/sprite-sources) the generator keeps. Pixel density is fixed: 128 px of frame height = 1 tile, so a bigger frame is drawn bigger (anchored at the bottom centre). surfaceY (platforms): px from the top of the frame down to the walkable surface (default 0), so drawn art such as grass tufts can stick up above it.",
   "pickup_coin": {
     "frames": 7,
     "fps": 12,
@@ -40,5 +40,101 @@
     "frames": 4,
     "fps": 8,
     "loop": true
+  },
+  "platform_grass_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_grass_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_grass_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_grass_single": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_emerald_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_emerald_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_emerald_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_emerald_single": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_topaz_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_topaz_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_topaz_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_topaz_single": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_ruby_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_ruby_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_ruby_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_ruby_single": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_brick_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_brick_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_brick_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_brick_single": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_planks_left": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_planks_mid": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_planks_right": {
+    "frames": 1,
+    "surfaceY": 16
+  },
+  "platform_planks_single": {
+    "frames": 1,
+    "surfaceY": 16
   }
 }
