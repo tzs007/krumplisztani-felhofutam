@@ -4,9 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SplashBackground } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { selectBestScore, useAppStore } from "@/store/useAppStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
 
 /** Main menu over the splash illustration; buttons centred on the screen. */
 export default function MenuRoute() {
@@ -15,6 +17,7 @@ export default function MenuRoute() {
   const displayName = useAuthStore((s) =>
     s.status === "signedIn" ? s.displayName : null,
   );
+  const { musicOn, soundsOn, setMusicOn, setSoundsOn } = useSettingsStore();
 
   return (
     <Box className="flex-1 bg-sky">
@@ -48,6 +51,24 @@ export default function MenuRoute() {
               {displayName ? `Fiók · ${displayName}` : "Fiók"}
             </ButtonText>
           </Button>
+          <HStack space="lg">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onPress={() => setMusicOn(!musicOn)}
+            >
+              <ButtonText>Zene: {musicOn ? "be" : "ki"}</ButtonText>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onPress={() => setSoundsOn(!soundsOn)}
+            >
+              <ButtonText>Hangok: {soundsOn ? "be" : "ki"}</ButtonText>
+            </Button>
+          </HStack>
         </VStack>
       </VStack>
     </Box>

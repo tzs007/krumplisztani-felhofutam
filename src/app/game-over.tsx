@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 
+import { GameOverBackground } from '@/components/game/GameOverBackground';
 import { OverlayCard } from '@/components/game/GameOverlay';
-import { SkyBackground } from '@/components/SkyBackground';
 import { Center } from '@/components/ui/center';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { playSound, stopSound } from '@/lib/audio';
 
 /**
  * Shown after the death sequence: the run's score and what's next. The game
@@ -17,9 +19,15 @@ export default function GameOverRoute() {
   const previousBest = Number(params.best) || 0;
   const newBest = score > previousBest;
 
+  // the game over jingle (the music is off on this screen); cut it short when leaving
+  useEffect(() => {
+    playSound('gameOver');
+    return () => stopSound('gameOver');
+  }, []);
+
   return (
     <Center className="flex-1 bg-sky px-8">
-      <SkyBackground />
+      <GameOverBackground score={score} />
       <OverlayCard
         title="Game Over"
         actions={[

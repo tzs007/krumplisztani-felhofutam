@@ -1,14 +1,34 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { initAudio, setMusic, type MusicTrack } from '@/lib/audio';
 import '@/global.css';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Music per screen: the game track while playing, silence on game over, the menu track elsewhere. */
+function musicFor(pathname: string): MusicTrack | null {
+  if (pathname === '/game') return 'game';
+  if (pathname === '/game-over') return null;
+  return 'menu';
+}
+
+function useScreenMusic() {
+  const pathname = usePathname();
+  useEffect(() => {
+    initAudio();
+  }, []);
+  useEffect(() => {
+    setMusic(musicFor(pathname));
+  }, [pathname]);
+}
+
 export default function RootLayout() {
+  useScreenMusic();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <GluestackUIProvider mode="light">

@@ -21,6 +21,7 @@ import { GameCanvas } from '@/game/render/GameCanvas';
 import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { SPRITE_KEYS } from '@/game/render/sprites';
 import { countdownLabel } from '@/game/render/countdown';
+import { playSound } from '@/lib/audio';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { connectAndSync } from '@/lib/resultsSync';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
@@ -69,6 +70,11 @@ export default function GameRoute() {
     if (size) startRun(size);
   };
 
+  // a tick on each number of the start countdown (3, 2, 1)
+  useEffect(() => {
+    if (countdown && countdown !== 'GO!' && status === 'playing') playSound('countdownTick');
+  }, [countdown, status]);
+
   useEffect(() => {
     if (!sprites) loadSprites().then((images) => setLoaded({ keys: SPRITE_KEYS, images }));
   }, [sprites]);
@@ -102,7 +108,11 @@ export default function GameRoute() {
     if (!world || world.over) return;
     const events = world.step(dt, input.consume(tileSize));
     for (const e of events) {
-      if (e.type === 'pickup') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (e.type === 'pickup') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // score card: its own sound; timed bonuses (×2, double jump): the "bonus" chime
+        playSound(e.effect === 'bonus' ? 'card' : 'bonus');
+      }
       if (e.type === 'hit') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       if (e.type === 'easterEgg') {
         const egg = getEasterEgg(e.eggId);
@@ -113,8 +123,13 @@ export default function GameRoute() {
         }
       }
       if (e.type === 'launch') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // every take-off: the hop out of the egg and each bounce off a platform
+      if (e.type === 'launch' || e.type === 'land') playSound('jump');
       if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      if (e.type === 'milestone') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (e.type === 'milestone') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playSound('milestone');
+      }
       if (e.type === 'gameOver') finishRun(world);
     }
   };
