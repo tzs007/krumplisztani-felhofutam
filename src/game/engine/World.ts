@@ -1,9 +1,22 @@
 import { derivePhysics, type EasterEggItemDef, type GameConfig } from '../config';
+import { fallStep, findLanding, touchesBox, wrap } from './collide';
+import type {
+  Burst,
+  CollectedPickup,
+  EasterEggItem,
+  GameEvent,
+  Hazard,
+  Pickup,
+  Platform,
+  Player,
+  StarParticle,
+  StepInput,
+} from './entities';
 import { LevelGenerator, type PlacedChunk } from '../level/generator';
 import type { LevelChunk } from '../level/chunks';
 import { platformSpriteKey, type PlatformVariant } from '../level/tiles';
 import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
-import { EffectRegistry, type EffectContext, type EffectId } from './effects/EffectRegistry';
+import { EffectRegistry, type EffectContext } from './effects/EffectRegistry';
 import { createRng, type Rng } from './random';
 import { getEasterEggs } from '../easterEggs';
 
@@ -14,6 +27,9 @@ export function platformTheme(milestones: number, { sequence, loop }: GameConfig
   return sequence[i];
 }
 
+export * from './entities';
+export { isFalling, overlapsX, wrap } from './collide';
+
 /** How far a "hover" item floats above its platform (like pickups). */
 const HOVER_LIFT = 0.15;
 
@@ -22,99 +38,6 @@ export function easterEggItemDef(eggId: string, config: GameConfig): EasterEggIt
   const own = getEasterEggs().find((e) => e.id === eggId)?.item;
   return { ...config.easterEggs.defaultItem, ...own };
 }
-
-/** World space: tile units, x → right, y → UP. `y` of a platform is its top surface. */
-export type Platform = {
-  id: number;
-  x: number;
-  y: number;
-  width: number;
-  variant: PlatformVariant;
-  spriteKey: string;
-};
-export type Pickup = {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  effect: EffectId;
-  spriteKey: string;
-  /** Visual float (tiles / Hz); the hitbox stays at `y`. */
-  bob: { tiles: number; hz: number };
-};
-/**
- * Hovering obstacle: `baseY` is its lowest point (just above the platform),
- * `y` bobs between baseY and baseY + bobTiles. Touching it costs points.
- */
-export type Hazard = { id: number; x: number; y: number; baseY: number; size: number; spriteKey: string; phase: number };
-/** One star of a milestone burst, relative to the burst origin (tiles, y up). */
-export type StarParticle = { vx: number; vy: number; size: number; lifeMs: number };
-/**
- * Star explosion like a firework: it stays where the player was when it went
- * off (world space), the player flies on. Positions are computed from time.
- */
-export type Burst = { id: number; startedAt: number; x: number; y: number; particles: StarParticle[] };
-
-/**
- * Hidden meme in the level: whatever sprite the meme defines. `y` is the
- * bottom of its box (platform top for "ground", a bit above for "hover").
- */
-export type EasterEggItem = {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  spriteKey: string;
-  placement: EasterEggItemDef['placement'];
-  eggId: string;
-};
-
-/** A pickup that was just taken, kept briefly so the renderer can play a collect animation in its place. */
-export type CollectedPickup = Pickup & { collectedAt: number };
-export type Player = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  vx: number;
-  vy: number;
-  /** Last horizontal direction: 1 = right, -1 = left. */
-  facing: 1 | -1;
-  /** Game time (ms) until which the "got a bonus" pose is shown. */
-  bonusUntil: number;
-  /** spriteKey of the last pickup, so the renderer can show a bonus-specific pose. */
-  bonusSpriteKey: string | null;
-  /** Game time (ms) of the last take-off; drives jump animations and squash & stretch. */
-  landedAt: number;
-  /** Highest y reached since the last take-off; how far below it the player is = fall distance. */
-  apexY: number;
-  /** How far (tiles) the drag target is ahead of the player; the follow spring closes it. */
-  targetOffset: number;
-  /** Game time (ms) of the last hazard hit; drives invulnerability, blinking and the hurt pose. */
-  hurtAt: number;
-};
-
-/**
- * dx: horizontal finger movement since the last step, in tiles.
- * releaseVelocity: finger speed (tiles/s) at the moment of release; starts the glide.
- */
-export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number };
-
-export type GameEvent =
-  /** First landing on a platform: it scores. */
-  | { type: 'land'; platformId: number; points: number }
-  /** Every take-off from a platform (also one landed on before). */
-  | { type: 'bounce'; platformId: number }
-  | { type: 'pickup'; effect: EffectId }
-  | { type: 'hit'; damage: number }
-  | { type: 'milestone'; score: number }
-  /** Feet reached the screen bottom: the death hop starts; gameOver follows once off screen. */
-  | { type: 'death' }
-  /** Countdown finished: the chick hops out of the egg. */
-  | { type: 'launch' }
-  /** Found a hidden meme; the game shows it (and pauses) */
-  | { type: 'easterEgg'; eggId: string }
-  | { type: 'gameOver' };
 
 export type WorldOptions = {
   config: GameConfig;
@@ -279,23 +202,10 @@ export class World {
 
     // ── vertical: gravity + one-way platforms (only when falling onto the top) ──
     const prevY = p.y;
-    const glide = this.glideFallSpeed;
-    if (isFalling(p, this.config.player.fallPoseAfterTiles) && p.vy - this.gravity * dt < -glide) {
-      // umbrella open: instead of accelerating, ease toward the glide speed
-      // (brakes if faster, never overshoots it)
-      p.vy = -glide + (p.vy + glide) * Math.exp(-this.config.player.glideDrag * dt);
-    } else {
-      p.vy -= this.gravity * dt;
-    }
-    p.y += p.vy * dt;
-    p.apexY = Math.max(p.apexY, p.y);
-    if (p.vy <= 0) {
-      let hit: Platform | null = null;
-      for (const pl of this.platforms) {
-        if (prevY >= pl.y - 1e-6 && p.y <= pl.y && overlapsX(p.x, p.w, pl.x, pl.width, columns)) {
-          if (!hit || pl.y > hit.y) hit = pl;
-        }
-      }
+    // umbrella open on a real fall: eases toward the glide speed instead of accelerating
+    fallStep(p, dt, this.gravity, this.glideFallSpeed, this.config.player);
+    {
+      const hit = findLanding(p, prevY, this.platforms, columns);
       if (hit) {
         p.y = hit.y;
         p.vy = this.jumpVelocity * Math.sqrt(this.jumpMultiplier);
@@ -314,9 +224,7 @@ export class World {
 
     // ── pickups ──
     this.pickups = this.pickups.filter((pk) => {
-      const touching =
-        overlapsX(p.x, p.w, pk.x, pk.size, columns) && p.y < pk.y + pk.size && p.y + p.h > pk.y;
-      if (!touching) return true;
+      if (!touchesBox(p, pk.x, pk.y, pk.size, columns)) return true;
       this.effects.trigger(pk.effect, this.time);
       p.bonusUntil = this.time + this.config.player.bonusPoseMs;
       p.bonusSpriteKey = pk.spriteKey;
@@ -326,9 +234,7 @@ export class World {
       return false;
     });
     this.easterEggs = this.easterEggs.filter((egg) => {
-      const touching =
-        overlapsX(p.x, p.w, egg.x, egg.size, columns) && p.y < egg.y + egg.size && p.y + p.h > egg.y;
-      if (!touching) return true;
+      if (!touchesBox(p, egg.x, egg.y, egg.size, columns)) return true;
       this.stats.easterEggs++;
       events.push({ type: 'easterEgg', eggId: egg.eggId });
       return false;
@@ -344,9 +250,7 @@ export class World {
       const hit = this.hazards.find((h) => {
         const box = h.size * hz.hitboxScale;
         const inset = (h.size - box) / 2;
-        return (
-          overlapsX(p.x, p.w, h.x + inset, box, columns) && p.y < h.y + inset + box && p.y + p.h > h.y + inset
-        );
+        return touchesBox(p, h.x + inset, h.y + inset, box, columns);
       });
       if (hit) {
         this.score = Math.max(0, this.score - hz.damage);
@@ -561,26 +465,6 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
   return 1 + (zoomMaxScale - 1) * k * k;
 }
 
-/**
- * Really falling (not just the top of a normal hop): moving down and at least
- * `fallPoseAfterTiles` below the jump's apex. Drives the umbrella pose and glide.
- */
-export function isFalling(player: Player, fallPoseAfterTiles: number): boolean {
-  return player.vy <= 0 && player.apexY - player.y >= fallPoseAfterTiles;
-}
-
-export function wrap(x: number, columns: number): number {
-  return ((x % columns) + columns) % columns;
-}
-
-/** Horizontal overlap on a cylinder: the right edge continues on the left. */
-export function overlapsX(ax: number, aw: number, bx: number, bw: number, columns: number): boolean {
-  for (const shift of [-columns, 0, columns]) {
-    const x = ax + shift;
-    if (x < bx + bw && x + aw > bx) return true;
-  }
-  return false;
-}
 
 function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
