@@ -5,14 +5,17 @@
 export class DragInput {
   private dragging = false;
   private dx = 0;
+  private dy = 0;
   private releaseVelocity: number | undefined;
 
   begin() {
     this.dragging = true;
   }
 
-  move(dxPx: number) {
+  /** dyPx: screen direction (down = positive); only the flying chick uses it. */
+  move(dxPx: number, dyPx = 0) {
     this.dx += dxPx;
+    this.dy += dyPx;
   }
 
   release(velocityPx: number) {
@@ -26,6 +29,7 @@ export class DragInput {
   reset() {
     this.dragging = false;
     this.dx = 0;
+    this.dy = 0;
     this.releaseVelocity = undefined;
   }
 
@@ -33,9 +37,11 @@ export class DragInput {
     const input = {
       dragging: this.dragging,
       dx: this.dx / tileSize,
+      dy: this.dy / tileSize,
       releaseVelocity: this.releaseVelocity === undefined ? undefined : this.releaseVelocity / tileSize,
     };
     this.dx = 0;
+    this.dy = 0;
     this.releaseVelocity = undefined;
     return input;
   }

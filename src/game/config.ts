@@ -132,6 +132,23 @@ export type GameConfig = {
     /** How long the psy mode lasts (ms). */
     durationMs: number;
   };
+  /** Psy mode (magic mushroom): the chick flies, the look changes. */
+  psy: {
+    /** The camera climbs this fast (tiles/s); the chick flies along. */
+    riseSpeed: number;
+    /** The chick stays at least this far above the screen bottom (tiles). */
+    minRow: number;
+    /** … and at least this far below the screen top (room for the HUD). */
+    topMargin: number;
+    /** Simulated depth: the sprite grows / shrinks by this fraction … */
+    zAmplitude: number;
+    /** … over this period (ms). */
+    zPeriodMs: number;
+    /** Flash when the mode switches on or off (ms). */
+    flashMs: number;
+    /** After it wears off: this long without auto scroll and without death (ms). */
+    endSafeMs: number;
+  };
   /** Side-scrolling bonus level (reached through a portal). */
   side: {
     /** Visible columns: the bonus level is zoomed out (tile size = screen width / viewColumns). */
@@ -298,6 +315,15 @@ export const defaultGameConfig: GameConfig = {
     chunkRange: [3, 15],
     size: 1.1,
     durationMs: 20_000,
+  },
+  psy: {
+    riseSpeed: 4,
+    minRow: 1.5,
+    topMargin: 3,
+    zAmplitude: 0.25,
+    zPeriodMs: 3000,
+    flashMs: 400,
+    endSafeMs: 2000,
   },
   side: {
     // same tile size as the main level (config.columns)

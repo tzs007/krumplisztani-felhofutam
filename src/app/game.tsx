@@ -175,7 +175,7 @@ export default function GameRoute() {
           input.begin();
           tap.press();
         })
-        .onChange((e) => input.move(e.changeX))
+        .onChange((e) => input.move(e.changeX, e.changeY))
         .onEnd((e) => input.release(e.velocityX))
         .onFinalize(() => {
           input.end();

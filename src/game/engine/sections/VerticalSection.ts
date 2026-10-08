@@ -47,6 +47,8 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
 export const HOVER_LIFT = 0.15;
 /** Coming back from the bonus level: the return platform is at least this far above the screen bottom. */
 const RETURN_MARGIN_TILES = 3;
+/** How quickly the flying chick eases to the height the finger wants (1/s). */
+const FLIGHT_FOLLOW = 12;
 /** How long a collected pickup is remembered for its collect animation. */
 export const COLLECTED_TTL_MS = 1500;
 
@@ -85,6 +87,8 @@ export class VerticalSection implements Section {
   launchedAt = -Infinity;
   /** Egg shell at the start: `x` = centre, `y` = bottom (tiles). Stays in the level. */
   egg: { x: number; y: number; size: number };
+  /** Flying (psy mode): no gravity, no platforms, the finger steers up and down too. */
+  flying = false;
   /** Death sequence running (hurt pose, last hop, falling out); gameplay is frozen. */
   dying = false;
   diedAt = -Infinity;
@@ -105,6 +109,8 @@ export class VerticalSection implements Section {
   private returnPoint: { x: number; y: number; platform: Platform | null } | null = null;
   /** Until this time (ms) after coming back: no auto scroll, no orange damage. */
   private safeUntil = -Infinity;
+  /** While flying: where the finger wants the chick, in tiles above the screen bottom. */
+  private flightRow = 0;
   /** Set while stepping: the run this section belongs to. */
   private run: RunContext;
 
@@ -221,31 +227,14 @@ export class VerticalSection implements Section {
       p.apexY = p.y;
       return [{ type: 'launch' }];
     }
+    if (run.psyActive) return this.stepFlight(dt, input, run);
+    if (this.flying) this.endFlight(run);
     const events: GameEvent[] = [];
     const p = this.player;
-    const { input: inputCfg, columns } = this.config;
+    const { columns } = this.config;
     const { gravity, jumpVelocity, glideFallSpeed } = run.physics;
 
-    // ── horizontal: the finger moves a target 1:1, a damped spring pulls the
-    //    player after it (slight lag + tiny overshoot = elastic, not rigid) ──
-    p.targetOffset += input.dx * inputCfg.dragSensitivity;
-    if (input.dx !== 0) p.facing = input.dx > 0 ? 1 : -1;
-    if (!input.dragging && input.releaseVelocity !== undefined) {
-      // glide: push the target a little further in the throw direction
-      const v = clamp(input.releaseVelocity * inputCfg.dragSensitivity, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
-      p.targetOffset += v / inputCfg.releaseFriction;
-    }
-    const w = inputCfg.followFrequency;
-    p.vx += (w * w * p.targetOffset - 2 * inputCfg.followDamping * w * p.vx) * dt;
-    const move = p.vx * dt;
-    p.x += move;
-    p.targetOffset -= move;
-    if (Math.abs(p.targetOffset) < 1e-3 && Math.abs(p.vx) < 0.01) {
-      p.x += p.targetOffset;
-      p.targetOffset = 0;
-      p.vx = 0;
-    }
-    p.x = wrap(p.x, columns);
+    this.steer(dt, input);
 
     // ── vertical: gravity + one-way platforms (only when falling onto the top) ──
     const prevY = p.y;
@@ -351,6 +340,97 @@ export class VerticalSection implements Section {
       events.push({ type: 'death' });
     }
     return events;
+  }
+
+  /**
+   * Horizontal: the finger moves a target 1:1, a damped spring pulls the
+   * player after it (slight lag + tiny overshoot = elastic, not rigid).
+   */
+  private steer(dt: number, input: StepInput) {
+    const p = this.player;
+    const inputCfg = this.config.input;
+    p.targetOffset += input.dx * inputCfg.dragSensitivity;
+    if (input.dx !== 0) p.facing = input.dx > 0 ? 1 : -1;
+    if (!input.dragging && input.releaseVelocity !== undefined) {
+      // glide: push the target a little further in the throw direction
+      const v = clamp(input.releaseVelocity * inputCfg.dragSensitivity, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
+      p.targetOffset += v / inputCfg.releaseFriction;
+    }
+    const w = inputCfg.followFrequency;
+    p.vx += (w * w * p.targetOffset - 2 * inputCfg.followDamping * w * p.vx) * dt;
+    const move = p.vx * dt;
+    p.x += move;
+    p.targetOffset -= move;
+    if (Math.abs(p.targetOffset) < 1e-3 && Math.abs(p.vx) < 0.01) {
+      p.x += p.targetOffset;
+      p.targetOffset = 0;
+      p.vx = 0;
+    }
+    p.x = wrap(p.x, this.config.columns);
+  }
+
+  /**
+   * Psy mode: the camera climbs steadily and the chick flies along, steered
+   * by the finger in both directions (kept on screen). Platforms are not
+   * there for it (it scores each one it passes); only cards can be taken;
+   * oranges, the meme, the portal and the mushroom are out of reach; no death.
+   */
+  private stepFlight(dt: number, input: StepInput, run: RunContext): GameEvent[] {
+    const events: GameEvent[] = [];
+    const p = this.player;
+    const psy = this.config.psy;
+    const top = this.viewHeight - psy.topMargin;
+    if (!this.flying) {
+      this.flying = true;
+      this.flightRow = clamp(p.y - this.cameraY, psy.minRow, top);
+    }
+    this.steer(dt, input);
+
+    // up / down: the finger moves the wanted height 1:1 (screen down = lower)
+    this.flightRow = clamp(this.flightRow - (input.dy ?? 0) * this.config.input.dragSensitivity, psy.minRow, top);
+    this.cameraY += psy.riseSpeed * dt;
+    const prevY = p.y;
+    // eases toward the wanted height (both ways), never below minRow above the screen bottom
+    const target = this.cameraY + this.flightRow;
+    p.y = Math.max(prevY + (target - prevY) * (1 - Math.exp(-FLIGHT_FOLLOW * dt)), this.cameraY + psy.minRow);
+    p.vy = (p.y - prevY) / dt;
+    p.apexY = p.y;
+
+    // every platform passed on the way up scores once
+    for (const pl of this.platforms) {
+      if (pl.y > prevY && pl.y <= p.y && !this.visited.has(pl.id)) {
+        this.visited.add(pl.id);
+        run.addScore(run.scoreMultiplier);
+        run.stats.platforms++;
+        events.push({ type: 'land', platformId: pl.id, points: run.scoreMultiplier });
+      }
+    }
+
+    // only the cards
+    this.pickups = this.pickups.filter((pk) => {
+      if (pk.spriteKey !== 'pickup_card' || !touchesBox(p, pk.x, pk.y, pk.size, this.config.columns)) return true;
+      run.effects.trigger(pk.effect, run.time);
+      p.bonusUntil = run.time + this.config.player.bonusPoseMs;
+      p.bonusSpriteKey = pk.spriteKey;
+      run.stats.pickups++;
+      this.collected.push({ ...pk, collectedAt: run.time });
+      events.push({ type: 'pickup', effect: pk.effect });
+      return false;
+    });
+    run.effects.tick(run.time);
+    this.fillAhead();
+    this.cull();
+    return events;
+  }
+
+  /** The mushroom wore off: a hop, and a moment of safety (no auto scroll, no death). */
+  private endFlight(run: RunContext) {
+    this.flying = false;
+    const p = this.player;
+    p.vy = run.physics.jumpVelocity;
+    p.landedAt = run.time;
+    p.apexY = p.y;
+    this.safeUntil = run.time + this.config.psy.endSafeMs;
   }
 
   /**

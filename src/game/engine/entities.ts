@@ -81,10 +81,11 @@ export type TapState = { down: boolean; pressed: boolean; released: boolean };
 
 /**
  * dx: horizontal finger movement since the last step, in tiles.
+ * dy: vertical finger movement (tiles, screen direction: positive = down); used while flying.
  * releaseVelocity: finger speed (tiles/s) at the moment of release; starts the glide.
  * tap: the same touch read as a button (used by the side section).
  */
-export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number; tap?: TapState };
+export type StepInput = { dragging: boolean; dx: number; dy?: number; releaseVelocity?: number; tap?: TapState };
 
 /** The magic mushroom standing on a platform of the main level. */
 export type Mushroom = { id: number; x: number; y: number; size: number; spriteKey: string };
