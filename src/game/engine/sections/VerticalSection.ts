@@ -13,6 +13,7 @@ import type {
   Pickup,
   Platform,
   Player,
+  Portal,
   StepInput,
 } from '../entities';
 import type { RunContext, Section } from './Section';
@@ -70,6 +71,8 @@ export class VerticalSection implements Section {
   hazards: Hazard[] = [];
   bursts: Burst[] = [];
   easterEggs: EasterEggItem[] = [];
+  /** At most one: the way to the bonus level (single use). */
+  portals: Portal[] = [];
   cameraY = 0;
   /** False during the start countdown: the chick sits in the egg, nothing moves. */
   started: boolean;
@@ -89,6 +92,12 @@ export class VerticalSection implements Section {
   /** Chunk number (after the start) that hides this game's easter egg; -1 = none this game. */
   private easterEggChunk: number;
   private chunksPlaced = 0;
+  /** Chunk number that holds this run's portal; -1 = none this run. */
+  private portalChunk: number;
+  /** Where the chick went through the portal: it comes back here. */
+  private returnPoint: { x: number; y: number } | null = null;
+  /** Until this time (ms) after coming back: no auto scroll, no orange damage. */
+  private safeUntil = -Infinity;
   /** Set while stepping: the run this section belongs to. */
   private run: RunContext;
 
@@ -103,6 +112,12 @@ export class VerticalSection implements Section {
     this.easterEggChunk =
       this.easterEggIds.length > 0 && rng() < chancePerGame
         ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
+        : -1;
+    // portal: one roll per run as well
+    const portals = config.portals;
+    this.portalChunk =
+      rng() < portals.chancePerGame
+        ? portals.chunkRange[0] + Math.floor(rng() * (portals.chunkRange[1] - portals.chunkRange[0] + 1))
         : -1;
     this.generator = new LevelGenerator(config, rng, chunks, startChunk);
 
@@ -139,15 +154,35 @@ export class VerticalSection implements Section {
   }
 
   get isInvulnerable(): boolean {
-    return this.run.time - this.player.hurtAt < this.config.hazards.invulnerableMs;
+    return this.run.time < this.safeUntil || this.run.time - this.player.hurtAt < this.config.hazards.invulnerableMs;
   }
 
   get difficulty(): number {
     return this.generator.difficultyAt(Math.floor(this.cameraY));
   }
 
+  /**
+   * Back from the bonus level: on the portal's platform, hopping off it,
+   * briefly safe; what is above the chick takes the current platform theme
+   * (milestones may have passed meanwhile).
+   */
   enter(run: RunContext) {
     this.run = run;
+    const back = this.returnPoint;
+    if (!back) return;
+    this.returnPoint = null;
+    const p = this.player;
+    p.x = wrap(back.x - p.w / 2, this.config.columns);
+    p.y = back.y;
+    p.vx = 0;
+    p.targetOffset = 0;
+    p.vy = run.physics.jumpVelocity;
+    p.landedAt = run.time;
+    p.apexY = p.y;
+    // counted from when the screen has cleared (this runs halfway through the fade)
+    const { returnSafeMs, transitionMs } = this.config.portals;
+    this.safeUntil = run.time + transitionMs / 2 + returnSafeMs;
+    this.rethemeAbove(run, p.y);
   }
 
   /** Everything above the chick's feet takes the theme of the milestone just reached. */
@@ -233,6 +268,13 @@ export class VerticalSection implements Section {
       events.push({ type: 'easterEgg', eggId: egg.eggId });
       return false;
     });
+    const portal = this.portals.find((pt) => touchesBox(p, pt.x, pt.y, pt.size, columns));
+    if (portal) {
+      this.portals = [];
+      this.returnPoint = { x: portal.x + portal.size / 2, y: portal.y };
+      events.push({ type: 'portalEnter', target: 'bonus' });
+      return events;
+    }
     run.effects.tick(run.time);
 
     // ── hazards: hover up and down; touching one costs points (then brief invulnerability) ──
@@ -260,7 +302,7 @@ export class VerticalSection implements Section {
     if (target > this.cameraY) {
       this.cameraY += (target - this.cameraY) * (1 - Math.pow(1 - smoothing, dt * 60));
     }
-    if (run.score > 0) {
+    if (run.score > 0 && run.time >= this.safeUntil) {
       const level = this.generator.difficultyAt(Math.floor(this.cameraY));
       this.cameraY += (autoScrollSpeed + level * this.config.camera.autoScrollPerDifficulty) * dt;
     }
@@ -303,18 +345,29 @@ export class VerticalSection implements Section {
     return [];
   }
 
-  /** Puts this game's easter egg object on a free platform tile of the chunk; false if there is none. */
-  private hideEasterEgg(chunk: PlacedChunk): boolean {
-    // free = platform tiles with nothing (pickup/hazard) standing above them
+  /**
+   * Free platform tiles of a chunk: nothing (pickup, orange) standing above
+   * them, and not used by the easter egg or the portal already.
+   */
+  private freeSpots(chunk: PlacedChunk): { col: number; row: number }[] {
     const taken = new Set([...chunk.pickups, ...chunk.hazards].map((it) => `${it.col},${it.row}`));
-    const spots = chunk.platforms.flatMap((pl) =>
+    return chunk.platforms.flatMap((pl) =>
       Array.from({ length: pl.width }, (_, i) => ({ col: pl.col + i, row: pl.row })).filter(
-        (s) => !taken.has(`${s.col},${s.row + 1}`),
+        (s) => !taken.has(`${s.col},${s.row + 1}`) && !this.usedSpots.has(`${s.col},${chunk.baseRow + s.row}`),
       ),
     );
+  }
+
+  /** Tiles (absolute rows) that already hold the easter egg or the portal. */
+  private readonly usedSpots = new Set<string>();
+
+  /** Puts this game's easter egg object on a free platform tile of the chunk; false if there is none. */
+  private hideEasterEgg(chunk: PlacedChunk): boolean {
+    const spots = this.freeSpots(chunk);
     if (spots.length === 0) return false;
     const { rng } = this.run;
     const spot = spots[Math.floor(rng() * spots.length)];
+    this.usedSpots.add(`${spot.col},${chunk.baseRow + spot.row}`);
     const eggId = this.easterEggIds[Math.floor(rng() * this.easterEggIds.length)];
     const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
     this.easterEggs.push({
@@ -325,6 +378,24 @@ export class VerticalSection implements Section {
       spriteKey,
       placement,
       eggId,
+    });
+    return true;
+  }
+
+  /** Puts this run's portal on a free platform tile of the chunk; false if there is none. */
+  private placePortal(chunk: PlacedChunk): boolean {
+    const spots = this.freeSpots(chunk);
+    if (spots.length === 0) return false;
+    const spot = spots[Math.floor(this.run.rng() * spots.length)];
+    this.usedSpots.add(`${spot.col},${chunk.baseRow + spot.row}`);
+    const size = this.config.portals.size;
+    this.portals.push({
+      id: this.run.nextId(),
+      x: spot.col + (1 - size) / 2,
+      y: chunk.baseRow + spot.row + 1,
+      size,
+      spriteKey: 'portal',
+      target: 'bonus',
     });
     return true;
   }
@@ -356,6 +427,7 @@ export class VerticalSection implements Section {
     this.pickups = this.pickups.filter((pk) => pk.y + pk.size >= limit);
     this.hazards = this.hazards.filter((h) => h.baseY + h.size >= limit);
     this.easterEggs = this.easterEggs.filter((e) => e.y + e.size >= limit);
+    this.portals = this.portals.filter((pt) => pt.y + pt.size >= limit);
   }
 
   private addChunk(chunk: PlacedChunk, mayHideEasterEgg: boolean) {
@@ -385,6 +457,9 @@ export class VerticalSection implements Section {
       this.chunksPlaced++;
       if (this.chunksPlaced === this.easterEggChunk && !this.hideEasterEgg(chunk)) {
         this.easterEggChunk++; // no free tile here: try the next chunk
+      }
+      if (this.chunksPlaced === this.portalChunk && !this.placePortal(chunk)) {
+        this.portalChunk++;
       }
     }
     for (const hz of chunk.hazards) {

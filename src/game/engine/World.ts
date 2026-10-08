@@ -4,7 +4,8 @@ import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
 import { EffectRegistry, type EffectContext } from './effects/EffectRegistry';
 import type { Burst, GameEvent, StarParticle, StepInput } from './entities';
 import { createRng, type Rng } from './random';
-import type { RunContext, RunStats, Section } from './sections/Section';
+import type { RunContext, RunStats, Section, SectionId } from './sections/Section';
+import { SideSection } from './sections/SideSection';
 import { VerticalSection } from './sections/VerticalSection';
 
 export * from './entities';
@@ -46,7 +47,14 @@ export class World implements RunContext {
   /** Milestones reached so far; picks the platform theme (see config.platformThemes). */
   milestonesReached = 0;
   readonly main: VerticalSection;
+  /** The bonus level while the run is in it (or fading in / out of it). */
+  bonus: SideSection | null = null;
   active: Section;
+  /**
+   * Changing sections: everything stands still, the screen fades to black and
+   * back; the section switches halfway (`switched`).
+   */
+  transition: { to: SectionId; startedAt: number; switched: boolean } | null = null;
 
   /** Next score that triggers a burst; only moves up, so dropping below and back doesn't re-fire. */
   private nextMilestone: number;
@@ -87,13 +95,54 @@ export class World implements RunContext {
   step(dtSeconds: number, input: StepInput): GameEvent[] {
     if (this.over) return [];
     this.time += dtSeconds * 1000;
+    if (this.transition) {
+      this.stepTransition();
+      return [];
+    }
     const events = this.active.step(dtSeconds, input, this);
     if (events.some((e) => e.type === 'gameOver')) {
       this.over = true;
       return events;
     }
+    for (const e of events) {
+      if (e.type === 'portalEnter') {
+        this.stats.portals++;
+        this.transition = { to: e.target, startedAt: this.time, switched: false };
+      }
+      if (e.type === 'portalExit') this.transition = { to: 'main', startedAt: this.time, switched: false };
+    }
     this.checkMilestones(events);
     return events;
+  }
+
+  /** 0 = clear … 1 = black: up during the first half of the transition, down in the second. */
+  transitionAlpha(): number {
+    if (!this.transition) return 0;
+    const k = Math.min(1, (this.time - this.transition.startedAt) / this.config.portals.transitionMs);
+    return k < 0.5 ? k * 2 : (1 - k) * 2;
+  }
+
+  /** How far along the bonus level (0–1) while in it, otherwise null. */
+  get bonusProgress(): number | null {
+    return this.active === this.bonus && this.bonus ? this.bonus.progress : null;
+  }
+
+  private stepTransition() {
+    const t = this.transition!;
+    const elapsed = this.time - t.startedAt;
+    const duration = this.config.portals.transitionMs;
+    if (!t.switched && elapsed >= duration / 2) {
+      t.switched = true;
+      if (t.to === 'bonus') {
+        this.bonus = new SideSection(this);
+        this.active = this.bonus;
+      } else {
+        this.active = this.main;
+        this.bonus = null;
+      }
+      this.active.enter(this);
+    }
+    if (elapsed >= duration) this.transition = null;
   }
 
   private checkMilestones(events: GameEvent[]) {

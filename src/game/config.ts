@@ -108,6 +108,19 @@ export type GameConfig = {
     sequence: PlatformVariant[];
     loop: boolean;
   };
+  /** Portals in the main level that lead to the bonus level. */
+  portals: {
+    /** Chance (0–1) that a run has a portal at all; at most one per run. */
+    chancePerGame: number;
+    /** If it does, it stands in a random level chunk in this range (1 = the first chunk after the start). */
+    chunkRange: [number, number];
+    /** Drawn size and hitbox (tiles). */
+    size: number;
+    /** Fade to black and back when changing sections (ms); the switch happens halfway. */
+    transitionMs: number;
+    /** After coming back: this long without auto scroll and without orange damage (ms). */
+    returnSafeMs: number;
+  };
   /** Side-scrolling bonus level (reached through a portal). */
   side: {
     /** Visible columns: the bonus level is zoomed out (tile size = screen width / viewColumns). */
@@ -256,6 +269,13 @@ export const defaultGameConfig: GameConfig = {
       "ruby",
     ],
     loop: true,
+  },
+  portals: {
+    chancePerGame: 0.3,
+    chunkRange: [4, 20],
+    size: 1.3,
+    transitionMs: 500,
+    returnSafeMs: 2000,
   },
   side: {
     viewColumns: 14,
