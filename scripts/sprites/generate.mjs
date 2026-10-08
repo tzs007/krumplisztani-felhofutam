@@ -423,8 +423,14 @@ add('cloud', () =>
 const skySource = join(SOURCE_DIR, 'sky.png');
 if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
-// portal (placeholder until drawn art): an oval swirl of violet and cyan arms turning frame by frame
-add('portal', () => writeSheet('portal', GRID, GRID, portalPixel));
+// portal: drawn 4-frame strip (sprite-sources/portal.png: stone arch, swirling vortex), frames
+// split at the transparent gaps, one ground line; the procedural swirl is the fallback
+const portalSource = join(SOURCE_DIR, 'portal.png');
+add('portal', () =>
+  existsSync(portalSource)
+    ? writeImage('portal', pixelizeStrip(portalSource, { size: 128, colors: 32, expectedFrames: framesOf('portal') }).frames)
+    : writeSheet('portal', GRID, GRID, portalPixel),
+);
 // start: cracked egg shell the chick sits in (drawn in front of it); size set in config.start
 const eggSource = join(SOURCE_DIR, 'egg_shell.png');
 if (existsSync(eggSource)) {
