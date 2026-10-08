@@ -1,4 +1,5 @@
 import type { GameConfig } from '../../config';
+import { getEasterEggs } from '../../easterEggs';
 import type { LevelChunk } from '../../level/chunks';
 import { parseChunk } from '../../level/parser';
 import { sideChunks, sideEnd, sideStart } from '../../level/sideChunks';
@@ -7,6 +8,7 @@ import { fallStep, findLanding, touchesBox } from '../collide';
 import type {
   Burst,
   CollectedPickup,
+  EasterEggItem,
   GameEvent,
   Hazard,
   Pickup,
@@ -16,7 +18,7 @@ import type {
   StepInput,
 } from '../entities';
 import type { RunContext, Section } from './Section';
-import { COLLECTED_TTL_MS } from './VerticalSection';
+import { COLLECTED_TTL_MS, easterEggItemDef, HOVER_LIFT } from './VerticalSection';
 
 /** Top of the floor that runs under the whole bonus level. */
 export const GROUND_Y = 1;
@@ -48,6 +50,8 @@ export class SideSection implements Section {
   collected: CollectedPickup[] = [];
   hazards: Hazard[] = [];
   bursts: Burst[] = [];
+  /** The hidden meme of this bonus level (one, if easter eggs hide in the bonus level). */
+  easterEggs: EasterEggItem[] = [];
   exit: Portal;
   /** Level length in tiles. */
   readonly length: number;
@@ -77,7 +81,7 @@ export class SideSection implements Section {
     let x = 0;
     let exit: Portal | null = null;
     for (const chunk of [start, ...middle, end]) {
-      const width = Math.max(...chunk.map.map((line) => line.length));
+      const width = chunkWidth(chunk);
       const parsed = parseChunk(chunk.map, width);
       for (const pl of parsed.platforms) {
         this.platforms.push({
@@ -149,6 +153,41 @@ export class SideSection implements Section {
       hurtAt: -Infinity,
     };
     this.standingOn = this.platforms[0];
+    // the meme hides between the start chunk and the end chunk
+    if (config.easterEggs.sections.includes('bonus')) this.hideEasterEgg(run, chunkWidth(start), x - chunkWidth(end));
+  }
+
+  /**
+   * One meme per bonus level: on a free tile of a raised platform (a jump to
+   * reach it), else on the floor; never at the start, never by the exit,
+   * never where a card or an orange already is.
+   */
+  private hideEasterEgg(run: RunContext, startX: number, endX: number) {
+    const ids = getEasterEggs().map((e) => e.id);
+    if (ids.length === 0) return;
+    const taken = new Set(
+      [...this.pickups, ...this.hazards].map((it) => `${Math.floor(it.x + it.size / 2)},${Math.round(it.y - 0.15)}`),
+    );
+    const spots = (raised: boolean) =>
+      this.platforms
+        .filter((pl) => (raised ? pl.y > GROUND_Y : pl.y === GROUND_Y))
+        .flatMap((pl) => Array.from({ length: pl.width }, (_, i) => ({ x: pl.x + i, y: pl.y })))
+        .filter((s) => s.x >= startX && s.x < endX && !taken.has(`${s.x},${s.y}`));
+    const raised = spots(true);
+    const candidates = raised.length > 0 ? raised : spots(false);
+    if (candidates.length === 0) return;
+    const spot = candidates[Math.floor(run.rng() * candidates.length)];
+    const eggId = ids[Math.floor(run.rng() * ids.length)];
+    const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
+    this.easterEggs.push({
+      id: run.nextId(),
+      x: spot.x + (1 - size) / 2,
+      y: spot.y + (placement === 'hover' ? HOVER_LIFT : 0),
+      size,
+      spriteKey,
+      placement,
+      eggId,
+    });
   }
 
   /** Standing on the floor or a platform (running), not in the air. */
@@ -185,8 +224,9 @@ export class SideSection implements Section {
     // ── run right, up to the end of the strip ──
     p.x = Math.min(this.length - p.w, p.x + side.runSpeed * dt);
 
-    // walked off the edge of the platform it stood on
-    if (this.standingOn && !(p.x < this.standingOn.x + this.standingOn.width && p.x + p.w > this.standingOn.x)) {
+    // walked off the edge of the platform it stood on (or was put somewhere else)
+    const support = this.standingOn;
+    if (support && (Math.abs(p.y - support.y) > 1e-6 || !(p.x < support.x + support.width && p.x + p.w > support.x))) {
       this.standingOn = null;
     }
     if (this.standingOn) this.groundedAt = run.time;
@@ -244,6 +284,12 @@ export class SideSection implements Section {
       events.push({ type: 'pickup', effect: pk.effect });
       return false;
     });
+    this.easterEggs = this.easterEggs.filter((egg) => {
+      if (!touchesBox(p, egg.x, egg.y, egg.size, null)) return true;
+      run.stats.easterEggs++;
+      events.push({ type: 'easterEgg', eggId: egg.eggId });
+      return false;
+    });
     run.effects.tick(run.time);
     const hz = this.config.hazards;
     for (const h of this.hazards) {
@@ -279,4 +325,9 @@ export class SideSection implements Section {
     this.collected = this.collected.filter((c) => run.time - c.collectedAt < COLLECTED_TTL_MS);
     return events;
   }
+}
+
+/** Width (columns) of a chunk. */
+function chunkWidth(chunk: LevelChunk): number {
+  return Math.max(...chunk.map.map((line) => line.length));
 }

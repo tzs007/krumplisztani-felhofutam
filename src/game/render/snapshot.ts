@@ -405,6 +405,13 @@ function snapshotSide(world: World, bonus: SideSection, screenWidth: number, scr
     if (!visibleX(h.x, h.size)) continue;
     sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, sx(h.x), sy(h.y + h.size), h.size * t, h.size * t);
   }
+  // the hidden meme: "ground" stands still, "hover" bobs like a pickup
+  for (const egg of bonus.easterEggs) {
+    if (!visibleX(egg.x, egg.size)) continue;
+    const phase = world.time + pickupPhaseMs(egg.id);
+    const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
+    sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, sx(egg.x), sy(egg.y + egg.size + bob), egg.size * t, egg.size * t);
+  }
   const exit = bonus.exit;
   if (visibleX(exit.x, exit.size)) {
     sprite(Op.sprite, exit.spriteKey as SpriteKey, world.time, sx(exit.x), sy(exit.y + exit.size), exit.size * t, exit.size * t);

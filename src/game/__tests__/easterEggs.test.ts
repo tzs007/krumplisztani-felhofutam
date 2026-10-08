@@ -13,7 +13,8 @@ const withChance = (chancePerGame: number): GameConfig => ({
     autoScrollPerDifficulty: 0,
   },
   start: { ...defaultGameConfig.start, countdownMs: 0 },
-  easterEggs: { ...defaultGameConfig.easterEggs, chancePerGame },
+  // these tests cover the main level's easter egg (off by default: bonus level only)
+  easterEggs: { ...defaultGameConfig.easterEggs, sections: ["main"], chancePerGame },
 });
 
 /** A tall view generates many chunks at once (the real level chunks). */

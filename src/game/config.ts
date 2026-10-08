@@ -157,8 +157,13 @@ export type GameConfig = {
   };
   easterEggs: {
     /**
-     * Drop rate per game: chance (0–1) that this run hides an easter egg at
-     * all. At most one per game; 0.1 ≈ one in every ten games on average.
+     * Where easter eggs hide: 'bonus' = every bonus level hides one (always);
+     * 'main' = the main level may hide one (chancePerGame, chunkRange).
+     */
+    sections: ('main' | 'bonus')[];
+    /**
+     * Main level only: chance (0–1) that this run hides an easter egg there
+     * at all. At most one per game; 0.1 ≈ one in every ten games on average.
      */
     chancePerGame: number;
     /**
@@ -296,6 +301,8 @@ export const defaultGameConfig: GameConfig = {
     parallax: 0.05,
   },
   easterEggs: {
+    // only the bonus level hides them (reached through a portal)
+    sections: ["bonus"],
     chancePerGame: 0.1,
     chunkRange: [2, 12],
     // 1.125 → the pumpkin looks as big as the coin

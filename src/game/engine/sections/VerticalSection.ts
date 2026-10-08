@@ -43,7 +43,7 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
 }
 
 /** How far a "hover" item floats above its platform (like pickups). */
-const HOVER_LIFT = 0.15;
+export const HOVER_LIFT = 0.15;
 /** Coming back from the bonus level: the return platform is at least this far above the screen bottom. */
 const RETURN_MARGIN_TILES = 3;
 /** How long a collected pickup is remembered for its collect animation. */
@@ -112,7 +112,7 @@ export class VerticalSection implements Section {
     this.easterEggIds = getEasterEggs().map((e) => e.id);
     const { chancePerGame, chunkRange } = config.easterEggs;
     this.easterEggChunk =
-      this.easterEggIds.length > 0 && rng() < chancePerGame
+      config.easterEggs.sections.includes('main') && this.easterEggIds.length > 0 && rng() < chancePerGame
         ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
         : -1;
     // portal: one roll per run as well

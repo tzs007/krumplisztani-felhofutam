@@ -3,6 +3,7 @@ import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/asy
 import { defaultGameConfig } from '@/game/config';
 import { easterEggs, getEasterEggs, resetEasterEggs, withEasterEggSettings } from '@/game/easterEggs';
 import { createRng } from '@/game/engine/random';
+import { SideSection } from '@/game/engine/sections/SideSection';
 import { World } from '@/game/engine/World';
 
 import { parseEasterEggSettings, rowToEasterEgg, syncEasterEggs } from '../remoteEasterEggs';
@@ -134,13 +135,14 @@ describe('syncEasterEggs', () => {
 });
 
 describe('the game uses the active content', () => {
-  it('hides a downloaded meme with its own object', async () => {
+  it('hides a downloaded meme with its own object (in the bonus level)', async () => {
     mockEggsResult = { data: [row({ id: 'remote-meme', item_sprite_key: 'pickup_coin' })], error: null };
     mockConfigResult = { data: { value: { chancePerGame: 1 } }, error: null };
     await syncEasterEggs();
     const config = withEasterEggSettings({ ...defaultGameConfig, start: { ...defaultGameConfig.start, countdownMs: 0 } });
     const world = new World({ config, viewHeight: 400, rng: createRng(1) });
-    expect(world.easterEggs).toHaveLength(1);
-    expect(world.easterEggs[0]).toMatchObject({ eggId: 'remote-meme', spriteKey: 'pickup_coin' });
+    const bonus = new SideSection(world);
+    expect(bonus.easterEggs).toHaveLength(1);
+    expect(bonus.easterEggs[0]).toMatchObject({ eggId: 'remote-meme', spriteKey: 'pickup_coin' });
   });
 });
