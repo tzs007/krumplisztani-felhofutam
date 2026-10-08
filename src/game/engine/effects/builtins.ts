@@ -12,6 +12,14 @@ export const doubleScore = (durationMs: number): EffectDefinition => ({
   expire: (ctx) => ctx.setScoreMultiplier(1),
 });
 
+/** Magic mushroom: the main level turns psychedelic for a while (see VerticalSection flight). */
+export const psyMode = (durationMs: number): EffectDefinition => ({
+  id: 'psy',
+  durationMs,
+  apply: (ctx) => ctx.setPsy(true),
+  expire: (ctx) => ctx.setPsy(false),
+});
+
 export const doubleJumpHeight = (durationMs: number): EffectDefinition => ({
   id: 'doubleJump',
   durationMs,

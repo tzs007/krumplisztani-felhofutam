@@ -22,6 +22,8 @@ export interface RunContext {
   readonly jumpMultiplier: number;
   readonly physics: { gravity: number; jumpVelocity: number; glideFallSpeed: number };
   readonly stats: RunStats;
+  /** Psy mode (magic mushroom) is on. */
+  readonly psyActive: boolean;
   /** Milestones reached so far (picks the platform theme). */
   readonly milestonesReached: number;
   /** Adds (or with a negative value takes) points; the score never goes below 0. */

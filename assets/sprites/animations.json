@@ -141,5 +141,10 @@
     "frames": 4,
     "fps": 8,
     "loop": true
+  },
+  "pickup_mushroom": {
+    "frames": 4,
+    "fps": 6,
+    "loop": true
   }
 }

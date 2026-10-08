@@ -121,6 +121,17 @@ export type GameConfig = {
     /** After coming back: this long without auto scroll and without orange damage (ms). */
     returnSafeMs: number;
   };
+  /** Magic mushroom in the main level: picking it up starts the psy mode. */
+  mushroom: {
+    /** Chance (0–1) that a run has a mushroom at all; at most one per run. */
+    chancePerGame: number;
+    /** If it does, it stands in a random level chunk in this range (1 = the first chunk after the start). */
+    chunkRange: [number, number];
+    /** Drawn size and hitbox (tiles). */
+    size: number;
+    /** How long the psy mode lasts (ms). */
+    durationMs: number;
+  };
   /** Side-scrolling bonus level (reached through a portal). */
   side: {
     /** Visible columns: the bonus level is zoomed out (tile size = screen width / viewColumns). */
@@ -281,6 +292,12 @@ export const defaultGameConfig: GameConfig = {
     size: 1.3,
     transitionMs: 500,
     returnSafeMs: 2000,
+  },
+  mushroom: {
+    chancePerGame: 0.2,
+    chunkRange: [3, 15],
+    size: 1.1,
+    durationMs: 20_000,
   },
   side: {
     // same tile size as the main level (config.columns)

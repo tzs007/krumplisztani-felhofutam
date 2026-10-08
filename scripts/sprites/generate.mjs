@@ -423,6 +423,16 @@ add('cloud', () =>
 const skySource = join(SOURCE_DIR, 'sky.png');
 if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
+// magic mushroom: drawn 4-frame strip (sprite-sources/magic-mushroom.png), one ground line
+const mushroomSource = join(SOURCE_DIR, 'magic-mushroom.png');
+if (existsSync(mushroomSource)) {
+  add('pickup_mushroom', () =>
+    writeImage(
+      'pickup_mushroom',
+      pixelizeStrip(mushroomSource, { size: 128, colors: 32, expectedFrames: framesOf('pickup_mushroom') }).frames,
+    ),
+  );
+}
 // portal: drawn 4-frame strip (sprite-sources/portal.png: stone arch, swirling vortex), frames
 // split at the transparent gaps, one ground line; the procedural swirl is the fallback
 const portalSource = join(SOURCE_DIR, 'portal.png');

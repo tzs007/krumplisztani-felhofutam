@@ -11,6 +11,7 @@ import type {
   GameEvent,
   Hazard,
   Pickup,
+  Mushroom,
   Platform,
   Player,
   Portal,
@@ -75,6 +76,8 @@ export class VerticalSection implements Section {
   easterEggs: EasterEggItem[] = [];
   /** At most one: the way to the bonus level (single use). */
   portals: Portal[] = [];
+  /** At most one: the magic mushroom (starts the psy mode). */
+  mushrooms: Mushroom[] = [];
   cameraY = 0;
   /** False during the start countdown: the chick sits in the egg, nothing moves. */
   started: boolean;
@@ -96,6 +99,8 @@ export class VerticalSection implements Section {
   private chunksPlaced = 0;
   /** Chunk number that holds this run's portal; -1 = none this run. */
   private portalChunk: number;
+  /** Chunk number that holds this run's mushroom; -1 = none this run. */
+  private mushroomChunk: number;
   /** Where the chick went through the portal: it comes back here, onto `platform`. */
   private returnPoint: { x: number; y: number; platform: Platform | null } | null = null;
   /** Until this time (ms) after coming back: no auto scroll, no orange damage. */
@@ -120,6 +125,11 @@ export class VerticalSection implements Section {
     this.portalChunk =
       rng() < portals.chancePerGame
         ? portals.chunkRange[0] + Math.floor(rng() * (portals.chunkRange[1] - portals.chunkRange[0] + 1))
+        : -1;
+    const mushroom = config.mushroom;
+    this.mushroomChunk =
+      rng() < mushroom.chancePerGame
+        ? mushroom.chunkRange[0] + Math.floor(rng() * (mushroom.chunkRange[1] - mushroom.chunkRange[0] + 1))
         : -1;
     this.generator = new LevelGenerator(config, rng, chunks, startChunk);
 
@@ -274,6 +284,12 @@ export class VerticalSection implements Section {
       events.push({ type: 'easterEgg', eggId: egg.eggId });
       return false;
     });
+    const shroom = this.mushrooms.find((m) => touchesBox(p, m.x, m.y, m.size, columns));
+    if (shroom) {
+      this.mushrooms = [];
+      run.effects.trigger('psy', run.time);
+      events.push({ type: 'mushroom' });
+    }
     const portal = this.portals.find((pt) => touchesBox(p, pt.x, pt.y, pt.size, columns));
     if (portal) {
       this.portals = [];
@@ -409,6 +425,23 @@ export class VerticalSection implements Section {
     return true;
   }
 
+  /** Puts this run's mushroom on a free platform tile of the chunk; false if there is none. */
+  private placeMushroom(chunk: PlacedChunk): boolean {
+    const spots = this.freeSpots(chunk);
+    if (spots.length === 0) return false;
+    const spot = spots[Math.floor(this.run.rng() * spots.length)];
+    this.usedPlatforms.add(platformKey(chunk, spot.platform));
+    const size = this.config.mushroom.size;
+    this.mushrooms.push({
+      id: this.run.nextId(),
+      x: spot.col + (1 - size) / 2,
+      y: chunk.baseRow + spot.row + 1,
+      size,
+      spriteKey: 'pickup_mushroom',
+    });
+    return true;
+  }
+
   /** Everything whose top is above `y` (the player's feet) takes the current theme. */
   private rethemeAbove(run: RunContext, y: number) {
     const theme = platformTheme(run.milestonesReached, this.config.platformThemes);
@@ -437,6 +470,7 @@ export class VerticalSection implements Section {
     this.hazards = this.hazards.filter((h) => h.baseY + h.size >= limit);
     this.easterEggs = this.easterEggs.filter((e) => e.y + e.size >= limit);
     this.portals = this.portals.filter((pt) => pt.y + pt.size >= limit);
+    this.mushrooms = this.mushrooms.filter((m) => m.y + m.size >= limit);
   }
 
   private addChunk(chunk: PlacedChunk, mayHideEasterEgg: boolean) {
@@ -469,6 +503,9 @@ export class VerticalSection implements Section {
       }
       if (this.chunksPlaced === this.portalChunk && !this.placePortal(chunk)) {
         this.portalChunk++;
+      }
+      if (this.chunksPlaced === this.mushroomChunk && !this.placeMushroom(chunk)) {
+        this.mushroomChunk++;
       }
     }
     for (const hz of chunk.hazards) {

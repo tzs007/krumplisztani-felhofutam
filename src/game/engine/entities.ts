@@ -86,6 +86,9 @@ export type TapState = { down: boolean; pressed: boolean; released: boolean };
  */
 export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number; tap?: TapState };
 
+/** The magic mushroom standing on a platform of the main level. */
+export type Mushroom = { id: number; x: number; y: number; size: number; spriteKey: string };
+
 /** A portal in a section; touching it moves the run to `target`. */
 export type Portal = { id: number; x: number; y: number; size: number; spriteKey: string; target: 'main' | 'bonus' };
 
@@ -103,6 +106,8 @@ export type GameEvent =
   | { type: 'launch' }
   /** Found a hidden meme; the game shows it (and pauses) */
   | { type: 'easterEgg'; eggId: string }
+  /** Picked up the magic mushroom: the psy mode starts. */
+  | { type: 'mushroom' }
   /** Touched a portal in the main level: off to the bonus level. */
   | { type: 'portalEnter'; target: 'bonus' }
   /** Reached the exit portal of the bonus level: back to the main level. */

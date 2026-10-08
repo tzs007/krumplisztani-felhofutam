@@ -43,6 +43,7 @@ export const spriteSources = {
   platform_planks_right: require('@/assets/sprites/platform_planks_right.png'),
   platform_planks_single: require('@/assets/sprites/platform_planks_single.png'),
   pickup_card: require('@/assets/sprites/pickup_card.png'),
+  pickup_mushroom: require('@/assets/sprites/pickup_mushroom.png'),
   pickup_coin: require('@/assets/sprites/pickup_coin.png'),
   pickup_coin_collect: require('@/assets/sprites/pickup_coin_collect.png'),
   hazard_orange: require('@/assets/sprites/hazard_orange.png'),

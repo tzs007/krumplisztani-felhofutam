@@ -1,6 +1,6 @@
 import { derivePhysics, type GameConfig } from '../config';
 import type { LevelChunk } from '../level/chunks';
-import { addBonus, doubleJumpHeight, doubleScore } from './effects/builtins';
+import { addBonus, doubleJumpHeight, doubleScore, psyMode } from './effects/builtins';
 import { EffectRegistry, type EffectContext } from './effects/EffectRegistry';
 import type { Burst, GameEvent, StarParticle, StepInput } from './entities';
 import { createRng, type Rng } from './random';
@@ -46,6 +46,10 @@ export class World implements RunContext {
   stats: RunStats = { platforms: 0, pickups: 0, hits: 0, easterEggs: 0, portals: 0 };
   /** Milestones reached so far; picks the platform theme (see config.platformThemes). */
   milestonesReached = 0;
+  /** Psy mode (magic mushroom) is on: the main level flies instead of bouncing, looks different. */
+  psyActive = false;
+  /** Game time (ms) the psy mode last switched on or off (drives the switch flash). */
+  psyChangedAt = -Infinity;
   readonly main: VerticalSection;
   /** The bonus level while the run is in it (or fading in / out of it). */
   bonus: SideSection | null = null;
@@ -74,11 +78,16 @@ export class World implements RunContext {
       addScore: (n) => (this.score += n),
       setScoreMultiplier: (m) => (this.scoreMultiplier = m),
       setJumpMultiplier: (m) => (this.jumpMultiplier = m),
+      setPsy: (on) => {
+        this.psyActive = on;
+        this.psyChangedAt = this.time;
+      },
     };
     this.effects = new EffectRegistry(ctx)
       .register(addBonus(config.effects.coinBonus))
       .register(doubleScore(config.effects.doubleScoreMs))
-      .register(doubleJumpHeight(config.effects.doubleJumpMs));
+      .register(doubleJumpHeight(config.effects.doubleJumpMs))
+      .register(psyMode(config.mushroom.durationMs));
 
     this.main = new VerticalSection(this, { viewHeight, chunks, startChunk });
     this.active = this.main;

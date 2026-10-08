@@ -6,6 +6,8 @@ export interface EffectContext {
   addScore(points: number): void;
   setScoreMultiplier(multiplier: number): void;
   setJumpMultiplier(multiplier: number): void;
+  /** Psy mode (magic mushroom) on / off. */
+  setPsy(on: boolean): void;
 }
 
 export interface EffectDefinition {

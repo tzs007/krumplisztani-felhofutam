@@ -234,6 +234,7 @@ describe('EffectRegistry', () => {
       addScore: (n) => (state.score += n),
       setScoreMultiplier: (m) => (state.scoreMult = m),
       setJumpMultiplier: (m) => (state.jumpMult = m),
+      setPsy: () => {},
     };
     return { state, ctx };
   };
