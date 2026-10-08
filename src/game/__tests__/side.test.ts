@@ -2,6 +2,7 @@ import { defaultGameConfig, type GameConfig } from '../config';
 import type { GameEvent, StepInput, TapState } from '../engine/entities';
 import { createRng } from '../engine/random';
 import { SideSection } from '../engine/sections/SideSection';
+import { sideChunks } from '../level/sideChunks';
 import { World } from '../engine/World';
 import type { LevelChunk } from '../level/chunks';
 
@@ -184,9 +185,9 @@ describe('side section: pickups, oranges, exit', () => {
 });
 
 describe('side section: the real chunks', () => {
-  it('builds a level with the exit at the end, every item within one jump of something to stand on', () => {
+  it('builds a level with the exit at the end, every item within one jump of something to stand on, below the HUD', () => {
     const world = new World({ config, viewHeight: 18, rng: createRng(3) });
-    const side = new SideSection(world, { shuffle: false, chunkCount: 7 });
+    const side = new SideSection(world, { shuffle: false, chunkCount: sideChunks.length });
     expect(side.exit.x).toBeGreaterThan(side.length - 2);
     // what the chick can stand on below x (the floor counts)
     const standTop = (x: number, w: number, below: number) =>
@@ -197,6 +198,8 @@ describe('side section: the real chunks', () => {
     for (const pl of side.platforms) {
       if (pl.y === 1) continue;
       expect(pl.y - standTop(pl.x, pl.width, pl.y)).toBeLessThanOrEqual(config.maxJumpTiles - 0.5);
+      // a jump from the top tier stays under the HUD (~19 tiles of screen, ~3 for score and pause)
+      expect(pl.y + config.maxJumpTiles).toBeLessThanOrEqual(16);
     }
   });
 });

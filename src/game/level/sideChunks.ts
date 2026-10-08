@@ -7,7 +7,9 @@ import type { LevelChunk } from './chunks';
  * bottom row of a chunk is the row just above that floor.
  *
  * A jump is ~4 tiles high and ~5 tiles long at running speed, so platforms
- * sit at most 3 rows above what the chick can stand on.
+ * sit at most 3 rows above what the chick can stand on (directly below them).
+ * The screen is ~19 tiles tall at the main level's tile size: keep the top
+ * tier around row 10 so the chick stays clear of the HUD.
  * Legend: see tiles.ts ('#' '=' 'B' platforms, K X J pickups, O orange, G portal).
  * `difficulty` is unused here (all chunks are equal).
  */
@@ -78,6 +80,54 @@ export const sideChunks: LevelChunk[] = [
       '............',
       '....###.....',
       '............',
+    ],
+  },
+  {
+    id: 'side-tiers',
+    difficulty: 0,
+    map: [
+      '.......K......',
+      '......####....',
+      '..............',
+      '...K......K...',
+      '..####...####.',
+      '..............',
+      '.....K........',
+      '..##########..',
+      '..............',
+      '..............',
+    ],
+  },
+  {
+    id: 'side-climb',
+    difficulty: 0,
+    map: [
+      '..........K.....',
+      '.........###....',
+      '................',
+      '................',
+      '.......###......',
+      '................',
+      '................',
+      '.....###........',
+      '................',
+      '................',
+      '...###..........',
+      '.............O..',
+    ],
+  },
+  {
+    id: 'side-sky-bridge',
+    difficulty: 0,
+    map: [
+      '...X........J...',
+      '................',
+      '..############..',
+      '................',
+      '................',
+      '.####......####.',
+      '................',
+      '.......O........',
     ],
   },
   {

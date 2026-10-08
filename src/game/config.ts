@@ -278,10 +278,11 @@ export const defaultGameConfig: GameConfig = {
     returnSafeMs: 2000,
   },
   side: {
-    viewColumns: 14,
+    // same tile size as the main level (config.columns)
+    viewColumns: 9,
     runSpeed: 5.5,
-    followX: 0.3,
-    chunks: 6,
+    followX: 0.25,
+    chunks: 12,
     jumpCutFactor: 0.45,
     coyoteMs: 90,
     jumpBufferMs: 120,
