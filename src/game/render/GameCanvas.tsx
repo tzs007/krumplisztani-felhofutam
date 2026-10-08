@@ -12,6 +12,7 @@ import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
 import { Color, palette } from '@/theme/colors';
 
+import { hueMatrix } from './colorMatrix';
 import { STRIDE } from './snapshot';
 
 type Props = {
@@ -59,6 +60,18 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
           paint.setAlphaf(frame / 1000);
           canvas.drawRect(Skia.XYWHRect(x, y, w, h), paint);
           paint.setAlphaf(1);
+          continue;
+        }
+
+        if (op === 9) {
+          // psy backdrop: like op 5, drawn through a hue-turning, brightness-pulsing colour matrix
+          const img = sprites[arg];
+          if (!img) continue;
+          const bw = (h * img.width()) / img.height();
+          const huePaint = Skia.Paint();
+          huePaint.setColorFilter(Skia.ColorFilter.MakeMatrix(hueMatrix(frame, frames / 1000)));
+          const src = Skia.XYWHRect(0, 0, img.width(), img.height());
+          canvas.drawImageRectOptions(img, src, Skia.XYWHRect((w - bw) / 2, y - h, bw, h), FilterMode.Nearest, MipmapMode.None, huePaint);
           continue;
         }
 

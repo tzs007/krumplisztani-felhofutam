@@ -60,6 +60,10 @@ export const spriteSources = {
   player_bonus_double_score: require('@/assets/sprites/player_bonus_double_score.png'),
   player_bonus_double_jump: require('@/assets/sprites/player_bonus_double_jump.png'),
   cloud: require('@/assets/sprites/cloud.png'),
+  // psy mode (magic mushroom)
+  psy_cloud: require('@/assets/sprites/psy_cloud.png'),
+  bg_psy: require('@/assets/sprites/bg_psy.png'),
+  player_psy: require('@/assets/sprites/player_psy.png'),
   bg_sky: require('@/assets/sprites/bg_sky.png'),
   effect_star: require('@/assets/sprites/effect_star.png'),
   // placeholder art (generated) until a drawn portal arrives

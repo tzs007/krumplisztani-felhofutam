@@ -19,6 +19,8 @@ import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIn
  *  op 7 = tile           (arg = sprite index, frame;  x, top y, width, _): width fixed, height from the
  *         image (platform art may hang below the tile), top at `top y`
  *  op 8 = see-through fill (arg = palette color, frame slot = opacity × 1000;  x, y, w, h)
+ *  op 9 = backdrop with turned colours (as op 5; frame slot = hue in degrees, frames slot =
+ *         brightness gain × 1000) — the psy mode's rainbow vision
  */
 export const Op = {
   fill: 0,
@@ -30,6 +32,7 @@ export const Op = {
   imageByWidth: 6,
   tile: 7,
   fillAlpha: 8,
+  backdropHue: 9,
 } as const;
 export const STRIDE = 8;
 /** Sprite px per tile (fixed pixel density of the art). */
@@ -172,6 +175,7 @@ const BOB_HZ = 0.8;
 const pickupPhaseMs = (id: number) => id * 137;
 
 const cloudSprite = spriteIndex('cloud');
+const psyCloudSprite = spriteIndex('psy_cloud');
 
 /**
  * Draw list of the run's active section, plus the fade while changing sections.
@@ -183,6 +187,13 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const out = bonus
     ? snapshotSide(world, bonus, screenWidth, screenHeight)
     : snapshotVertical(world, tileSize, screenHeight);
+  // psy mode switched on or off: a white flash fading out
+  const sinceSwitch = world.time - world.psyChangedAt;
+  const { flashMs } = world.config.psy;
+  if (!bonus && sinceSwitch >= 0 && sinceSwitch < flashMs) {
+    const flash = (1 - sinceSwitch / flashMs) * 0.8;
+    out.push(Op.fillAlpha, Color.white, Math.round(flash * 1000), 1, 0, 0, screenWidth, screenHeight);
+  }
   const alpha = world.transitionAlpha();
   if (alpha > 0) out.push(Op.fillAlpha, Color.black, Math.round(alpha * 1000), 1, 0, 0, screenWidth, screenHeight);
   return out;
@@ -209,11 +220,20 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
   };
 
-  // backdrop sky: taller than the screen, scrolls down very slowly as the camera climbs
+  const psy = world.psyActive;
+  // backdrop sky: taller than the screen, scrolls down very slowly as the camera climbs;
+  // in psy mode its colours keep turning around the rainbow and pulse like a vision
   const bg = world.config.background;
   const bgHeight = screenHeight * bg.heightScreens;
   const bgOffset = backdropOffsetPx(world.cameraY * t, bg.parallax, bgHeight - screenHeight);
-  out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight + bgOffset, cols * t, bgHeight);
+  if (psy) {
+    const { hueDegPerSecond, pulseGain, pulsePeriodMs } = world.config.psy;
+    const hue = ((world.time / 1000) * hueDegPerSecond) % 360;
+    const gain = 1 + pulseGain * Math.sin((world.time / pulsePeriodMs) * 2 * Math.PI);
+    out.push(Op.backdropHue, spriteIndex('bg_psy'), hue, Math.round(gain * 1000), 0, screenHeight + bgOffset, cols * t, bgHeight);
+  } else {
+    out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight + bgOffset, cols * t, bgHeight);
+  }
 
   // background clouds (parallax), drawn with the cloud image's own aspect ratio
   const cloudCam = world.cameraY * CLOUD_PARALLAX;
@@ -223,7 +243,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
       const bottom = screenHeight - (k * CLOUD_PERIOD + c.y - cloudCam) * t;
       const h = (c.w / 2) * t; // upper bound for culling (clouds are wider than tall)
       if (bottom < 0 || bottom - h > screenHeight) continue;
-      out.push(Op.imageByWidth, cloudSprite, 0, 1, c.x * t, bottom, c.w * t, 0);
+      out.push(Op.imageByWidth, psy ? psyCloudSprite : cloudSprite, 0, 1, c.x * t, bottom, c.w * t, 0);
     }
   }
 
@@ -231,7 +251,8 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
 
   // platforms: one sprite per tile; the sprite's top edge is the walkable surface,
   // drawn art may hang below the tile (height from the image, see Op.tile)
-  for (const pl of world.platforms) {
+  // (psy mode: the platforms are not there for the flying chick)
+  for (const pl of psy ? [] : world.platforms) {
     if (!visible(pl.y - PLATFORM_MAX_HANG, pl.y)) continue;
     const y = sy(pl.y);
     for (let i = 0; i < pl.width; i++) {
@@ -242,7 +263,9 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     }
   }
 
+  // (psy mode: only the cards)
   for (const pk of world.pickups) {
+    if (psy && pk.spriteKey !== 'pickup_card') continue;
     if (!visible(pk.y, pk.y + pk.size)) continue;
     const phase = world.time + pickupPhaseMs(pk.id);
     const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
@@ -250,7 +273,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   }
 
   // easter egg objects: "ground" stands still on the platform, "hover" bobs like a pickup
-  for (const egg of world.easterEggs) {
+  for (const egg of psy ? [] : world.easterEggs) {
     if (!visible(egg.y, egg.y + egg.size)) continue;
     const phase = world.time + pickupPhaseMs(egg.id);
     const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
@@ -258,13 +281,19 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, x, sy(egg.y + egg.size + bob), egg.size * t, egg.size * t);
   }
 
-  for (const h of world.hazards) {
+  for (const h of psy ? [] : world.hazards) {
     if (!visible(h.y, h.y + h.size)) continue;
     sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, h.x * t, sy(h.y + h.size), h.size * t, h.size * t);
   }
 
+  // the magic mushroom, standing on its platform
+  for (const m of psy ? [] : world.main.mushrooms) {
+    if (!visible(m.y, m.y + m.size)) continue;
+    sprite(Op.sprite, m.spriteKey as SpriteKey, world.time, m.x * t, sy(m.y + m.size), m.size * t, m.size * t);
+  }
+
   // the portal to the bonus level, standing on its platform, swirling
-  for (const pt of world.main.portals) {
+  for (const pt of psy ? [] : world.main.portals) {
     if (!visible(pt.y, pt.y + pt.size)) continue;
     sprite(Op.sprite, pt.spriteKey as SpriteKey, world.time, pt.x * t, sy(pt.y + pt.size), pt.size * t, pt.size * t);
   }
@@ -284,6 +313,16 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   const op = p.facing < 0 ? Op.spriteFlipped : Op.sprite;
   const active = world.effects.getActive(world.time).map((e) => e.id);
   const { hurtPoseMs } = world.config.hazards;
+  if (psy) {
+    // flying: the psy chick, growing and shrinking as if it came closer and went away (depth)
+    const { zAmplitude, zPeriodMs } = world.config.psy;
+    const z = 1 + zAmplitude * Math.sin((world.time / zPeriodMs) * 2 * Math.PI);
+    const size = t * z;
+    const cx = (p.x + p.w / 2) * t;
+    const cy = sy(p.y + p.h / 2);
+    sprite(op, 'player_psy', world.time, cx - size / 2, cy - size / 2, size, size);
+    if (p.x + p.w > cols) sprite(op, 'player_psy', world.time, cx - cols * t - size / 2, cy - size / 2, size, size);
+  }
   // dying: skeleton (hurt) pose all the way down, no squash/stretch
   const key = world.dying
     ? 'player_hurt'
@@ -316,7 +355,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   const blinkOff = world.dying
     ? sinceDeath >= hurtPoseMs && isBlinkOff(sinceDeath)
     : world.isInvulnerable && sinceHit >= hurtPoseMs && isBlinkOff(sinceHit);
-  if (!blinkOff) {
+  if (!blinkOff && !psy) {
     drawPlayer(p.x);
     if (p.x + p.w > cols) drawPlayer(p.x - cols);
   }

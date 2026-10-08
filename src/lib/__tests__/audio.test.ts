@@ -107,6 +107,16 @@ describe('music', () => {
     expect(music()?.playing).toBe(false);
   });
 
+  it('switching to a track that is the same file keeps the music going (no restart)', () => {
+    const audio = load();
+    audio.initAudio();
+    audio.setMusic('game');
+    const player = music()!;
+    audio.setMusic('psy');
+    expect(player.replace).not.toHaveBeenCalled();
+    expect(player.playing).toBe(true);
+  });
+
   it('follows the music switch', () => {
     const audio = load();
     audio.initAudio();

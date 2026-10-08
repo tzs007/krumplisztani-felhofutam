@@ -17,12 +17,14 @@ import { AppState } from 'react-native';
 
 import { useSettingsStore } from '@/store/useSettingsStore';
 
-export type MusicTrack = 'menu' | 'game';
+export type MusicTrack = 'menu' | 'game' | 'psy';
 export type SoundEffect = 'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' | 'countdownTick' | 'portal';
 
 const MUSIC: Record<MusicTrack, number> = {
   menu: require('@/assets/sounds/music_menu.m4a'),
   game: require('@/assets/sounds/music_game.m4a'),
+  // psy mode (magic mushroom): the game music until a psychedelic trance track arrives
+  psy: require('@/assets/sounds/music_game.m4a'),
 };
 const EFFECTS: Record<SoundEffect, number> = {
   jump: require('@/assets/sounds/sfx_jump.m4a'),
@@ -83,7 +85,8 @@ function applyMusic() {
     musicPlayer = a.createAudioPlayer(MUSIC[wantedTrack]);
     musicTrack = wantedTrack;
   } else if (musicTrack !== wantedTrack) {
-    musicPlayer.replace(MUSIC[wantedTrack]);
+    // two tracks may share a file (a placeholder): then the music just keeps playing
+    if (!musicTrack || MUSIC[musicTrack] !== MUSIC[wantedTrack]) musicPlayer.replace(MUSIC[wantedTrack]);
     musicTrack = wantedTrack;
   }
   musicPlayer.loop = true;

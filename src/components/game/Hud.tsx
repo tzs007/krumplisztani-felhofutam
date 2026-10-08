@@ -8,6 +8,7 @@ import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
 const effectLabels: Record<string, string> = {
   doubleScore: '×2 SCORE',
   doubleJump: '×2 JUMP',
+  psy: 'PSY',
 };
 
 type Props = {

@@ -22,7 +22,7 @@ import { GameCanvas } from '@/game/render/GameCanvas';
 import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { SPRITE_KEYS } from '@/game/render/sprites';
 import { countdownLabel } from '@/game/render/countdown';
-import { playSound } from '@/lib/audio';
+import { playSound, setMusic } from '@/lib/audio';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { connectAndSync } from '@/lib/resultsSync';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
@@ -39,6 +39,8 @@ export default function GameRoute() {
   const [status, setStatus] = useState<Status>('playing');
   const [hud, setHud] = useState<HudState>({ score: 0, effects: [], bonusProgress: null });
   const [countdown, setCountdown] = useState<string | null>(null);
+  // psy mode (magic mushroom): its own music while it lasts
+  const [psy, setPsy] = useState(false);
   const [foundEgg, setFoundEgg] = useState<EasterEgg | null>(null);
 
   const worldRef = useRef<World | null>(null);
@@ -73,6 +75,10 @@ export default function GameRoute() {
   const restart = () => {
     if (size) startRun(size);
   };
+
+  useEffect(() => {
+    setMusic(psy ? 'psy' : 'game');
+  }, [psy]);
 
   // a tick on each number of the start countdown (3, 2, 1)
   useEffect(() => {
@@ -130,6 +136,10 @@ export default function GameRoute() {
       // every take-off: the hop out of the egg and each bounce off a platform (new or not)
       if (e.type === 'launch' || e.type === 'bounce') playSound('jump');
       if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === 'mushroom') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playSound('bonus');
+      }
       if (e.type === 'portalEnter' || e.type === 'portalExit') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         playSound('portal');
@@ -148,6 +158,7 @@ export default function GameRoute() {
     commands.set(buildSnapshot(world, tileSize, size.height));
     // countdown text changes exactly on time (setState bails out when unchanged)
     setCountdown(countdownLabel(world));
+    setPsy(world.psyActive);
     const now = Date.now();
     if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
       hudUpdatedAt.current = now;

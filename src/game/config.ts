@@ -146,6 +146,12 @@ export type GameConfig = {
     zPeriodMs: number;
     /** Flash when the mode switches on or off (ms). */
     flashMs: number;
+    /** The backdrop's colours turn around the rainbow this fast (degrees/s) … */
+    hueDegPerSecond: number;
+    /** … and pulse brighter / darker by this fraction … */
+    pulseGain: number;
+    /** … over this period (ms). */
+    pulsePeriodMs: number;
     /** After it wears off: this long without auto scroll and without death (ms). */
     endSafeMs: number;
   };
@@ -188,7 +194,7 @@ export type GameConfig = {
      * Where easter eggs hide: 'bonus' = every bonus level hides one (always);
      * 'main' = the main level may hide one (chancePerGame, chunkRange).
      */
-    sections: ('main' | 'bonus')[];
+    sections: ("main" | "bonus")[];
     /**
      * Main level only: chance (0–1) that this run hides an easter egg there
      * at all. At most one per game; 0.1 ≈ one in every ten games on average.
@@ -314,7 +320,7 @@ export const defaultGameConfig: GameConfig = {
     chancePerGame: 0.2,
     chunkRange: [3, 15],
     size: 1.1,
-    durationMs: 20_000,
+    durationMs: 30_000,
   },
   psy: {
     riseSpeed: 4,
@@ -323,6 +329,9 @@ export const defaultGameConfig: GameConfig = {
     zAmplitude: 0.25,
     zPeriodMs: 3000,
     flashMs: 400,
+    hueDegPerSecond: 90,
+    pulseGain: 0.18,
+    pulsePeriodMs: 1200,
     endSafeMs: 2000,
   },
   side: {

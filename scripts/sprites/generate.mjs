@@ -423,6 +423,20 @@ add('cloud', () =>
 const skySource = join(SOURCE_DIR, 'sky.png');
 if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
+// psy mode (magic mushroom): the flying chick — drawn art (chick_psy.png) when there is one,
+// a red square until then; the psychedelic cloud; the backdrop (psy-bg.png, else the sky, recoloured in game)
+const psyChickSource = join(SOURCE_DIR, 'chick_psy.png');
+add('player_psy', () =>
+  existsSync(psyChickSource)
+    ? writeImage('player_psy', pixelize(psyChickSource, { size: 128, colors: 24, centerOnCharacter: true }))
+    : writeSprite('player_psy', GRID, GRID, (x, y) =>
+        x === 0 || y === 0 || x === GRID - 1 || y === GRID - 1 ? '#7A0000' : '#E01010',
+      ),
+);
+const psyCloudSource = join(SOURCE_DIR, 'psy-cloud.png');
+if (existsSync(psyCloudSource)) add('psy_cloud', () => copyFileSync(psyCloudSource, join(OUT_DIR, 'psy_cloud.png')));
+const psyBgSource = join(SOURCE_DIR, 'psy-bg.png');
+add('bg_psy', () => copyFileSync(existsSync(psyBgSource) ? psyBgSource : join(OUT_DIR, 'bg_sky.png'), join(OUT_DIR, 'bg_psy.png')));
 // magic mushroom: drawn 4-frame strip (sprite-sources/magic-mushroom.png), one ground line
 const mushroomSource = join(SOURCE_DIR, 'magic-mushroom.png');
 if (existsSync(mushroomSource)) {
