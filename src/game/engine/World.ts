@@ -4,6 +4,7 @@ import { addBonus, doubleJumpHeight, doubleScore, psyMode } from './effects/buil
 import { EffectRegistry, type EffectContext } from './effects/EffectRegistry';
 import type { Burst, GameEvent, StarParticle, StepInput } from './entities';
 import { createRng, type Rng } from './random';
+import { skyAngleFromClock } from '../render/skyOrbit';
 import type { RunContext, RunStats, Section, SectionId } from './sections/Section';
 import { SideSection } from './sections/SideSection';
 import { VerticalSection } from './sections/VerticalSection';
@@ -20,6 +21,8 @@ export type WorldOptions = {
   rng?: Rng;
   chunks?: LevelChunk[];
   startChunk?: LevelChunk;
+  /** Time of day the run starts at (places the sun / moon); now by default. */
+  clock?: Date;
 };
 
 /**
@@ -50,6 +53,8 @@ export class World implements RunContext {
   psyActive = false;
   /** Game time (ms) the psy mode last switched on or off (drives the switch flash). */
   psyChangedAt = -Infinity;
+  /** Sun / moon angle (degrees) when the run started, from the real time of day. */
+  readonly skyStartAngle: number;
   readonly main: VerticalSection;
   /** The bonus level while the run is in it (or fading in / out of it). */
   bonus: SideSection | null = null;
@@ -64,8 +69,9 @@ export class World implements RunContext {
   private nextMilestone: number;
   private idCounter = 1;
 
-  constructor({ config, viewHeight, rng = createRng(), chunks, startChunk }: WorldOptions) {
+  constructor({ config, viewHeight, rng = createRng(), chunks, startChunk, clock = new Date() }: WorldOptions) {
     this.config = config;
+    this.skyStartAngle = skyAngleFromClock(clock);
     this.viewHeight = viewHeight;
     this.rng = rng;
     this.nextMilestone = config.milestones.every;
@@ -122,6 +128,11 @@ export class World implements RunContext {
     }
     this.checkMilestones(events);
     return events;
+  }
+
+  /** Sun / moon angle now: the time of day at the start, turning slowly with the game clock. */
+  get skyAngle(): number {
+    return this.skyStartAngle + (this.time / 1000) * this.config.sky.degPerSecond;
   }
 
   /** 0 = clear … 1 = black: up during the first half of the transition, down in the second. */

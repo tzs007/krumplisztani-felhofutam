@@ -437,6 +437,11 @@ const psyCloudSource = join(SOURCE_DIR, 'psy-cloud.png');
 if (existsSync(psyCloudSource)) add('psy_cloud', () => copyFileSync(psyCloudSource, join(OUT_DIR, 'psy_cloud.png')));
 const psyBgSource = join(SOURCE_DIR, 'psy-bg.png');
 add('bg_psy', () => copyFileSync(existsSync(psyBgSource) ? psyBgSource : join(OUT_DIR, 'bg_sky.png'), join(OUT_DIR, 'bg_psy.png')));
+// sky: the sun, its psy-mode twin and (when drawn) the moon, 256 px (drawn at a third of the screen width)
+for (const [name, file] of [['sun', 'sun.png'], ['psy_sun', 'psy-sun.png'], ['moon', 'moon.png']]) {
+  const src = join(SOURCE_DIR, file);
+  if (existsSync(src)) add(name, () => writeImage(name, pixelize(src, { size: 256, colors: 32 })));
+}
 // magic mushroom: drawn 4-frame strip (sprite-sources/magic-mushroom.png), one ground line
 const mushroomSource = join(SOURCE_DIR, 'magic-mushroom.png');
 if (existsSync(mushroomSource)) {

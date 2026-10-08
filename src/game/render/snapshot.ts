@@ -2,6 +2,7 @@ import { derivePhysics } from '../config';
 import type { SideSection } from '../engine/sections/SideSection';
 import { deathScale, isFalling, type Player, type StarParticle, type World } from '../engine/World';
 import { Color } from '../../theme/colors';
+import { skyBodies } from './skyOrbit';
 import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
@@ -233,6 +234,16 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     out.push(Op.backdropHue, spriteIndex('bg_psy'), hue, Math.round(gain * 1000), 0, screenHeight + bgOffset, cols * t, bgHeight);
   } else {
     out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight + bgOffset, cols * t, bgHeight);
+  }
+
+  // sun and moon, fixed to the screen, behind the clouds (psy mode: the psy sun)
+  const { sun, moon } = skyBodies(world.skyAngle, cols * t, screenHeight, world.config.sky);
+  if (sun.visible) {
+    sprite(Op.sprite, psy ? 'psy_sun' : 'sun', world.time, sun.x - sun.size / 2, sun.y - sun.size / 2, sun.size, sun.size);
+  }
+  if (moon.visible && hasSprite('moon')) {
+    // registered once moon.png is drawn (see sprites.ts)
+    sprite(Op.sprite, 'moon' as SpriteKey, world.time, moon.x - moon.size / 2, moon.y - moon.size / 2, moon.size, moon.size);
   }
 
   // background clouds (parallax), drawn with the cloud image's own aspect ratio

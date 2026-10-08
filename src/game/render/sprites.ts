@@ -60,6 +60,9 @@ export const spriteSources = {
   player_bonus_double_score: require('@/assets/sprites/player_bonus_double_score.png'),
   player_bonus_double_jump: require('@/assets/sprites/player_bonus_double_jump.png'),
   cloud: require('@/assets/sprites/cloud.png'),
+  // sky: sun / psy sun (the moon is added when its art arrives)
+  sun: require('@/assets/sprites/sun.png'),
+  psy_sun: require('@/assets/sprites/psy_sun.png'),
   // psy mode (magic mushroom)
   psy_cloud: require('@/assets/sprites/psy_cloud.png'),
   bg_psy: require('@/assets/sprites/bg_psy.png'),

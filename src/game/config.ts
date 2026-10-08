@@ -121,6 +121,18 @@ export type GameConfig = {
     /** After coming back: this long without auto scroll and without orange damage (ms). */
     returnSafeMs: number;
   };
+  /**
+   * Sun and moon in the main level's sky: on one circle around the screen's
+   * bottom centre, placed by the real time of day, turning slowly while playing.
+   */
+  sky: {
+    /** Extra turning while playing (degrees per second of game time). */
+    degPerSecond: number;
+    /** Circle radius as a fraction of the screen width. */
+    radiusWidths: number;
+    /** Sun / moon size as a fraction of the screen width. */
+    sizeWidths: number;
+  };
   /** Magic mushroom in the main level: picking it up starts the psy mode. */
   mushroom: {
     /** Chance (0–1) that a run has a mushroom at all; at most one per run. */
@@ -315,6 +327,11 @@ export const defaultGameConfig: GameConfig = {
     size: 1.3,
     transitionMs: 500,
     returnSafeMs: 2000,
+  },
+  sky: {
+    degPerSecond: 0.5,
+    radiusWidths: 0.42,
+    sizeWidths: 1 / 3,
   },
   mushroom: {
     chancePerGame: 0.2,
