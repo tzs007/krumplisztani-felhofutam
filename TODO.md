@@ -25,7 +25,7 @@
 
 - [x] 1.1 A meglévő `package.json` mentése (author: Zsolt Takács, name) → `npx create-expo-app@latest` egy ideiglenes mappába (`--template default`), a fájlok átmozgatása ide, `author` visszaírása
 - [x] 1.2 Template példakód eltávolítása (`npm run reset-project` vagy kézzel), üres `app/` marad
-- [x] 1.3 `app.json`: name `Krumplisztáni Felhőfutam: Hiperventi Kalandjai`, slug `krumplisztani-felhofutam-hiperventi-kalandjai`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
+- [x] 1.3 `app.json`: name `Krumplisztáni Felhőfutam: Hiperventi Kalandjai`, slug `krumplisztani-csibefutam-hiperventi-kalandjai`, `orientation: "portrait"`, `userInterfaceStyle`, splash háttérszín (égkék `#2E8BEA`)
 - [x] 1.4 `tsconfig.json`: `strict: true`, path alias `@/*` → `src/*`
 - [x] 1.5 `git init` + `.gitignore` + első commit
 - **Ellenőrzés:** `npx expo start` → Expo Go-ban üres app betölt
@@ -349,6 +349,7 @@ Megjegyzés: az `assets/sprites/Fruit+.png` (608×96 gyümölcs sheet) kézzel k
 # Epic 10 – Auth, játékosnév, online ranglista (terv, 2026-09-28)
 
 Döntések (2026-09-28):
+
 - Bejelentkezés: **anonim** (automatikus, első indításkor) + **email/jelszó** + **Google (natív)**; magic link nincs
 - Nem kötelező; az **anonim játékos teljes értékű user**: az eredményei felkerülnek a ranglistára, nincs külön „vendég” jelölés
 - „Az eredményeid csak a saját eszközödön jelennek meg” figyelmeztetés csak akkor, ha **nincs session** (offline, backend nélkül, sikertelen anonim belépés)
@@ -360,6 +361,7 @@ Döntések (2026-09-28):
 - Első bejelentkezéskor a telefonon lévő **összes** korábbi eredmény feltöltődik
 
 ## Előfeltételek (felhasználó, Supabase / Google dashboard)
+
 - [x] P1 `npx supabase link --project-ref rxwmqokvvywapunsjmld` + `npx supabase db push` (init_schema, easter_eggs_config, + az új auth migráció)
 - [x] P2 Supabase → Authentication → Sign In / Providers: **Anonymous sign-ins** be; **Email** be, **Confirm email ki**
 - [ ] P3 Supabase → Auth → **Manual linking** be (anonim fiókhoz Google hozzákötése)
@@ -367,6 +369,7 @@ Döntések (2026-09-28):
 - [ ] P5 (ajánlott) Supabase → Auth: rate limit / CAPTCHA az anonim regisztrációkra (spam ellen)
 
 ## A – Auth alap
+
 - [x] A1 Session store (Zustand): `session`, `user`, `status` (loading / offline / signedIn), `provider` (anonymous / email / google); `onAuthStateChange`; `getSupabase()` null → offline mód
 - [x] A2 Első indításkor automatikus **anonim bejelentkezés** (`signInAnonymously`); sikertelen → helyi mód, következő indításkor újrapróbálja
 - [x] A3 **Email + jelszó**: belépés / regisztráció képernyő (gluestack form, validáció, magyar hibaüzenetek); anonim fiók **átalakítása** emailesre (`updateUser({ email, password })` — ugyanaz a user id, az eredmények megmaradnak); másik fiókba belépésnél figyelmeztetés, hogy az anonim eredmények nem kerülnek át
@@ -375,11 +378,13 @@ Döntések (2026-09-28):
 - [x] A6 Tesztek: store állapotátmenetek, anonim → email átalakítás, offline mód (mockolt kliens)
 
 ## N – Név
+
 - [x] N1 Migráció: a `handle_new_user` trigger **„Csibe #xxxx”** nevet ad (4 számjegy, egyedi: ütközésnél újrasorsol; ha elfogyna, 5 számjegy)
 - [x] N2 Szabad névváltoztatás (2–24 karakter, trim, egyedi generált névvel ütközés nem gond); profil `update` policy már megvan
 - [x] N3 Tesztek: minden új profil egyedi „Csibe #xxxx” nevet kap (helyi Postgresen), névváltoztatás validáció
 
 ## R – Eredmények feltöltése
+
 - [x] R1 Játék végén: helyi mentés (mint most) + feltöltés `game_results`-ba, ha van session (anonim is)
 - [x] R2 Offline sor: a fel nem töltött eredmények a telefonon várnak; induláskor / hálózat visszatértekor szinkron; idempotens (helyi azonosító → egyedi `client_id` oszlop, nem duplikál)
 - [x] R3 Első bejelentkezéskor **az összes** korábbi, csak eszközön lévő eredmény feltöltése (az eredeti `played_at` időponttal)
@@ -387,6 +392,7 @@ Döntések (2026-09-28):
 - [x] R5 Tesztek: sor, újrapróbálás, duplikáció elleni védelem, első belépéses feltöltés
 
 ## L – Online ranglista képernyő
+
 - [x] L1 Migráció: `top_scores(10)` (megvan; holtverseny: pont ↓, időpont ↑) + `rank_for_score(score, played_at)` (publikus: hányadik lenne egy eredmény — kijelentkezett injektáláshoz) + `my_rank()` (bejelentkezett: saját legjobb + helyezés)
 - [x] L2 UI: fülek (Globális / Saját); Globális: top 10 (helyezés, név, pont), saját sor kiemelve
 - [x] L3 Nincs session: figyelmeztetés a lista fölött — „Az eredményeid csak a saját eszközödön jelennek meg.” + bejelentkezés gomb
@@ -396,6 +402,7 @@ Döntések (2026-09-28):
 - [x] L7 Tesztek: injektálás (top 10-en belül / kívül / holtverseny az időpont szerint), helyezésszámítás
 
 ## Build
+
 - [ ] X1 Új preview build (expo-sqlite + natív Google Sign-In), utána OTA-k a `preview` csatornán
 
 Megjegyzés (1–3. lépés, 2026-09-29): a migráció (`player_names_and_ranks`) helyi Postgresen tesztelve; az app végig kipróbálva helyi Supabase stacken (anonim belépés → „Csibe #xxxx”, feltöltés, ranglista 11. piros sorral). A névváltoztatás UI-ja (N2) az A5 fiók képernyővel jön; a szerver oldal kész.
@@ -405,6 +412,7 @@ Megjegyzés (2026-09-30): a hosztolt projekten P1 (db push) és P2 (anonim belé
 Megjegyzés (4. lépés, 2026-09-30): Fiók képernyő (név, vendég fiók mentése email + jelszóval, kijelentkezés) és Belépés képernyő; menüben „Fiók · <név>” gomb, a ranglista figyelmeztetésében „Fiók” gomb. Az anonim → emailes átalakítás egy `updateUser({ email, password })` hívás (helyi Supabase-en kipróbálva: ugyanaz a user id, azonnal megerősítve, utána jelszóval belép). Vendég fióknál nincs kijelentkezés gomb (a fiók elveszne). Jelszó-visszaállítás még nincs (email küldés kellene hozzá).
 
 ## Javasolt sorrend
+
 1. N + R4 + L1 migrációk (helyi Postgresen tesztelve) → P1 feltöltés
 2. A1–A2 (anonim) + R1–R3 (feltöltés) → az eredmények már a szerveren
 3. L (ranglista képernyő)

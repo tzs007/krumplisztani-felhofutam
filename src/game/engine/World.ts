@@ -101,7 +101,10 @@ export type Player = {
 export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number };
 
 export type GameEvent =
+  /** First landing on a platform: it scores. */
   | { type: 'land'; platformId: number; points: number }
+  /** Every take-off from a platform (also one landed on before). */
+  | { type: 'bounce'; platformId: number }
   | { type: 'pickup'; effect: EffectId }
   | { type: 'hit'; damage: number }
   | { type: 'milestone'; score: number }
@@ -298,6 +301,7 @@ export class World {
         p.vy = this.jumpVelocity * Math.sqrt(this.jumpMultiplier);
         p.landedAt = this.time;
         p.apexY = p.y;
+        events.push({ type: 'bounce', platformId: hit.id });
         if (!this.visited.has(hit.id)) {
           this.visited.add(hit.id);
           const points = this.scoreMultiplier;

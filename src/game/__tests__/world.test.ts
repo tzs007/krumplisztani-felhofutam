@@ -67,6 +67,14 @@ describe('World physics', () => {
     expect(world.player.y).toBeGreaterThanOrEqual(4 - 1e-6);
   });
 
+  it('reports every take-off as a bounce, also off a platform it was on before', () => {
+    const world = makeWorld(['.........', '....P....', '#########']);
+    const events = run(world, 3);
+    // three seconds on one platform: one scoring landing, but many take-offs
+    expect(events.filter((e) => e.type === 'land')).toHaveLength(1);
+    expect(events.filter((e) => e.type === 'bounce').length).toBeGreaterThanOrEqual(3);
+  });
+
   it('scores 1 per NEW platform only', () => {
     const world = makeWorld(['.........', '....P....', '#########']);
     const events = run(world, 3);

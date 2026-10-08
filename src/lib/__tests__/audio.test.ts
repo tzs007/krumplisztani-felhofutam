@@ -5,12 +5,18 @@ jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 type MockPlayer = {
   source: unknown;
   playing: boolean;
+  /** Like the native player: position in s; play() at the end is over at once (no sound). */
+  currentTime: number;
+  duration: number;
+  /** For each play() call: was there anything left to hear? */
+  audible: boolean[];
   loop: boolean;
   volume: number;
   play: jest.Mock;
   pause: jest.Mock;
   replace: jest.Mock;
   seekTo: jest.Mock;
+  addListener: jest.Mock;
 };
 const mockPlayers: MockPlayer[] = [];
 let mockNativeModule = true;
@@ -24,10 +30,16 @@ jest.mock('expo-audio', () => ({
     const p: MockPlayer = {
       source,
       playing: false,
+      currentTime: 0,
+      duration: 1,
+      audible: [],
       loop: false,
       volume: 1,
+      // native play() is synchronous
       play: jest.fn(() => {
-        p.playing = true;
+        const left = p.currentTime < p.duration;
+        p.audible.push(left);
+        p.playing = left;
       }),
       pause: jest.fn(() => {
         p.playing = false;
@@ -35,7 +47,12 @@ jest.mock('expo-audio', () => ({
       replace: jest.fn((s: unknown) => {
         p.source = s;
       }),
-      seekTo: jest.fn(async () => {}),
+      // native seekTo is asynchronous: the position changes only later
+      seekTo: jest.fn(async (s: number) => {
+        await Promise.resolve();
+        p.currentTime = s;
+      }),
+      addListener: jest.fn(),
     };
     mockPlayers.push(p);
     return p;
@@ -73,6 +90,8 @@ const music = () => mockPlayers.find((p) => p.loop);
 beforeEach(() => {
   mockPlayers.length = 0;
   mockNativeModule = true;
+  // settings persisted by an earlier test would rehydrate into the next one
+  return mockAsyncStorage.clear();
 });
 
 describe('music', () => {
@@ -107,16 +126,19 @@ describe('music', () => {
 });
 
 describe('effects', () => {
-  it('preloads two voices per effect and overlaps quick repeats', () => {
+  it('preloads two voices per effect and overlaps quick repeats', async () => {
     const audio = load();
     audio.initAudio();
     expect(playersOf('sfx_card')).toHaveLength(2);
     audio.playSound('card');
     audio.playSound('card');
-    expect(playersOf('sfx_card').every((p) => p.playing)).toBe(true);
-    // a third one restarts a voice from the beginning
+    const cards = playersOf('sfx_card');
+    expect(cards.every((p) => p.playing)).toBe(true);
+    // both halfway through: a third one restarts a voice from the beginning
+    for (const p of cards) p.currentTime = 0.5;
     audio.playSound('card');
-    expect(playersOf('sfx_card').some((p) => p.seekTo.mock.calls.length === 2)).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(cards.some((p) => p.currentTime === 0 && p.play.mock.calls.length === 2)).toBe(true);
   });
 
   it('stays quiet when the sounds are off, and stops what is playing when switched off', () => {
@@ -128,6 +150,23 @@ describe('effects', () => {
     expect(playersOf('sfx_game_over').some((p) => p.playing)).toBe(false);
     audio.playSound('milestone');
     expect(playersOf('sfx_milestone').some((p) => p.playing)).toBe(false);
+  });
+
+  it('replays a voice that already played to the end from the start (not silently from its end)', async () => {
+    const audio = load();
+    audio.initAudio();
+    const jumps = playersOf('sfx_jump');
+    // every voice has played once and stopped at its end, like after a few bounces
+    for (const p of jumps) Object.assign(p, { currentTime: p.duration, playing: false });
+    for (let i = 0; i < 6; i++) {
+      audio.playSound('jump');
+      await new Promise((r) => setTimeout(r, 0));
+      // the sound ends before the next bounce
+      for (const p of jumps) Object.assign(p, { currentTime: p.duration, playing: false });
+    }
+    const plays = jumps.flatMap((p) => p.audible);
+    expect(plays).toHaveLength(6);
+    expect(plays.every(Boolean)).toBe(true);
   });
 
   it('gives the jump three voices, so quick bounces overlap', () => {

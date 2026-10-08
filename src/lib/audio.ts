@@ -106,7 +106,14 @@ function voicesOf(effect: SoundEffect): AudioPlayer[] | null {
   if (!a) return null;
   let list = voices.get(effect);
   if (!list) {
-    list = Array.from({ length: VOICES[effect] ?? DEFAULT_VOICES }, () => a.createAudioPlayer(EFFECTS[effect]));
+    list = Array.from({ length: VOICES[effect] ?? DEFAULT_VOICES }, () => {
+      const player = a.createAudioPlayer(EFFECTS[effect]);
+      // a finished effect stays at its end: rewind it right away, so the next play can start at once
+      player.addListener('playbackStatusUpdate', (status) => {
+        if (status.didJustFinish) player.seekTo(0).catch(() => {});
+      });
+      return player;
+    });
     voices.set(effect, list);
   }
   return list;
@@ -121,8 +128,16 @@ export function playSound(effect: SoundEffect) {
   const i = nextVoice.get(effect) ?? 0;
   const player = free ?? list[i];
   nextVoice.set(effect, (i + 1) % list.length);
-  player.seekTo(0).catch(() => {});
-  player.play();
+  if (player.currentTime > 0) {
+    // native seekTo is asynchronous but play() is not: started right away, a voice left at the
+    // end of the sound would "play" from there and stop at once (silently), then rewind
+    player.seekTo(0).then(
+      () => player.play(),
+      () => {},
+    );
+  } else {
+    player.play();
+  }
 }
 
 /** Stops an effect that may still be playing (e.g. the long game over jingle when leaving the screen). */

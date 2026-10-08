@@ -123,8 +123,8 @@ export default function GameRoute() {
         }
       }
       if (e.type === 'launch') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // every take-off: the hop out of the egg and each bounce off a platform
-      if (e.type === 'launch' || e.type === 'land') playSound('jump');
+      // every take-off: the hop out of the egg and each bounce off a platform (new or not)
+      if (e.type === 'launch' || e.type === 'bounce') playSound('jump');
       if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       if (e.type === 'milestone') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
