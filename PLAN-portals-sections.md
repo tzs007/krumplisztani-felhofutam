@@ -1,6 +1,8 @@
 # Terv: portálok és pályaszekciók (bónuszpálya, később titkos pályák)
 
-Állapot: **terv, nincs elkezdve** (2026-10-06). A megvalósítás előtt érdemes még egyszer átnézni a „Nyitott kérdések” részt.
+Állapot: **1–5. fázis kész** (2026-10-08, `feat/portals-sections` ág, végrehajtási terv: `docs/superpowers/plans/2026-10-08-portals-sections.md`). Hátravan: saját portál-grafika és -hang, finomhangolás, 6. fázis.
+
+A nyitott kérdések eldöntve (a javaslatok szerint): ernyő a bónuszpályán **be**, távolságért **nincs** pont, mérföldkő-tűzijáték **mindkét** szekcióban, a téma csak a függőleges pályán vált (visszatéréskor a csibe fölött átvált).
 
 ## Cél
 
@@ -165,38 +167,38 @@ Minden, ami most a `World`-ben van, és függőleges-specifikus: vízszintes kö
 ## TODO
 
 ### 1. Szekciókra bontás (viselkedés nem változik)
-- [ ] S1 `collide.ts` és `physics.ts` kiemelése a `World`-ből (érintésvizsgálat, egyirányú platformra érkezés, siklás)
-- [ ] S2 `Section` interfész, `RunContext`, `SectionInput`, `GameEvent` bővítése (`portalEnter`, `portalExit`)
-- [ ] S3 `VerticalSection` = a mostani függőleges logika (pályaelemek, kamera, autoscroll, halál, témák)
-- [ ] S4 `Run`: idő, pontszám, effektek, statisztika, mérföldkő, szekcióváltás; a `World` marad homlokzatként
-- [ ] S5 `buildSnapshot` → szekciónként delegál (`snapshotVertical`)
-- [ ] S6 Minden meglévő teszt zöld, `game.tsx` változatlan viselkedéssel
+- [x] S1 `collide.ts` és `physics.ts` kiemelése a `World`-ből (érintésvizsgálat, egyirányú platformra érkezés, siklás)
+- [x] S2 `Section` interfész, `RunContext`, `SectionInput`, `GameEvent` bővítése (`portalEnter`, `portalExit`)
+- [x] S3 `VerticalSection` = a mostani függőleges logika (pályaelemek, kamera, autoscroll, halál, témák)
+- [x] S4 `Run`: idő, pontszám, effektek, statisztika, mérföldkő, szekcióváltás; a `World` marad homlokzatként
+- [x] S5 `buildSnapshot` → szekciónként delegál (`snapshotVertical`)
+- [x] S6 Minden meglévő teszt zöld, `game.tsx` változatlan viselkedéssel
 
 ### 2. Oldalnézetes szekció
-- [ ] H1 Config: `side` (`runSpeed`, `viewColumns`, `rows`, `chunks`, `followX`, `jumpCutFactor`, `coyoteMs`, `jumpBufferMs`, `finishBonus`, `glide`)
-- [ ] H2 Vízszintes pályadarabok (`sideChunks.ts`): induló, közepes és záró darab portállal; a feldolgozó balról jobbra olvas; ellenőrzés (az ugrásmagasságon belül érhető-e el minden)
-- [ ] H3 `SideSection`: futás, koppintásos ugrás változó magassággal, coyote time, ugrás-puffer, talaj, egyirányú platformok, plafon
-- [ ] H4 Pickupok, narancs, kamera vízszintesen, haladás (0–1)
-- [ ] H5 Tesztek
+- [x] H1 Config: `side` (`runSpeed`, `viewColumns`, `rows`, `chunks`, `followX`, `jumpCutFactor`, `coyoteMs`, `jumpBufferMs`, `finishBonus`, `glide`)
+- [x] H2 Vízszintes pályadarabok (`sideChunks.ts`): induló, közepes és záró darab portállal; a feldolgozó balról jobbra olvas; ellenőrzés (az ugrásmagasságon belül érhető-e el minden)
+- [x] H3 `SideSection`: futás, koppintásos ugrás változó magassággal, coyote time, ugrás-puffer, talaj, egyirányú platformok, plafon
+- [x] H4 Pickupok, narancs, kamera vízszintesen, haladás (0–1)
+- [x] H5 Tesztek
 
 ### 3. Portál
-- [ ] P1 Csempetípus és sprite-kulcs (`portal`), `config.portals` (`chancePerGame`, `chunkRange`, `targets`, `returnInvulnerableMs`)
-- [ ] P2 Elhelyezés a függőleges pályán (mintának az `hideEasterEgg`), legfeljebb egy portál, nem ütközik az easter eggel
-- [ ] P3 Belépés: befagyasztás, átmenet-állapot, a `SideSection` létrehozása a menet seedjével
-- [ ] P4 Kilépés: folytatás a portál platformján, kamera beállítása, védettség, autoscroll-szünet, a portál eltűnik
-- [ ] P5 Tesztek
+- [x] P1 Csempetípus és sprite-kulcs (`portal`), `config.portals` (`chancePerGame`, `chunkRange`, `targets`, `returnInvulnerableMs`)
+- [x] P2 Elhelyezés a függőleges pályán (mintának az `hideEasterEgg`), legfeljebb egy portál, nem ütközik az easter eggel
+- [x] P3 Belépés: befagyasztás, átmenet-állapot, a `SideSection` létrehozása a menet seedjével
+- [x] P4 Kilépés: folytatás a portál platformján, kamera beállítása, védettség, autoscroll-szünet, a portál eltűnik
+- [x] P5 Tesztek
 
 ### 4. Megjelenítés és irányítás
-- [ ] R1 `snapshotSide`: talaj, platformok (a témák sprite-jaival), pickupok, csibe futó és ugró pózzal, felhők parallaxszal
-- [ ] R2 Átmenet (elsötétülés), portál-animáció
-- [ ] R3 `InputRouter`: húzás vagy koppintás a szekció szerint (`game.tsx`)
-- [ ] R4 HUD: a bónuszpálya haladásjelzője
-- [ ] R5 Bónuszpálya csempemérete (`viewColumns`) a `game.tsx`-ben és a snapshotban
+- [x] R1 `snapshotSide`: talaj, platformok (a témák sprite-jaival), pickupok, csibe futó és ugró pózzal, felhők parallaxszal
+- [x] R2 Átmenet (elsötétülés), portál-animáció
+- [x] R3 `InputRouter`: húzás vagy koppintás a szekció szerint (`game.tsx`)
+- [x] R4 HUD: a bónuszpálya haladásjelzője
+- [x] R5 Bónuszpálya csempemérete (`viewColumns`) a `game.tsx`-ben és a snapshotban
 
 ### 5. Grafika, hang, finomhangolás
-- [ ] A1 Portál sprite (animált, pl. 4–6 kocka) – **te rajzolod / generálod**
+- [~] A1 Portál sprite (animált, pl. 4–6 kocka) – **te rajzolod / generálod**; addig generált helyőrző (lila-türkiz örvény, 4 kocka)
 - [ ] A2 Opcionális: bónuszpálya-háttér (`bg_side`, széles kép), talaj-csempék (használható egy meglévő platformtéma is)
-- [ ] A3 Hangok: `sfx_portal`, opcionálisan `music_bonus`
+- [~] A3 Hangok: `sfx_portal`, opcionálisan `music_bonus` (addig a portál a bónusz-csilingelést kapja)
 - [ ] A4 Finomhangolás: futássebesség, ugrásmagasság, pályahossz (kb. 30–45 mp játékidő)
 
 ### 6. Titkos pályák és easter egg (később)

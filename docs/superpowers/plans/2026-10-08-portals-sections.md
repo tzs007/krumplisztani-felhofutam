@@ -60,7 +60,7 @@
 
 ---
 
-### 1. feladat: Közös típusok és ütközés-segédek kiemelése (viselkedés nem változik)
+### Task 1: Közös típusok és ütközés-segédek kiemelése (viselkedés nem változik)
 
 **Fájlok:** Létrehozás: `entities.ts`, `collide.ts`. Módosítás: `World.ts` (importálja és újraexportálja őket). Teszt: `src/game/__tests__/collide.test.ts`.
 
@@ -74,7 +74,7 @@
 - [ ] Megvalósítás és a `World` átállítása ezekre (a három külön érintésvizsgálat helyett).
 - [ ] Minden teszt zöld.
 
-### 2. feladat: Szekciók: `VerticalSection` és a `World` mint Run
+### Task 2: Szekciók: `VerticalSection` és a `World` mint Run
 
 **Fájlok:** Létrehozás: `sections/Section.ts`, `sections/VerticalSection.ts`. Módosítás: `World.ts`. Teszt: a meglévő tesztek, plus `src/game/__tests__/sections.test.ts`.
 
@@ -118,7 +118,7 @@ export interface Section {
 - [ ] A `World` átírása Run-ná homlokzattal.
 - [ ] Mind a 244 meglévő teszt változatlanul zöld, plus az új tesztek.
 
-### 3. feladat: Bónuszpálya-szekció (`SideSection`) és vízszintes pályadarabok
+### Task 3: Bónuszpálya-szekció (`SideSection`) és vízszintes pályadarabok
 
 **Fájlok:** Létrehozás: `sections/SideSection.ts`, `level/sideChunks.ts`, `input/TapInput.ts`. Módosítás: `tiles.ts` (`G` portál), `parser.ts` (`portals`), `config.ts` (`side`), `entities.ts` (`TapState`, `StepInput.tap?`). Teszt: `src/game/__tests__/side.test.ts`.
 
@@ -172,7 +172,7 @@ side: {
 - [ ] A `SideSection` és a `sideChunks` megvalósítása.
 - [ ] Zöld.
 
-### 4. feladat: Portál a függőleges pályán, átmenet, visszatérés
+### Task 4: Portál a függőleges pályán, átmenet, visszatérés
 
 **Fájlok:** Módosítás: `VerticalSection.ts` (portál elhelyezése és érintése, `safeUntil`), `World.ts` (átmenet, szekcióváltás), `config.ts` (`portals`). Teszt: `src/game/__tests__/portals.test.ts`.
 
@@ -211,7 +211,7 @@ portals: {
 - [ ] Megvalósítás.
 - [ ] Zöld.
 
-### 5. feladat: Rajzolás és irányítás
+### Task 5: Rajzolás és irányítás
 
 **Fájlok:**
 - Módosítás: `snapshot.ts` (`snapshotVertical`, mint a mostani törzs, `snapshotSide`, átmenet-réteg, portál sprite a függőleges pályán), `GameCanvas.tsx` (8-as művelet: áttetsző kitöltés, a `frame` mező az átlátszóság × 1000), `colors.ts` (`black`), `game.tsx` (`TapInput`, portálhang, `Hud` haladás), `Hud.tsx` (`bonusProgress`), `audio.ts` (`portal` effekt).
@@ -233,7 +233,7 @@ portals: {
   - a HUD megkapja a bónusz haladását.
 - [ ] Zöld; típusellenőrzés, lint.
 
-### 6. feladat: Portál sprite (helyőrző) és befejezés
+### Task 6: Portál sprite (helyőrző) és befejezés
 
 **Fájlok:** Módosítás: `scripts/sprites/generate.mjs` (procedurális, 4 kockás örvény, `portal`), `animations.json` (`portal`: 4 kocka, 8 fps, ismétlődik), `sprites.ts` (regisztráció), `PLAN-portals-sections.md` (állapot frissítése).
 
