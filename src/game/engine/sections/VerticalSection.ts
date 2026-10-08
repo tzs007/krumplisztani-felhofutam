@@ -44,6 +44,8 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
 
 /** How far a "hover" item floats above its platform (like pickups). */
 const HOVER_LIFT = 0.15;
+/** Coming back from the bonus level: the return platform is at least this far above the screen bottom. */
+const RETURN_MARGIN_TILES = 3;
 /** How long a collected pickup is remembered for its collect animation. */
 export const COLLECTED_TTL_MS = 1500;
 
@@ -94,8 +96,8 @@ export class VerticalSection implements Section {
   private chunksPlaced = 0;
   /** Chunk number that holds this run's portal; -1 = none this run. */
   private portalChunk: number;
-  /** Where the chick went through the portal: it comes back here. */
-  private returnPoint: { x: number; y: number } | null = null;
+  /** Where the chick went through the portal: it comes back here, onto `platform`. */
+  private returnPoint: { x: number; y: number; platform: Platform | null } | null = null;
   /** Until this time (ms) after coming back: no auto scroll, no orange damage. */
   private safeUntil = -Infinity;
   /** Set while stepping: the run this section belongs to. */
@@ -171,6 +173,10 @@ export class VerticalSection implements Section {
     const back = this.returnPoint;
     if (!back) return;
     this.returnPoint = null;
+    // the portal's platform may have sunk to (or below) the screen bottom meanwhile:
+    // bring it back and lower the camera so the chick comes back on screen
+    if (back.platform && !this.platforms.includes(back.platform)) this.platforms.push(back.platform);
+    this.cameraY = Math.min(this.cameraY, back.y - RETURN_MARGIN_TILES);
     const p = this.player;
     p.x = wrap(back.x - p.w / 2, this.config.columns);
     p.y = back.y;
@@ -271,7 +277,10 @@ export class VerticalSection implements Section {
     const portal = this.portals.find((pt) => touchesBox(p, pt.x, pt.y, pt.size, columns));
     if (portal) {
       this.portals = [];
-      this.returnPoint = { x: portal.x + portal.size / 2, y: portal.y };
+      const cx = portal.x + portal.size / 2;
+      const platform =
+        this.platforms.find((pl) => Math.abs(pl.y - portal.y) < 1e-6 && cx >= pl.x && cx <= pl.x + pl.width) ?? null;
+      this.returnPoint = { x: cx, y: portal.y, platform };
       events.push({ type: 'portalEnter', target: 'bonus' });
       return events;
     }
@@ -310,8 +319,8 @@ export class VerticalSection implements Section {
     this.fillAhead();
     this.cull();
 
-    // feet on the screen bottom line: start the death sequence
-    if (p.y <= this.cameraY) {
+    // feet on the screen bottom line: start the death sequence (not right after coming back)
+    if (p.y <= this.cameraY && run.time >= this.safeUntil) {
       this.dying = true;
       this.diedAt = run.time;
       p.y = this.cameraY;
@@ -349,17 +358,17 @@ export class VerticalSection implements Section {
    * Free platform tiles of a chunk: nothing (pickup, orange) standing above
    * them, and not used by the easter egg or the portal already.
    */
-  private freeSpots(chunk: PlacedChunk): { col: number; row: number }[] {
+  private freeSpots(chunk: PlacedChunk): { col: number; row: number; platform: PlacedChunk['platforms'][number] }[] {
     const taken = new Set([...chunk.pickups, ...chunk.hazards].map((it) => `${it.col},${it.row}`));
     return chunk.platforms.flatMap((pl) =>
-      Array.from({ length: pl.width }, (_, i) => ({ col: pl.col + i, row: pl.row })).filter(
-        (s) => !taken.has(`${s.col},${s.row + 1}`) && !this.usedSpots.has(`${s.col},${chunk.baseRow + s.row}`),
+      Array.from({ length: pl.width }, (_, i) => ({ col: pl.col + i, row: pl.row, platform: pl })).filter(
+        (s) => !taken.has(`${s.col},${s.row + 1}`) && !this.usedPlatforms.has(platformKey(chunk, pl)),
       ),
     );
   }
 
-  /** Tiles (absolute rows) that already hold the easter egg or the portal. */
-  private readonly usedSpots = new Set<string>();
+  /** Platforms that already hold the easter egg or the portal (one thing per platform). */
+  private readonly usedPlatforms = new Set<string>();
 
   /** Puts this game's easter egg object on a free platform tile of the chunk; false if there is none. */
   private hideEasterEgg(chunk: PlacedChunk): boolean {
@@ -367,7 +376,7 @@ export class VerticalSection implements Section {
     if (spots.length === 0) return false;
     const { rng } = this.run;
     const spot = spots[Math.floor(rng() * spots.length)];
-    this.usedSpots.add(`${spot.col},${chunk.baseRow + spot.row}`);
+    this.usedPlatforms.add(platformKey(chunk, spot.platform));
     const eggId = this.easterEggIds[Math.floor(rng() * this.easterEggIds.length)];
     const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
     this.easterEggs.push({
@@ -387,7 +396,7 @@ export class VerticalSection implements Section {
     const spots = this.freeSpots(chunk);
     if (spots.length === 0) return false;
     const spot = spots[Math.floor(this.run.rng() * spots.length)];
-    this.usedSpots.add(`${spot.col},${chunk.baseRow + spot.row}`);
+    this.usedPlatforms.add(platformKey(chunk, spot.platform));
     const size = this.config.portals.size;
     this.portals.push({
       id: this.run.nextId(),
@@ -477,6 +486,11 @@ export class VerticalSection implements Section {
       });
     }
   }
+}
+
+/** Identity of a chunk platform in the level (chunk position + run start). */
+function platformKey(chunk: PlacedChunk, pl: PlacedChunk['platforms'][number]): string {
+  return `${chunk.baseRow + pl.row}:${pl.col}`;
 }
 
 function clamp(v: number, min: number, max: number) {

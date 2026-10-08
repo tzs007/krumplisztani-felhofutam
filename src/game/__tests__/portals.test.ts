@@ -67,7 +67,8 @@ describe('portal placement', () => {
       const portal = world.main.portals[0];
       const egg = world.main.easterEggs[0];
       if (!portal || !egg) continue;
-      expect(Math.round(portal.x + portal.size / 2 - 0.5)).not.toBe(Math.round(egg.x + egg.size / 2 - 0.5));
+      const tile = (x: number, size: number, y: number) => `${Math.round(x + size / 2 - 0.5)},${Math.round(y)}`;
+      expect(tile(portal.x, portal.size, portal.y)).not.toBe(tile(egg.x, egg.size, egg.y));
     }
   });
 });
@@ -172,5 +173,37 @@ describe('entering and leaving the bonus level', () => {
     const above = world.platforms.filter((p) => p.y > world.player.y + 0.5);
     expect(above.length).toBeGreaterThan(0);
     expect(above.every((p) => p.variant === theme)).toBe(true);
+  });
+});
+
+describe('review fixes', () => {
+  it('comes back safely even when the portal platform had sunk below the screen bottom', () => {
+    const world = makeWorld(withPortal());
+    const portal = world.main.portals[0];
+    touchPortal(world);
+    // while away, the camera stood just above the portal's platform (it was nearly off screen)
+    world.cameraY = portal.y + 0.6;
+    transition(world);
+    const bonus = world.active as SideSection;
+    bonus.player.x = bonus.exit.x - 0.5;
+    run(world, DT * 2);
+    transition(world);
+    run(world, 1.5);
+    expect(world.dying).toBe(false);
+    // the return platform is on screen, under the chick
+    expect(world.cameraY).toBeLessThan(portal.y);
+    expect(world.platforms.some((p) => Math.abs(p.y - portal.y) < 1e-6)).toBe(true);
+  });
+
+  it('never puts the portal and the easter egg on the same platform', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const cfg = withPortal({}, { ...base, easterEggs: { ...base.easterEggs, chancePerGame: 1, chunkRange: [1, 1] } });
+      const world = makeWorld(cfg, seed);
+      const portal = world.main.portals[0];
+      const egg = world.main.easterEggs[0];
+      if (!portal || !egg) continue;
+      // the shelf chunk has one platform per chunk: they must not both be on it
+      expect(Math.abs(portal.y - egg.y) < 0.5).toBe(false);
+    }
   });
 });
