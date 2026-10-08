@@ -125,3 +125,19 @@ describe('psy flight', () => {
     expect(above.every((p) => p.variant === theme)).toBe(true);
   });
 });
+
+describe('review fix: end of the flight', () => {
+  // nothing but the start platform: no platform anywhere near the chick when the mushroom wears off
+  const empty: LevelChunk = { id: 'empty', difficulty: 0, map: Array(9).fill('.........') };
+
+  it('lands the chick on a platform when the mushroom wears off, even where there is none', () => {
+    const world = makeWorld(config, [empty], 0);
+    run(world, config.mushroom.durationMs / 1000 + 0.05);
+    expect(world.psyActive).toBe(false);
+    // well past the safe time: still alive, bouncing on something under it
+    const events = run(world, (config.psy.endSafeMs + 3000) / 1000);
+    expect(world.dying).toBe(false);
+    expect(events.some((e) => e.type === 'bounce')).toBe(true);
+    expect(world.player.y).toBeGreaterThan(world.cameraY);
+  });
+});

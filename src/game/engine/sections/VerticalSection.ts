@@ -3,7 +3,7 @@ import { getEasterEggs } from '../../easterEggs';
 import type { LevelChunk } from '../../level/chunks';
 import { LevelGenerator, type PlacedChunk } from '../../level/generator';
 import { platformSpriteKey, type PlatformVariant } from '../../level/tiles';
-import { fallStep, findLanding, touchesBox, wrap } from '../collide';
+import { fallStep, findLanding, overlapsX, touchesBox, wrap } from '../collide';
 import type {
   Burst,
   CollectedPickup,
@@ -423,11 +423,41 @@ export class VerticalSection implements Section {
     return events;
   }
 
-  /** The mushroom wore off: a hop, and a moment of safety (no auto scroll, no death). */
+  /**
+   * The mushroom wore off: the chick lands on the nearest platform under it
+   * on screen (within a jump) — or, if there is none, on a small rescue
+   * platform that appears under it (no points) — hops off it, and is safe for
+   * a moment (no auto scroll, no death).
+   */
   private endFlight(run: RunContext) {
     this.flying = false;
     const p = this.player;
-    p.vy = run.physics.jumpVelocity;
+    const { columns, maxJumpTiles } = this.config;
+    const under = this.platforms
+      .filter(
+        (pl) =>
+          pl.y <= p.y &&
+          p.y - pl.y <= maxJumpTiles &&
+          pl.y >= this.cameraY + this.config.psy.minRow &&
+          overlapsX(p.x, p.w, pl.x, pl.width, columns),
+      )
+      .sort((a, b) => b.y - a.y)[0];
+    let ground = under;
+    if (!ground) {
+      const theme = platformTheme(run.milestonesReached, this.config.platformThemes) ?? 'grass';
+      ground = {
+        id: run.nextId(),
+        x: Math.floor(p.x + p.w / 2) - 1,
+        y: Math.max(this.cameraY + this.config.psy.minRow, p.y - 1),
+        width: 3,
+        variant: theme,
+        spriteKey: platformSpriteKey(theme),
+      };
+      this.platforms.push(ground);
+      this.visited.add(ground.id); // no points for the rescue platform
+    }
+    p.y = ground.y;
+    p.vy = run.physics.jumpVelocity * Math.sqrt(run.jumpMultiplier);
     p.landedAt = run.time;
     p.apexY = p.y;
     this.safeUntil = run.time + this.config.psy.endSafeMs;
