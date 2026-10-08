@@ -151,6 +151,11 @@ export class SideSection implements Section {
     this.standingOn = this.platforms[0];
   }
 
+  /** Standing on the floor or a platform (running), not in the air. */
+  get grounded(): boolean {
+    return this.standingOn !== null;
+  }
+
   /** How far along the level (0 at the start … 1 at the exit). */
   get progress(): number {
     if (this.finished) return 1;

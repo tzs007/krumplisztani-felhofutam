@@ -52,6 +52,16 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
         let w = cmds[i + 6];
         let h = cmds[i + 7];
 
+        if (op === 8) {
+          // see-through fill (section fade): opacity travels in the frame slot (× 1000)
+          paint.setStyle(PaintStyle.Fill);
+          paint.setColor(colors[arg]);
+          paint.setAlphaf(frame / 1000);
+          canvas.drawRect(Skia.XYWHRect(x, y, w, h), paint);
+          paint.setAlphaf(1);
+          continue;
+        }
+
         if (op === 5) {
           // backdrop: fit to height (h), keep aspect ratio, centre horizontally in the canvas (w), bottom at y
           const img = sprites[arg];

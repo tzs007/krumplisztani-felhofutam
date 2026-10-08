@@ -17,6 +17,7 @@ import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
 import { World } from '@/game/engine/World';
 import { useGameLoop } from '@/game/hooks/useGameLoop';
 import { DragInput } from '@/game/input/DragInput';
+import { TapInput } from '@/game/input/TapInput';
 import { GameCanvas } from '@/game/render/GameCanvas';
 import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { SPRITE_KEYS } from '@/game/render/sprites';
@@ -27,7 +28,7 @@ import { connectAndSync } from '@/lib/resultsSync';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
 
 type Status = 'playing' | 'paused' | 'easterEgg' | 'over';
-type HudState = { score: number; effects: ActiveEffect[] };
+type HudState = { score: number; effects: ActiveEffect[]; bonusProgress: number | null };
 
 const config = defaultGameConfig;
 const HUD_INTERVAL_MS = 200;
@@ -36,12 +37,14 @@ export default function GameRoute() {
   const insets = useSafeAreaInsets();
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [status, setStatus] = useState<Status>('playing');
-  const [hud, setHud] = useState<HudState>({ score: 0, effects: [] });
+  const [hud, setHud] = useState<HudState>({ score: 0, effects: [], bonusProgress: null });
   const [countdown, setCountdown] = useState<string | null>(null);
   const [foundEgg, setFoundEgg] = useState<EasterEgg | null>(null);
 
   const worldRef = useRef<World | null>(null);
   const [input] = useState(() => new DragInput());
+  // the same touch as a button: the bonus level jumps on a tap
+  const [tap] = useState(() => new TapInput());
   // normally decoded on the splash screen; deep links straight into /game load them here.
   // The images are tied to the sprite order they were built for: if that order changed
   // (a sprite was added and Fast Refresh kept this state), they are stale and reloaded.
@@ -60,8 +63,9 @@ export default function GameRoute() {
     const world = new World({ config: withEasterEggSettings(config), viewHeight: canvas.height / ts });
     worldRef.current = world;
     input.reset();
+    tap.reset();
     commands.set(buildSnapshot(world, ts, canvas.height));
-    setHud({ score: 0, effects: [] });
+    setHud({ score: 0, effects: [], bonusProgress: null });
     setCountdown(countdownLabel(world));
     setStatus('playing');
   };
@@ -106,7 +110,7 @@ export default function GameRoute() {
   const step = (dt: number) => {
     const world = worldRef.current;
     if (!world || world.over) return;
-    const events = world.step(dt, input.consume(tileSize));
+    const events = world.step(dt, { ...input.consume(tileSize), tap: tap.consume() });
     for (const e of events) {
       if (e.type === 'pickup') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -126,6 +130,10 @@ export default function GameRoute() {
       // every take-off: the hop out of the egg and each bounce off a platform (new or not)
       if (e.type === 'launch' || e.type === 'bounce') playSound('jump');
       if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === 'portalEnter' || e.type === 'portalExit') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playSound('portal');
+      }
       if (e.type === 'milestone') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         playSound('milestone');
@@ -144,10 +152,14 @@ export default function GameRoute() {
     if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
       hudUpdatedAt.current = now;
       const effects = world.effects.getActive(world.time);
+      const bonusProgress = world.bonusProgress;
       setHud((prev) =>
-        prev.score === world.score && prev.effects.length === 0 && effects.length === 0
+        prev.score === world.score &&
+        prev.effects.length === 0 &&
+        effects.length === 0 &&
+        prev.bonusProgress === bonusProgress
           ? prev
-          : { score: world.score, effects },
+          : { score: world.score, effects, bonusProgress },
       );
     }
   };
@@ -159,11 +171,17 @@ export default function GameRoute() {
       Gesture.Pan()
         .runOnJS(true)
         .minDistance(0)
-        .onBegin(() => input.begin())
+        .onBegin(() => {
+          input.begin();
+          tap.press();
+        })
         .onChange((e) => input.move(e.changeX))
         .onEnd((e) => input.release(e.velocityX))
-        .onFinalize(() => input.end()),
-    [input],
+        .onFinalize(() => {
+          input.end();
+          tap.release();
+        }),
+    [input, tap],
   );
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -183,7 +201,13 @@ export default function GameRoute() {
       </GestureDetector>
 
       {status !== 'over' && (
-        <Hud score={hud.score} effects={hud.effects} topInset={insets.top} onPause={() => setStatus('paused')} />
+        <Hud
+          score={hud.score}
+          effects={hud.effects}
+          bonusProgress={hud.bonusProgress}
+          topInset={insets.top}
+          onPause={() => setStatus('paused')}
+        />
       )}
 
       {status === 'playing' && <Countdown label={countdown} />}

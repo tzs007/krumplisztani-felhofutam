@@ -197,6 +197,21 @@ function bonusSource(type) {
 // ── effects ─────────────────────────────────────────────────────────
 
 /** 5-pointed star (point up) on the 16×16 grid: outline, fill, a highlight on the upper-left arms. */
+/** Portal placeholder: oval ring with a dark core; bright arms rotate with the frame (4-frame loop). */
+function portalPixel(x, y, f) {
+  const dx = (x - 7.5) / 6.2;
+  const dy = (y - 8) / 7.6;
+  const r = Math.sqrt(dx * dx + dy * dy);
+  if (r > 1) return null;
+  if (r > 0.86) return '#2B0F4F'; // outline
+  const angle = Math.atan2(dy, dx) + (f * Math.PI) / 2 + r * 4; // spiral arms
+  const arm = (Math.cos(angle * 2) + 1) / 2;
+  if (r < 0.3) return arm > 0.5 ? '#E8F7FF' : '#B8E9FF'; // bright core
+  if (arm > 0.75) return '#5CE1FF';
+  if (arm > 0.45) return '#9B5CFF';
+  return '#5A2A9E';
+}
+
 function starPixel() {
   const cx = 7.5, cy = 8.3, outer = 7.9, inner = 4.0;
   const pts = Array.from({ length: 10 }, (_, i) => {
@@ -408,6 +423,8 @@ add('cloud', () =>
 const skySource = join(SOURCE_DIR, 'sky.png');
 if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
+// portal (placeholder until drawn art): an oval swirl of violet and cyan arms turning frame by frame
+add('portal', () => writeSheet('portal', GRID, GRID, portalPixel));
 // start: cracked egg shell the chick sits in (drawn in front of it); size set in config.start
 const eggSource = join(SOURCE_DIR, 'egg_shell.png');
 if (existsSync(eggSource)) {

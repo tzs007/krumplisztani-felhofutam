@@ -18,7 +18,7 @@ import { AppState } from 'react-native';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 export type MusicTrack = 'menu' | 'game';
-export type SoundEffect = 'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' | 'countdownTick';
+export type SoundEffect = 'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' | 'countdownTick' | 'portal';
 
 const MUSIC: Record<MusicTrack, number> = {
   menu: require('@/assets/sounds/music_menu.m4a'),
@@ -31,6 +31,8 @@ const EFFECTS: Record<SoundEffect, number> = {
   milestone: require('@/assets/sounds/sfx_milestone.m4a'),
   gameOver: require('@/assets/sounds/sfx_game_over.m4a'),
   countdownTick: require('@/assets/sounds/sfx_countdown_tick.m4a'),
+  // until a portal sound of its own arrives: the bonus chime
+  portal: require('@/assets/sounds/sfx_bonus.m4a'),
 };
 /** Players per effect: how many of the same sound may overlap (the jump repeats faster than it fades). */
 const VOICES: Partial<Record<SoundEffect, number>> = { jump: 3 };

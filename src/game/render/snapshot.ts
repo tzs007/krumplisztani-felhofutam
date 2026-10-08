@@ -1,5 +1,7 @@
 import { derivePhysics } from '../config';
+import type { SideSection } from '../engine/sections/SideSection';
 import { deathScale, isFalling, type Player, type StarParticle, type World } from '../engine/World';
+import { Color } from '../../theme/colors';
 import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
 /**
@@ -14,8 +16,21 @@ import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIn
  *         scaled to `height` keeping its aspect ratio, centred horizontally, bottom at `bottom y`
  *  op 6 = image by width (arg = sprite index;  x, bottom y, width, _): the whole image at `width`,
  *         height from its own aspect ratio, bottom at `bottom y` (for free-size art like clouds)
+ *  op 7 = tile           (arg = sprite index, frame;  x, top y, width, _): width fixed, height from the
+ *         image (platform art may hang below the tile), top at `top y`
+ *  op 8 = see-through fill (arg = palette color, frame slot = opacity × 1000;  x, y, w, h)
  */
-export const Op = { fill: 0, stroke: 1, line: 2, sprite: 3, spriteFlipped: 4, backdrop: 5, imageByWidth: 6, tile: 7 } as const;
+export const Op = {
+  fill: 0,
+  stroke: 1,
+  line: 2,
+  sprite: 3,
+  spriteFlipped: 4,
+  backdrop: 5,
+  imageByWidth: 6,
+  tile: 7,
+  fillAlpha: 8,
+} as const;
 export const STRIDE = 8;
 /** Sprite px per tile (fixed pixel density of the art). */
 const TILE_PX = 128;
@@ -158,7 +173,23 @@ const pickupPhaseMs = (id: number) => id * 137;
 
 const cloudSprite = spriteIndex('cloud');
 
+/**
+ * Draw list of the run's active section, plus the fade while changing sections.
+ * `tileSize` is the main level's; the bonus level uses its own (zoomed out).
+ */
 export function buildSnapshot(world: World, tileSize: number, screenHeight: number): number[] {
+  const screenWidth = world.config.columns * tileSize;
+  const bonus = world.active === world.bonus ? world.bonus : null;
+  const out = bonus
+    ? snapshotSide(world, bonus, screenWidth, screenHeight)
+    : snapshotVertical(world, tileSize, screenHeight);
+  const alpha = world.transitionAlpha();
+  if (alpha > 0) out.push(Op.fillAlpha, Color.black, Math.round(alpha * 1000), 1, 0, 0, screenWidth, screenHeight);
+  return out;
+}
+
+/** The main level: climbing view, wraps around sideways. */
+function snapshotVertical(world: World, tileSize: number, screenHeight: number): number[] {
   const out: number[] = [];
   const cols = world.config.columns;
   const t = tileSize;
@@ -232,6 +263,12 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, h.x * t, sy(h.y + h.size), h.size * t, h.size * t);
   }
 
+  // the portal to the bonus level, standing on its platform, swirling
+  for (const pt of world.main.portals) {
+    if (!visible(pt.y, pt.y + pt.size)) continue;
+    sprite(Op.sprite, pt.spriteKey as SpriteKey, world.time, pt.x * t, sy(pt.y + pt.size), pt.size * t, pt.size * t);
+  }
+
   // collect animations (<pickup>_collect) play once where the pickup was taken
   for (const c of world.collected) {
     const key = `${c.spriteKey}_collect`;
@@ -302,5 +339,113 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
     }
   }
 
+  return out;
+}
+
+/** Running on the ground: the jump sheet's two poses alternate this often (ms). */
+const RUN_FRAME_MS = 110;
+/** Cloud layout of the bonus level (tiles), repeating every SIDE_CLOUD_PERIOD columns. */
+const SIDE_CLOUD_PERIOD = 18;
+const SIDE_CLOUD_PARALLAX = 0.4;
+const sideClouds = [
+  { x: 1, y: 9.5, w: 2.6 },
+  { x: 7, y: 12, w: 3 },
+  { x: 12.5, y: 8, w: 2.2 },
+];
+
+/**
+ * The bonus level, side view: zoomed out (tile size = screen width /
+ * side.viewColumns), the floor along the screen bottom, scrolling with the
+ * chick's camera.
+ */
+function snapshotSide(world: World, bonus: SideSection, screenWidth: number, screenHeight: number): number[] {
+  const out: number[] = [];
+  const t = screenWidth / bonus.viewColumns;
+  const cam = bonus.cameraX;
+  const sx = (x: number) => (x - cam) * t;
+  const sy = (y: number) => screenHeight - y * t;
+  const sprite = (op: number, key: SpriteKey, elapsedMs: number, x: number, y: number, w: number, h: number, progress?: number) => {
+    const { frame, frames } = spriteFrame(key, elapsedMs, progress);
+    out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
+  };
+  const visibleX = (x: number, w: number) => x + w >= cam - 1 && x <= cam + bonus.viewColumns + 1;
+
+  // sky, then the small clouds drifting slower than the level
+  const bg = world.config.background;
+  out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight, screenWidth, screenHeight * bg.heightScreens);
+  const cloudCam = cam * SIDE_CLOUD_PARALLAX;
+  const first = Math.floor(cloudCam / SIDE_CLOUD_PERIOD) - 1;
+  for (let k = first; k <= first + 2; k++) {
+    for (const c of sideClouds) {
+      const x = (k * SIDE_CLOUD_PERIOD + c.x - cloudCam) * t;
+      if (x + c.w * t < 0 || x > screenWidth) continue;
+      out.push(Op.imageByWidth, cloudSprite, 0, 1, x, sy(c.y), c.w * t, 0);
+    }
+  }
+
+  // platforms (the floor is one long run): only the tiles on screen
+  for (const pl of bonus.platforms) {
+    if (!visibleX(pl.x, pl.width)) continue;
+    const from = Math.max(0, Math.floor(cam - pl.x) - 1);
+    const to = Math.min(pl.width, Math.ceil(cam + bonus.viewColumns - pl.x) + 1);
+    for (let i = from; i < to; i++) {
+      const key = `${pl.spriteKey}_${platformPart(i, pl.width)}` as SpriteKey;
+      const lift = ((spriteAnimations[key]?.surfaceY ?? 0) / TILE_PX) * t;
+      sprite(Op.tile, key, world.time, sx(pl.x + i), sy(pl.y) - lift, t, t);
+    }
+  }
+
+  for (const pk of bonus.pickups) {
+    if (!visibleX(pk.x, pk.size)) continue;
+    const phase = world.time + pickupPhaseMs(pk.id);
+    const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
+    sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, sx(pk.x), sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
+  }
+  for (const h of bonus.hazards) {
+    if (!visibleX(h.x, h.size)) continue;
+    sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, sx(h.x), sy(h.y + h.size), h.size * t, h.size * t);
+  }
+  const exit = bonus.exit;
+  if (visibleX(exit.x, exit.size)) {
+    sprite(Op.sprite, exit.spriteKey as SpriteKey, world.time, sx(exit.x), sy(exit.y + exit.size), exit.size * t, exit.size * t);
+  }
+  for (const c of bonus.collected) {
+    const key = `${c.spriteKey}_collect`;
+    if (!hasSprite(key)) continue;
+    const elapsed = world.time - c.collectedAt;
+    if (elapsed >= animationDurationMs(key)) continue;
+    sprite(Op.sprite, key, elapsed, sx(c.x), sy(c.y + c.size), c.size * t, c.size * t);
+  }
+
+  // the chick: running poses on the ground, the usual jump / fall / bonus poses in the air
+  const p = bonus.player;
+  const active = world.effects.getActive(world.time).map((e) => e.id);
+  const { hurtPoseMs } = world.config.hazards;
+  const key = playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active, hurtPoseMs);
+  const elapsed = playerAnimElapsed(p, world.time, world.config.player.bonusPoseMs);
+  const { jumpVelocity } = world.physics;
+  const running = bonus.grounded && world.time >= p.bonusUntil && world.time - p.hurtAt >= hurtPoseMs;
+  const progress = running
+    ? Math.floor(world.time / RUN_FRAME_MS) % 2 === 0
+      ? 0
+      : 1
+    : jumpProgress(p, world.time, jumpVelocity);
+  const { sx: scaleX, sy: scaleY } = running ? { sx: 1, sy: 1 } : playerScale(p, world.time, jumpVelocity);
+  const w = t * scaleX;
+  const h = t * scaleY;
+  const sinceHit = world.time - p.hurtAt;
+  const invulnerable = sinceHit < world.config.hazards.invulnerableMs;
+  if (!(invulnerable && sinceHit >= hurtPoseMs && isBlinkOff(sinceHit))) {
+    sprite(Op.sprite, key, elapsed, sx(p.x + p.w / 2) - w / 2, sy(p.y) - h, w, h, progress);
+  }
+
+  for (const burst of bonus.bursts) {
+    for (const star of burst.particles) {
+      const st = starState(star, world.time - burst.startedAt, world.config.milestones.gravity);
+      if (!st || st.size <= 0) continue;
+      const half = st.size / 2;
+      sprite(Op.sprite, 'effect_star', 0, sx(burst.x + st.dx - half), sy(burst.y + st.dy + half), st.size * t, st.size * t);
+    }
+  }
   return out;
 }

@@ -136,5 +136,10 @@
   "platform_planks_single": {
     "frames": 1,
     "surfaceY": 16
+  },
+  "portal": {
+    "frames": 4,
+    "fps": 8,
+    "loop": true
   }
 }

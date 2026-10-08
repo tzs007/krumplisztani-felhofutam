@@ -61,6 +61,8 @@ export const spriteSources = {
   cloud: require('@/assets/sprites/cloud.png'),
   bg_sky: require('@/assets/sprites/bg_sky.png'),
   effect_star: require('@/assets/sprites/effect_star.png'),
+  // placeholder art (generated) until a drawn portal arrives
+  portal: require('@/assets/sprites/portal.png'),
   start_egg: require('@/assets/sprites/start_egg.png'),
 } as const;
 
