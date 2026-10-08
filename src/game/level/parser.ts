@@ -12,11 +12,13 @@ export type ParsedPickup = {
   bob: PickupBob;
 };
 export type ParsedHazard = { col: number; row: number; spriteKey: string; size: number };
+export type ParsedPortal = { col: number; row: number; spriteKey: string; size: number };
 export type ParsedChunk = {
   height: number;
   platforms: ParsedPlatform[];
   pickups: ParsedPickup[];
   hazards: ParsedHazard[];
+  portals: ParsedPortal[];
   spawn?: { col: number; row: number };
 };
 
@@ -29,6 +31,7 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
   const platforms: ParsedPlatform[] = [];
   const pickups: ParsedPickup[] = [];
   const hazards: ParsedHazard[] = [];
+  const portals: ParsedPortal[] = [];
   let spawn: ParsedChunk['spawn'];
 
   map.forEach((line, lineIndex) => {
@@ -62,9 +65,10 @@ export function parseChunk(map: string[], columns: number): ParsedChunk {
         });
       }
       if (tile.kind === 'hazard') hazards.push({ col, row, spriteKey: tile.spriteKey, size: tile.size });
+      if (tile.kind === 'portal') portals.push({ col, row, spriteKey: tile.spriteKey, size: tile.size });
       if (tile.kind === 'spawn') spawn = { col, row };
     }
   });
 
-  return { height, platforms, pickups, hazards, spawn };
+  return { height, platforms, pickups, hazards, portals, spawn };
 }

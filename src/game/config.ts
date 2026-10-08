@@ -108,6 +108,29 @@ export type GameConfig = {
     sequence: PlatformVariant[];
     loop: boolean;
   };
+  /** Side-scrolling bonus level (reached through a portal). */
+  side: {
+    /** Visible columns: the bonus level is zoomed out (tile size = screen width / viewColumns). */
+    viewColumns: number;
+    /** Running speed (tiles/s); the chick runs right by itself. */
+    runSpeed: number;
+    /** Where the chick stays on screen, as a fraction of the screen width from the left. */
+    followX: number;
+    /** Middle chunks between the start and the end chunk. */
+    chunks: number;
+    /** Releasing the tap while still rising multiplies the upward speed by this (shorter hop). */
+    jumpCutFactor: number;
+    /** A tap this long after running off an edge still jumps. */
+    coyoteMs: number;
+    /** A tap this long before landing jumps right on landing. */
+    jumpBufferMs: number;
+    /** Points for reaching the exit portal. */
+    finishBonus: number;
+    /** Umbrella glide on long falls, like in the main level. */
+    glide: boolean;
+    /** Look of the ground. */
+    groundTheme: PlatformVariant;
+  };
   background: {
     /** Backdrop image (not a tile sprite: drawn with its own aspect ratio, sides cropped to fit). */
     spriteKey: string;
@@ -233,6 +256,18 @@ export const defaultGameConfig: GameConfig = {
       "ruby",
     ],
     loop: true,
+  },
+  side: {
+    viewColumns: 14,
+    runSpeed: 5.5,
+    followX: 0.3,
+    chunks: 6,
+    jumpCutFactor: 0.45,
+    coyoteMs: 90,
+    jumpBufferMs: 120,
+    finishBonus: 10,
+    glide: true,
+    groundTheme: "grass",
   },
   background: {
     spriteKey: "bg_sky",

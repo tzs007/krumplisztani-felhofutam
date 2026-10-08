@@ -74,10 +74,20 @@ export type Player = {
 };
 
 /**
+ * Touch as a button (side section): `down` = finger on the screen now;
+ * `pressed` / `released` = it went down / up since the previous step.
+ */
+export type TapState = { down: boolean; pressed: boolean; released: boolean };
+
+/**
  * dx: horizontal finger movement since the last step, in tiles.
  * releaseVelocity: finger speed (tiles/s) at the moment of release; starts the glide.
+ * tap: the same touch read as a button (used by the side section).
  */
-export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number };
+export type StepInput = { dragging: boolean; dx: number; releaseVelocity?: number; tap?: TapState };
+
+/** A portal in a section; touching it moves the run to `target`. */
+export type Portal = { id: number; x: number; y: number; size: number; spriteKey: string; target: 'main' | 'bonus' };
 
 export type GameEvent =
   /** First landing on a platform: it scores. */
@@ -93,5 +103,9 @@ export type GameEvent =
   | { type: 'launch' }
   /** Found a hidden meme; the game shows it (and pauses) */
   | { type: 'easterEgg'; eggId: string }
+  /** Touched a portal in the main level: off to the bonus level. */
+  | { type: 'portalEnter'; target: 'bonus' }
+  /** Reached the exit portal of the bonus level: back to the main level. */
+  | { type: 'portalExit' }
   | { type: 'gameOver' };
 
