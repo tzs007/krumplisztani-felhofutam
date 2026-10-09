@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { loadSprites } from "@/game/render/loadSprites";
+import { startCardSync } from "@/lib/cards";
 import { syncEasterEggs } from "@/lib/remoteEasterEggs";
 import { startBackgroundSync } from "@/lib/resultsSync";
 import { useAppStore } from "@/store/useAppStore";
@@ -36,6 +37,8 @@ export default function SplashRoute() {
     // player account (anonymous on first launch) + upload of results waiting on
     // this device; runs in the background (retried on foreground), the menu doesn't wait for it
     startBackgroundSync();
+    // Season 1 cards: games opened offline and the collection (also retried on foreground)
+    startCardSync();
     const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
     const splashTimer = setTimeout(
       () => SplashScreen.hideAsync(),
