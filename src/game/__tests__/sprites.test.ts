@@ -210,7 +210,10 @@ describe('bonus pose fallback', () => {
 
 describe('sprite sheets', () => {
   const pngSize = (key: string) => {
-    const png = PNG.sync.read(readFileSync(join(__dirname, '../../../assets/sprites', `${key}.png`)));
+    const path = key === 'bg_psy'
+      ? join(__dirname, '../../../assets/images/psy-bg.png')
+      : join(__dirname, '../../../assets/sprites', `${key}.png`);
+    const png = PNG.sync.read(readFileSync(path));
     return { width: png.width, height: png.height };
   };
 

@@ -36,6 +36,18 @@ function run(world: World, seconds: number, input: StepInput = idle) {
 }
 
 describe('psy flight', () => {
+  it('keeps the player visible with older config missing the flight follow settings', () => {
+    const psy = { ...config.psy } as Partial<GameConfig['psy']>;
+    delete psy.followFrequency;
+    delete psy.verticalFollow;
+    const world = makeWorld({ ...config, psy: psy as GameConfig['psy'] });
+    run(world, 1, { dragging: true, dx: 0.01, dy: -0.01 });
+    expect(Number.isFinite(world.player.x)).toBe(true);
+    expect(Number.isFinite(world.player.y)).toBe(true);
+    expect(world.player.y).toBeGreaterThanOrEqual(world.cameraY + config.psy.minRow);
+    expect(world.player.y).toBeLessThan(world.cameraY + world.viewHeight);
+  });
+
   it('rises with the camera and never falls back', () => {
     const world = makeWorld();
     const cam0 = world.cameraY;
@@ -55,6 +67,8 @@ describe('psy flight', () => {
 
   it('follows the finger up / down and sideways, and stays on the screen', () => {
     const world = makeWorld();
+    // Start above the lower clamp even at high flight speeds, so both drags can be measured.
+    run(world, DT, { dragging: true, dx: 0, dy: -6 });
     run(world, 1);
     const rel0 = world.player.y - world.cameraY;
     const x0 = world.player.x;
@@ -66,7 +80,9 @@ describe('psy flight', () => {
     // a huge drag up stops below the HUD, a huge drag down above the screen bottom
     run(world, DT, { dragging: true, dx: 0, dy: -100 });
     run(world, 0.6, { dragging: true, dx: 0, dy: 0 });
-    expect(world.player.y - world.cameraY).toBeCloseTo(world.viewHeight - config.psy.topMargin, 0);
+    // Following a moving camera leaves a speed-dependent steady-state lag.
+    const followLag = config.psy.riseSpeed * DT / Math.expm1(config.psy.verticalFollow * DT);
+    expect(world.player.y - world.cameraY).toBeCloseTo(world.viewHeight - config.psy.topMargin - followLag, 0);
     run(world, DT, { dragging: true, dx: 0, dy: 100 });
     run(world, 0.6, { dragging: true, dx: 0, dy: 0 });
     expect(world.player.y - world.cameraY).toBeCloseTo(config.psy.minRow, 0);
@@ -86,6 +102,7 @@ describe('psy flight', () => {
 
   it('only the cards can be picked up; oranges do not hurt', () => {
     const world = makeWorld(config, [items]);
+    run(world, DT); // enter flight and scatter the cards before targeting them
     const events: GameEvent[] = [];
     // put the chick right onto each item of the row (card, ×2, orange) for one step
     for (const it of [...world.pickups, ...world.hazards]) {
@@ -99,6 +116,34 @@ describe('psy flight', () => {
     expect(picked.every((effect) => effect === 'bonus')).toBe(true);
     expect(world.pickups.some((pk) => pk.effect === 'doubleScore')).toBe(true);
     expect(events.some((e) => e.type === 'hit')).toBe(false);
+  });
+
+  it('scatters existing and newly generated cards once across the flight width', () => {
+    const world = makeWorld(config, [items]);
+    const before = new Map(world.pickups.map((pk) => [pk.id, { x: pk.x, y: pk.y }]));
+    run(world, DT);
+    const cards = world.pickups.filter((pk) => pk.spriteKey === 'pickup_card');
+    expect(cards.length).toBeGreaterThan(2);
+    expect(new Set(cards.map((pk) => pk.x)).size).toBe(cards.length);
+    for (const pk of cards) {
+      expect(pk.x).toBeGreaterThanOrEqual(0);
+      expect(pk.x + pk.size).toBeLessThanOrEqual(config.columns);
+      expect(pk.x).not.toBe(before.get(pk.id)?.x);
+    }
+    const positions = new Map(world.pickups.map((pk) => [pk.id, { x: pk.x, y: pk.y }]));
+    run(world, DT);
+    for (const pk of world.pickups) {
+      expect({ x: pk.x, y: pk.y }).toEqual(positions.get(pk.id));
+      if (pk.spriteKey !== 'pickup_card' && before.has(pk.id)) expect(positions.get(pk.id)).toEqual(before.get(pk.id));
+    }
+    run(world, 4);
+    const generated = world.pickups.filter((pk) => pk.spriteKey === 'pickup_card' && !before.has(pk.id));
+    expect(generated.length).toBeGreaterThan(2);
+    expect(new Set(generated.map((pk) => pk.x)).size).toBe(generated.length);
+    for (const pk of generated) {
+      expect(pk.x).toBeGreaterThanOrEqual(0);
+      expect(pk.x + pk.size).toBeLessThanOrEqual(config.columns);
+    }
   });
 
   it('when the mushroom wears off: hops off and is safe for a moment, even with fast auto scroll', () => {

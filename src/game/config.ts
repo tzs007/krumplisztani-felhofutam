@@ -152,10 +152,14 @@ export type GameConfig = {
     minRow: number;
     /** … and at least this far below the screen top (room for the HUD). */
     topMargin: number;
-    /** Simulated depth: the sprite grows / shrinks by this fraction … */
+    /** Simulated depth: maximum scale is 2^amplitude, minimum is its reciprocal … */
     zAmplitude: number;
     /** … over this period (ms). */
     zPeriodMs: number;
+    /** Horizontal spring frequency while flying (lower = slower response). */
+    followFrequency: number;
+    /** Vertical target follow rate while flying (1/s). */
+    verticalFollow: number;
     /** Flash when the mode switches on or off (ms). */
     flashMs: number;
     /** The backdrop's colours turn around the rainbow this fast (degrees/s) … */
@@ -334,17 +338,19 @@ export const defaultGameConfig: GameConfig = {
     sizeWidths: 1 / 3,
   },
   mushroom: {
-    chancePerGame: 0.2,
-    chunkRange: [3, 15],
+    chancePerGame: 1,
+    chunkRange: [1, 1],
     size: 1.1,
     durationMs: 30_000,
   },
   psy: {
-    riseSpeed: 4,
+    riseSpeed: 24,
     minRow: 1.5,
     topMargin: 3,
-    zAmplitude: 0.25,
+    zAmplitude: 1,
     zPeriodMs: 3000,
+    followFrequency: 7,
+    verticalFollow: 6,
     flashMs: 400,
     hueDegPerSecond: 90,
     pulseGain: 0.18,

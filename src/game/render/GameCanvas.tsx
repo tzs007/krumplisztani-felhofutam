@@ -6,6 +6,7 @@ import {
   PaintStyle,
   Picture,
   Skia,
+  useAnimatedImageValue,
   type SkImage,
 } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
@@ -14,6 +15,7 @@ import { Color, palette } from '@/theme/colors';
 
 import { hueMatrix } from './colorMatrix';
 import { STRIDE } from './snapshot';
+import { spriteIndex } from './sprites';
 
 type Props = {
   width: number;
@@ -27,6 +29,12 @@ type Props = {
 const colors = palette.map((c) => Skia.Color(c));
 /** Fixed pixel density: this many px of frame height = the size the snapshot asked for. */
 const BASE_FRAME_PX = 128;
+const PSY_PLAYER = spriteIndex('player_psy');
+const nyanCatSource = require('@/assets/sprite-sources/nyan-cat-rainbow.gif');
+// Fixed bounds across all 24 frames: cat + rainbow, excluding distant sparkles.
+const NYAN_CROP = { x: 0, y: 90, width: 240, height: 130 };
+// Anchor the cat body rather than the middle of its trailing rainbow.
+const NYAN_BODY = { x: 180, y: 160 };
 
 /**
  * Records the draw list into an SkPicture on the UI thread, so a frame never
@@ -35,8 +43,11 @@ const BASE_FRAME_PX = 128;
  * out of a horizontal sheet.
  */
 export function GameCanvas({ width, height, commands, sprites }: Props) {
+  // GIF playback uses its own clock; movement and zoom still come from the game snapshot.
+  const nyanFrame = useAnimatedImageValue(nyanCatSource);
   const picture = useDerivedValue(() => {
     const cmds = commands.value;
+    const nyanImage = nyanFrame.value;
     return createPicture((canvas) => {
       const paint = Skia.Paint();
       paint.setAntiAlias(false);
@@ -113,6 +124,28 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
         }
 
         if (op === 3 || op === 4) {
+          if (arg === PSY_PLAYER && nyanImage) {
+            // Rotate the cropped GIF counterclockwise around the cat body.
+            // Keep the cat facing up regardless of horizontal movement.
+            const scale = w / NYAN_CROP.height;
+            canvas.save();
+            canvas.translate(x + w / 2, y + h / 2);
+            canvas.rotate(-90, 0, 0);
+            canvas.drawImageRectOptions(
+              nyanImage,
+              Skia.XYWHRect(NYAN_CROP.x, NYAN_CROP.y, NYAN_CROP.width, NYAN_CROP.height),
+              Skia.XYWHRect(
+                (NYAN_CROP.x - NYAN_BODY.x) * scale,
+                (NYAN_CROP.y - NYAN_BODY.y) * scale,
+                NYAN_CROP.width * scale,
+                NYAN_CROP.height * scale,
+              ),
+              FilterMode.Nearest,
+              MipmapMode.None,
+            );
+            canvas.restore();
+            continue;
+          }
           const img = sprites[arg];
           if (!img) {
             paint.setStyle(PaintStyle.Fill);

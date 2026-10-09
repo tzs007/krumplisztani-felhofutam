@@ -47,8 +47,6 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
 export const HOVER_LIFT = 0.15;
 /** Coming back from the bonus level: the return platform is at least this far above the screen bottom. */
 const RETURN_MARGIN_TILES = 3;
-/** How quickly the flying chick eases to the height the finger wants (1/s). */
-const FLIGHT_FOLLOW = 12;
 /** How long a collected pickup is remembered for its collect animation. */
 export const COLLECTED_TTL_MS = 1500;
 
@@ -356,7 +354,7 @@ export class VerticalSection implements Section {
       const v = clamp(input.releaseVelocity * inputCfg.dragSensitivity, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
       p.targetOffset += v / inputCfg.releaseFriction;
     }
-    const w = inputCfg.followFrequency;
+    const w = this.flying ? (this.config.psy.followFrequency ?? 7) : inputCfg.followFrequency;
     p.vx += (w * w * p.targetOffset - 2 * inputCfg.followDamping * w * p.vx) * dt;
     const move = p.vx * dt;
     p.x += move;
@@ -383,6 +381,7 @@ export class VerticalSection implements Section {
     if (!this.flying) {
       this.flying = true;
       this.flightRow = clamp(p.y - this.cameraY, psy.minRow, top);
+      for (const pk of this.pickups) this.scatterFlightCard(pk);
     }
     this.steer(dt, input);
 
@@ -392,7 +391,7 @@ export class VerticalSection implements Section {
     const prevY = p.y;
     // eases toward the wanted height (both ways), never below minRow above the screen bottom
     const target = this.cameraY + this.flightRow;
-    p.y = Math.max(prevY + (target - prevY) * (1 - Math.exp(-FLIGHT_FOLLOW * dt)), this.cameraY + psy.minRow);
+    p.y = Math.max(prevY + (target - prevY) * (1 - Math.exp(-(psy.verticalFollow ?? 6) * dt)), this.cameraY + psy.minRow);
     p.vy = (p.y - prevY) / dt;
     p.apexY = p.y;
 
@@ -569,6 +568,13 @@ export class VerticalSection implements Section {
     while (this.generator.topRow < needed) this.addChunk(this.generator.next(), true);
   }
 
+  /** Scatter each card once, so flying requires steering rather than following a fixed lane. */
+  private scatterFlightCard(pk: Pickup) {
+    if (pk.spriteKey !== 'pickup_card') return;
+    pk.x = this.run.rng() * Math.max(0, this.config.columns - pk.size);
+    pk.y += (this.run.rng() - 0.5) * 1.5;
+  }
+
   private cull() {
     const { time } = this.run;
     const maxLife = this.config.milestones.lifeMs * 1.2;
@@ -596,7 +602,7 @@ export class VerticalSection implements Section {
       });
     }
     for (const pk of chunk.pickups) {
-      this.pickups.push({
+      const pickup: Pickup = {
         id: this.run.nextId(),
         x: pk.col + (1 - pk.size) / 2,
         y: chunk.baseRow + pk.row + 0.15,
@@ -604,7 +610,9 @@ export class VerticalSection implements Section {
         effect: pk.effect,
         spriteKey: pk.spriteKey,
         bob: pk.bob,
-      });
+      };
+      if (this.flying) this.scatterFlightCard(pickup);
+      this.pickups.push(pickup);
     }
     if (mayHideEasterEgg) {
       this.chunksPlaced++;

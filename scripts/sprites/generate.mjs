@@ -424,7 +424,7 @@ const skySource = join(SOURCE_DIR, 'sky.png');
 if (existsSync(skySource)) add('bg_sky', () => copyFileSync(skySource, join(OUT_DIR, 'bg_sky.png')));
 add('effect_star', () => writeSprite('effect_star', GRID, GRID, starPixel()));
 // psy mode (magic mushroom): the flying chick — drawn art (chick_psy.png) when there is one,
-// a red square until then; the psychedelic cloud; the backdrop (psy-bg.png, else the sky, recoloured in game)
+// a red square until then; the psychedelic cloud; the backdrop from assets/images/psy-bg.png
 const psyChickSource = join(SOURCE_DIR, 'chick_psy.png');
 add('player_psy', () =>
   existsSync(psyChickSource)
@@ -435,8 +435,8 @@ add('player_psy', () =>
 );
 const psyCloudSource = join(SOURCE_DIR, 'psy-cloud.png');
 if (existsSync(psyCloudSource)) add('psy_cloud', () => copyFileSync(psyCloudSource, join(OUT_DIR, 'psy_cloud.png')));
-const psyBgSource = join(SOURCE_DIR, 'psy-bg.png');
-add('bg_psy', () => copyFileSync(existsSync(psyBgSource) ? psyBgSource : join(OUT_DIR, 'bg_sky.png'), join(OUT_DIR, 'bg_psy.png')));
+const psyBgSource = join(ROOT, 'assets/images/psy-bg.png');
+add('bg_psy', () => copyFileSync(psyBgSource, join(OUT_DIR, 'bg_psy.png')));
 // sky: the sun, its psy-mode twin and (when drawn) the moon, 256 px (drawn at a third of the screen width)
 for (const [name, file] of [['sun', 'sun.png'], ['psy_sun', 'psy-sun.png'], ['moon', 'moon.png']]) {
   const src = join(SOURCE_DIR, file);

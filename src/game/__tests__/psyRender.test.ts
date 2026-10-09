@@ -68,14 +68,18 @@ describe('psy look', () => {
     expect(cmds.some((c) => c.key === 'psy_cloud')).toBe(true);
   });
 
-  it('draws the backdrop with a hue that keeps turning', () => {
+  it('pulses the psychedelic backdrop brightness while preserving its colours', () => {
     const world = psyWorld();
     const bg1 = commands(world)[0];
     run(world, 0.5);
     const bg2 = commands(world)[0];
     expect(bg1.op).toBe(Op.backdropHue);
     expect(bg1.key).toBe('bg_psy');
-    expect(bg2.frame).not.toBe(bg1.frame);
+    expect(bg1.frame).toBeCloseTo(config.psy.hueDegPerSecond, 5);
+    expect(bg2.frame).toBeCloseTo(config.psy.hueDegPerSecond * 1.5, 5);
+    expect(bg2.frames).not.toBe(bg1.frames);
+    expect(bg1.frames / 1000).toBeGreaterThanOrEqual(1 - config.psy.pulseGain);
+    expect(bg2.frames / 1000).toBeLessThanOrEqual(1 + config.psy.pulseGain);
   });
 
   it('the chick grows and shrinks (depth)', () => {
@@ -85,9 +89,8 @@ describe('psy look', () => {
       run(world, 0.1);
       sizes.add(Math.round(commands(world).find((c) => c.key === 'player_psy')!.w));
     }
-    const amp = config.psy.zAmplitude;
-    expect(Math.max(...sizes)).toBeGreaterThan(T * (1 + amp * 0.7));
-    expect(Math.min(...sizes)).toBeLessThan(T * (1 - amp * 0.7));
+    expect(Math.max(...sizes)).toBeCloseTo(Math.round(T * 2 ** config.psy.zAmplitude), 0);
+    expect(Math.min(...sizes)).toBeCloseTo(Math.round(T * 2 ** -config.psy.zAmplitude), 0);
   });
 
   it('flashes white when the mode switches', () => {

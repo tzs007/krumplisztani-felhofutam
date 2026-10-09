@@ -223,7 +223,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
 
   const psy = world.psyActive;
   // backdrop sky: taller than the screen, scrolls down very slowly as the camera climbs;
-  // in psy mode its colours keep turning around the rainbow and pulse like a vision
+  // in psy mode the dedicated artwork pulses in brightness (optional hue rotation)
   const bg = world.config.background;
   const bgHeight = screenHeight * bg.heightScreens;
   const bgOffset = backdropOffsetPx(world.cameraY * t, bg.parallax, bgHeight - screenHeight);
@@ -327,7 +327,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   if (psy) {
     // flying: the psy chick, growing and shrinking as if it came closer and went away (depth)
     const { zAmplitude, zPeriodMs } = world.config.psy;
-    const z = 1 + zAmplitude * Math.sin((world.time / zPeriodMs) * 2 * Math.PI);
+    const z = 2 ** (zAmplitude * Math.sin((world.time / zPeriodMs) * 2 * Math.PI));
     const size = t * z;
     const cx = (p.x + p.w / 2) * t;
     const cy = sy(p.y + p.h / 2);
