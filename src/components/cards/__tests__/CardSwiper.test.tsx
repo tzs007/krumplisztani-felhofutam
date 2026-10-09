@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { Card, OwnedCard } from '@/lib/cardRules';
 
@@ -6,6 +6,7 @@ import { CardSwiper } from '../CardSwiper';
 
 jest.mock('react-native-worklets', () => jest.requireActual('react-native-worklets/src/mock'));
 jest.mock('react-native-reanimated', () => jest.requireActual('react-native-reanimated/mock'));
+jest.unmock('react-native/Libraries/Components/ScrollView/ScrollView');
 jest.mock('@/lib/audio', () => ({ playSound: jest.fn() }));
 jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(), ImpactFeedbackStyle: { Light: 'light' } }));
 
@@ -58,8 +59,10 @@ describe('CardSwiper', () => {
 
   it('reports the page after a swipe, even over unrevealed cards', async () => {
     const { onIndexChange } = await renderSwiper();
-    await fireEvent(screen.getByTestId('card-swiper-list'), 'momentumScrollEnd', {
-      nativeEvent: { contentOffset: { x: 600, y: 0 } },
+    // fireEvent drops this: RNTL skips a ScrollView whose responder rejects the touch.
+    const list = screen.getByTestId('card-swiper-list');
+    await act(() => {
+      list.props.onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 600, y: 0 } } });
     });
     expect(onIndexChange).toHaveBeenCalledWith(2);
   });

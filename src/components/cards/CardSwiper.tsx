@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { FlatList, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
@@ -15,10 +15,7 @@ type Props = {
   onIndexChange?: (index: number) => void;
 };
 
-/**
- * One card per page, swipeable also while the cards still show their backs.
- * A plain ScrollView: a game yields at most 3 cards, so there is nothing to virtualize.
- */
+/** One card per page, swipeable also while the cards still show their backs. */
 export function CardSwiper({ items, onReveal, onIndexChange }: Props) {
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
@@ -35,15 +32,16 @@ export function CardSwiper({ items, onReveal, onIndexChange }: Props) {
   return (
     <View testID="card-swiper" onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%' }}>
       {width > 0 && (
-        <ScrollView
+        <FlatList
           testID="card-swiper-list"
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          data={items}
+          keyExtractor={(item) => String(item.owned.id)}
           onMomentumScrollEnd={onPageEnd}
-        >
-          {items.map((item) => (
-            <View key={item.owned.id} style={{ width, alignItems: 'center' }}>
+          renderItem={({ item }) => (
+            <View style={{ width, alignItems: 'center' }}>
               <FlipCard
                 card={item.card}
                 revealed={item.owned.revealedAt !== null}
@@ -51,8 +49,8 @@ export function CardSwiper({ items, onReveal, onIndexChange }: Props) {
                 onReveal={() => onReveal(item.owned.id)}
               />
             </View>
-          ))}
-        </ScrollView>
+          )}
+        />
       )}
       {items.length > 1 && (
         <HStack space="xs" className="mt-3 justify-center">
