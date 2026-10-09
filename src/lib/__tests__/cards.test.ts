@@ -63,7 +63,8 @@ jest.mock('../supabase', () => ({
 jest.mock('../auth', () => ({
   ensureSignedIn: async () => (mockState.signedIn ? 'signedIn' : 'offline'),
 }));
-jest.mock('../resultsSync', () => ({ syncResults: async () => 0 }));
+const mockSyncResults = jest.fn(async () => 0);
+jest.mock('../resultsSync', () => ({ syncResults: () => mockSyncResults() }));
 
 const result = (id: string) => ({ id, score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 1 });
 
@@ -79,6 +80,7 @@ beforeEach(() => {
   useAuthStore.setState({ status: 'signedIn', userId: 'u1' });
   useAppStore.setState({ history: [result('r1')], uploadedIds: ['r1'] });
   useCardsStore.setState({ catalog: [], owned: [], pendingClaims: ['r1'], pendingReveals: [] });
+  mockSyncResults.mockImplementation(async () => 0);
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -112,6 +114,21 @@ describe('claimCards', () => {
     mockState.open = { data: null, error: { code: 'P0002' } };
     await expect(claimCards('r1')).resolves.toMatchObject({ status: 'error' });
     expect(useCardsStore.getState().pendingClaims).toEqual([]);
+  });
+
+  it('does not wait forever for a hung result upload', async () => {
+    jest.useFakeTimers();
+    try {
+      useAppStore.setState({ uploadedIds: [] });
+      mockSyncResults.mockImplementation(() => new Promise<number>(() => {}));
+      mockState.open = { data: null, error: { code: 'P0002' } };
+      const promise = claimCards('r1');
+      await jest.advanceTimersByTimeAsync(5000);
+      await expect(promise).resolves.toEqual({ status: 'offline', cards: [] });
+      expect(useCardsStore.getState().pendingClaims).toEqual(['r1']);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('keeps the claim on other server errors', async () => {

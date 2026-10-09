@@ -43,7 +43,8 @@ export async function claimCards(clientId: string): Promise<ClaimResult> {
   const supabase = getSupabase();
   if (!supabase || (await ensureSignedIn()) !== 'signedIn') return { status: 'offline', cards: [] };
   try {
-    await syncResults();
+    // a hung upload must not hold up the game: on timeout the result stays pending and the claim is retried
+    await withTimeout(syncResults(), TIMEOUT_MS).catch(() => {});
     const { data, error } = await withTimeout(supabase.rpc('open_cards', { p_client_id: clientId }), TIMEOUT_MS);
     if (error) {
       if (error.code !== RESULT_NOT_FOUND) throw error;
