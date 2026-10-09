@@ -8,10 +8,10 @@ import { VStack } from '@/components/ui/vstack';
 
 export type OverlayAction = { label: string; onPress: () => void; primary?: boolean };
 
-type Props = { title: string; children?: ReactNode; actions: OverlayAction[] };
+type Props = { title: string; children?: ReactNode; actions: OverlayAction[]; footer?: ReactNode };
 
 /** Title, content and a column of buttons on a card (pause menu, game over screen). */
-export function OverlayCard({ title, children, actions }: Props) {
+export function OverlayCard({ title, children, actions, footer }: Props) {
   return (
     <Box className="w-full max-w-sm rounded-xl bg-card p-6">
       <VStack space="xl">
@@ -26,6 +26,7 @@ export function OverlayCard({ title, children, actions }: Props) {
             </Button>
           ))}
         </VStack>
+        {footer}
       </VStack>
     </Box>
   );

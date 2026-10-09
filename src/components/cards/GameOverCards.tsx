@@ -1,0 +1,86 @@
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+
+import { Button, ButtonText } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { cardsForScore } from '@/lib/cardRules';
+import { claimCards, revealCard } from '@/lib/cards';
+import { useCardsStore } from '@/store/useCardsStore';
+
+import { CardSwiper, type SwiperItem } from './CardSwiper';
+
+type Claim = { state: 'loading' } | { state: 'ready'; ids: number[] } | { state: 'offline' } | { state: 'error' };
+
+/**
+ * The game over screen's card section: how many cards the score earned, then
+ * the drawn cards in a swiper to flip. The draw starts as soon as the screen
+ * opens; offline the game stays queued and opens later (menu / collection).
+ */
+export function GameOverCards({ resultId, score }: { resultId?: string; score: number }) {
+  const count = cardsForScore(score);
+  const [claim, setClaim] = useState<Claim>({ state: 'loading' });
+  const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+  const owned = useCardsStore((s) => s.owned);
+  const catalog = useCardsStore((s) => s.catalog);
+
+  useEffect(() => {
+    if (!resultId || count === 0) return;
+    let alive = true;
+    claimCards(resultId).then((r) => {
+      if (!alive) return;
+      if (r.status === 'ok') setClaim({ state: 'ready', ids: r.cards.map((c) => c.id) });
+      else setClaim({ state: r.status });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [resultId, count]);
+
+  if (!resultId || count === 0) return null;
+
+  // read from the store, so a flip shows at once
+  const items: SwiperItem[] =
+    claim.state === 'ready'
+      ? claim.ids.flatMap((id) => {
+          const o = owned.find((x) => x.id === id);
+          return o ? [{ owned: o, card: catalog.find((c) => c.id === o.cardId) }] : [];
+        })
+      : [];
+  const current = open ? items[index] : undefined;
+
+  return (
+    <VStack space="md" className="items-center border-t border-border pt-4">
+      <Text className="text-center text-foreground">
+        {count} kártyát nyithatsz meg ({score} pont)
+      </Text>
+      {claim.state === 'offline' || claim.state === 'error' ? (
+        <Text size="sm" className="text-center text-muted-foreground">
+          {claim.state === 'offline'
+            ? 'Csatlakozz a kártyák megnyitásához — megőrizzük őket.'
+            : 'Most nem sikerült megnyitni a kártyákat.'}
+        </Text>
+      ) : claim.state === 'loading' ? (
+        <Spinner />
+      ) : open ? (
+        <CardSwiper items={items} onReveal={revealCard} onIndexChange={setIndex} />
+      ) : (
+        <Button variant="outline" className="w-full" onPress={() => setOpen(true)}>
+          <ButtonText>Kártyák megnyitása</ButtonText>
+        </Button>
+      )}
+      {current?.card && current.owned.revealedAt && (
+        <VStack space="sm" className="w-full items-center">
+          <Text size="sm" className="text-center text-foreground">
+            A valódi kártyát is megismerheted!
+          </Text>
+          <Button variant="outline" className="w-full" onPress={() => router.push(`/cards/${current.card!.number}`)}>
+            <ButtonText>Kártya megtekintése →</ButtonText>
+          </Button>
+        </VStack>
+      )}
+    </VStack>
+  );
+}

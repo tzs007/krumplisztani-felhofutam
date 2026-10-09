@@ -22,10 +22,12 @@ import { GameCanvas } from '@/game/render/GameCanvas';
 import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
 import { SPRITE_KEYS } from '@/game/render/sprites';
 import { countdownLabel } from '@/game/render/countdown';
+import { cardsForScore } from '@/lib/cardRules';
 import { playSound, setMusic } from '@/lib/audio';
 import { buildSnapshot } from '@/game/render/snapshot';
 import { connectAndSync } from '@/lib/resultsSync';
 import { selectBestScore, useAppStore } from '@/store/useAppStore';
+import { useCardsStore } from '@/store/useCardsStore';
 
 type Status = 'playing' | 'paused' | 'easterEgg' | 'over';
 type HudState = { score: number; effects: ActiveEffect[]; bonusProgress: number | null };
@@ -98,19 +100,24 @@ export default function GameRoute() {
   }, []);
 
   const finishRun = (world: World) => {
-    addResult({
+    const saved = addResult({
       score: world.score,
       platforms: world.stats.platforms,
       pickups: world.stats.pickups,
       durationMs: world.time,
       playedAt: Date.now(),
     });
+    // the cards it earned are kept even if the app closes before they're drawn
+    if (cardsForScore(saved.score) > 0) useCardsStore.getState().addClaim(saved.id);
     // upload it (plus anything queued while offline), signing in first if that failed earlier; fire and forget
     connectAndSync();
     setStatus('over');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     // the death sequence has played: on to the game over screen (best = before this run)
-    router.replace({ pathname: '/game-over', params: { score: String(world.score), best: String(bestScore) } });
+    router.replace({
+      pathname: '/game-over',
+      params: { score: String(world.score), best: String(bestScore), resultId: saved.id },
+    });
   };
 
   const step = (dt: number) => {
