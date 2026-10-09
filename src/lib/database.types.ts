@@ -63,6 +63,40 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      cards: {
+        Row: {
+          id: string;
+          number: number;
+          name: string;
+          description: string;
+          rarity: 'common' | 'rare' | 'legendary';
+          image_url: string | null;
+          landing_url: string | null;
+          season: number;
+          serial_label: string;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      /** Written only by open_cards / reveal_card. */
+      user_cards: {
+        Row: {
+          id: number;
+          user_id: string;
+          card_id: string;
+          game_result_id: number;
+          slot: number;
+          drawn_at: string;
+          revealed_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -80,6 +114,34 @@ export type Database = {
       my_rank: {
         Args: Record<string, never>;
         Returns: { display_name: string; best_score: number; played_at: string; rank: number }[];
+      };
+      /** Draws (once) and returns the cards the caller's uploaded result earned; P0002 if not uploaded. */
+      open_cards: {
+        Args: { p_client_id: string };
+        Returns: {
+          id: number;
+          user_id: string;
+          card_id: string;
+          game_result_id: number;
+          slot: number;
+          drawn_at: string;
+          revealed_at: string | null;
+        }[];
+      };
+      /** Marks one of the caller's cards revealed. */
+      reveal_card: {
+        Args: { p_user_card_id: number };
+        Returns: undefined;
+      };
+      /** Public: players by distinct revealed cards, then who got there first (max 100 rows). */
+      top_collectors: {
+        Args: { limit_count?: number };
+        Returns: { user_id: string; display_name: string; distinct_cards: number; reached_at: string }[];
+      };
+      /** Signed-in player's row in the collectors' ranking; empty before the first reveal. */
+      my_collector_rank: {
+        Args: Record<string, never>;
+        Returns: { display_name: string; distinct_cards: number; reached_at: string; rank: number }[];
       };
     };
     Enums: Record<string, never>;
