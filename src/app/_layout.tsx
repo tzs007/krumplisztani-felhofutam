@@ -41,6 +41,8 @@ export default function RootLayout() {
           <Stack.Screen name="leaderboard" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="account" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="login" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="cards/index" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="cards/[number]" options={{ presentation: 'modal' }} />
         </Stack>
       </GluestackUIProvider>
     </GestureHandlerRootView>

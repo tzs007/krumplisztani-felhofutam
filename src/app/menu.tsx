@@ -45,6 +45,13 @@ export default function MenuRoute() {
           <Button
             size="lg"
             variant="outline"
+            onPress={() => router.push("/cards")}
+          >
+            <ButtonText>Gyűjtemény</ButtonText>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
             onPress={() => router.push("/account")}
           >
             <ButtonText numberOfLines={1}>
