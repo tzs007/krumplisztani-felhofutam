@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +28,19 @@ export default function CardDetailRoute() {
       contentContainerStyle={{ alignItems: 'center', gap: 16, padding: 24, paddingBottom: insets.bottom + 24 }}
     >
       <View style={{ width: cardWidth, height: cardWidth / CARD_ASPECT }}>
-        {card && revealed ? <CardFront card={card} /> : <CardBack mark="?" />}
+        {card?.imageUrl && revealed ? (
+          // the artwork is the whole printed card (frame included): show it uncropped
+          <Image
+            source={{ uri: card.imageUrl }}
+            contentFit="contain"
+            accessibilityIgnoresInvertColors
+            style={{ width: '100%', height: '100%', borderRadius: 12 }}
+          />
+        ) : card && revealed ? (
+          <CardFront card={card} />
+        ) : (
+          <CardBack mark="?" />
+        )}
       </View>
 
       {!card ? (

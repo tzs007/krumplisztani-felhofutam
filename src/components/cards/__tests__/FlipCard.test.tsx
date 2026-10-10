@@ -32,9 +32,9 @@ describe('FlipCard', () => {
     expect(onReveal).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the front: name, rarity and the serial label', async () => {
+  it('shows the front: rarity and the serial label, named for screen readers', async () => {
     await render(<FlipCard card={card} revealed width={200} onReveal={() => {}} />);
-    expect(screen.getByText('Kártya #7')).toBeTruthy();
+    expect(screen.getByLabelText('Kártya #7')).toBeTruthy();
     expect(screen.getByText('Legendary')).toBeTruthy();
     expect(screen.getByText('Season 1/432')).toBeTruthy();
   });

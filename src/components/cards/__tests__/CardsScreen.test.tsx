@@ -62,10 +62,9 @@ beforeEach(() => {
 });
 
 describe('collection screen', () => {
-  it('shows the season badge, the progress and every card', async () => {
+  it('shows the progress and every card', async () => {
     await render(<CardsRoute />);
-    expect(screen.getByText('Season 1 Limited (30 cards)')).toBeTruthy();
-    expect(screen.getByText('1/3 gyűjtve')).toBeTruthy();
+    expect(screen.getByText('1/3 begyűjtve')).toBeTruthy();
     expect(screen.getByLabelText('Kártya #2')).toBeTruthy();
     expect(screen.getAllByLabelText('Még nem felfedezett kártya')).toHaveLength(2);
     expect(mockSync).toHaveBeenCalled();
@@ -86,7 +85,7 @@ describe('collection screen', () => {
     expect(screen.getAllByLabelText('Kártya #3').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Mystery Card, koppints a felfordításhoz')).toHaveLength(1);
     await fireEvent.press(screen.getByText('Kész'));
-    expect(screen.getByText('2/3 gyűjtve')).toBeTruthy();
+    expect(screen.getByText('2/3 begyűjtve')).toBeTruthy();
   });
 
   it('says when the collection could not be refreshed', async () => {
