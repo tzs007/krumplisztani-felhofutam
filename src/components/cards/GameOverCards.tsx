@@ -5,13 +5,13 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { cardsForScore } from '@/lib/cardRules';
+import { cardsForScore, type OwnedCard } from '@/lib/cardRules';
 import { claimCards, revealCard } from '@/lib/cards';
 import { useCardsStore } from '@/store/useCardsStore';
 
 import { CardSwiper, type SwiperItem } from './CardSwiper';
 
-type Claim = { state: 'loading' } | { state: 'ready'; ids: number[] } | { state: 'offline' } | { state: 'error' };
+type Claim = { state: 'loading' } | { state: 'ready'; cards: OwnedCard[] } | { state: 'offline' } | { state: 'error' };
 
 /**
  * The game over screen's card section: how many cards the score earned, then
@@ -31,7 +31,7 @@ export function GameOverCards({ resultId, score }: { resultId?: string; score: n
     let alive = true;
     claimCards(resultId).then((r) => {
       if (!alive) return;
-      if (r.status === 'ok') setClaim({ state: 'ready', ids: r.cards.map((c) => c.id) });
+      if (r.status === 'ok') setClaim({ state: 'ready', cards: r.cards });
       else setClaim({ state: r.status });
     });
     return () => {
@@ -41,12 +41,13 @@ export function GameOverCards({ resultId, score }: { resultId?: string; score: n
 
   if (!resultId || count === 0) return null;
 
-  // read from the store, so a flip shows at once
+  // read from the store, so a flip shows at once; a sync that ran before this draw may have
+  // replaced the store's list, so fall back to the card claimed here
   const items: SwiperItem[] =
     claim.state === 'ready'
-      ? claim.ids.flatMap((id) => {
-          const o = owned.find((x) => x.id === id);
-          return o ? [{ owned: o, card: catalog.find((c) => c.id === o.cardId) }] : [];
+      ? claim.cards.map((claimed) => {
+          const o = owned.find((x) => x.id === claimed.id) ?? claimed;
+          return { owned: o, card: catalog.find((c) => c.id === o.cardId) };
         })
       : [];
   const current = open ? items[index] : undefined;

@@ -18,6 +18,7 @@ export default function CardDetailRoute() {
   const card = useCardsStore((s) => s.catalog.find((c) => c.number === Number(number)));
   const owned = useCardsStore((s) => s.owned);
   const revealed = card ? revealedCardIds(owned).has(card.id) : false;
+  const landingUrl = card?.landingUrl;
   const cardWidth = Math.min(width - 64, 320);
 
   return (
@@ -41,8 +42,14 @@ export default function CardDetailRoute() {
             #{card.number} · {card.serialLabel}
           </Text>
           <Text className="text-center text-foreground">{card.description}</Text>
-          {card.landingUrl && (
-            <Button className="mt-2 w-full" onPress={() => WebBrowser.openBrowserAsync(card.landingUrl!)}>
+          {landingUrl && (
+            <Button
+              className="mt-2 w-full"
+              onPress={() => {
+                // a double tap on iOS rejects the second call
+                WebBrowser.openBrowserAsync(landingUrl).catch(() => {});
+              }}
+            >
               <ButtonText>Megnézem a webshopban →</ButtonText>
             </Button>
           )}

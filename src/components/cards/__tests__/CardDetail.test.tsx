@@ -19,7 +19,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 
-const mockOpen = jest.fn();
+const mockOpen = jest.fn(async (..._args: unknown[]) => ({ type: 'cancel' }));
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: (...args: unknown[]) => mockOpen(...args) }));
 
 const card = {
