@@ -110,6 +110,34 @@ describe('claimCards', () => {
     expect(useCardsStore.getState().pendingClaims).toEqual(['r1']);
   });
 
+  it('keeps the claim when the upload finished while open_cards ran (pending before the call)', async () => {
+    useAppStore.setState({ uploadedIds: [] });
+    // the upload is still in flight when open_cards is sent, and lands before the error is handled
+    mockState.open = {
+      get data() {
+        useAppStore.getState().markUploaded(['r1']);
+        return null;
+      },
+      error: { code: 'P0002' },
+    };
+    await expect(claimCards('r1')).resolves.toMatchObject({ status: 'offline' });
+    expect(useAppStore.getState().uploadedIds).toContain('r1');
+    expect(useCardsStore.getState().pendingClaims).toEqual(['r1']);
+  });
+
+  it('opens the claim of a result that ranks below the history cap', async () => {
+    useAppStore.setState({ history: [], uploadedIds: [] });
+    for (let i = 0; i < 50; i++) {
+      useAppStore.getState().addResult({ score: 300, platforms: 1, pickups: 0, durationMs: 1, playedAt: i });
+    }
+    useAppStore.getState().markUploaded(useAppStore.getState().history.map((r) => r.id));
+    const saved = useAppStore.getState().addResult({ score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 99 });
+    useCardsStore.setState({ pendingClaims: [saved.id] });
+    mockState.open = { data: null, error: { code: 'P0002' } };
+    await expect(claimCards(saved.id)).resolves.toMatchObject({ status: 'offline' });
+    expect(useCardsStore.getState().pendingClaims).toEqual([saved.id]);
+  });
+
   it("drops a claim whose result can never be opened (e.g. another account's)", async () => {
     mockState.open = { data: null, error: { code: 'P0002' } };
     await expect(claimCards('r1')).resolves.toMatchObject({ status: 'error' });

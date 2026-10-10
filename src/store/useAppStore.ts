@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { POINTS_PER_CARD } from '@/lib/cardRules';
+
 export type GameResult = {
   id: string;
   score: number;
@@ -23,11 +25,20 @@ type AppState = {
   clearHistory: () => void;
 };
 
-/** History is kept sorted by score (desc), then newest first, capped at MAX_HISTORY. */
-export function insertResult(history: GameResult[], result: GameResult): GameResult[] {
+/**
+ * History is kept sorted by score (desc), then newest first, capped at MAX_HISTORY.
+ * A result that earned cards and is not uploaded yet is never dropped (its cards
+ * could not be opened any more), so history may briefly exceed the cap.
+ */
+export function insertResult(
+  history: GameResult[],
+  result: GameResult,
+  uploadedIds: readonly string[] = [],
+): GameResult[] {
+  const uploaded = new Set(uploadedIds);
   return [...history, result]
     .sort((a, b) => b.score - a.score || b.playedAt - a.playedAt)
-    .slice(0, MAX_HISTORY);
+    .filter((r, i) => i < MAX_HISTORY || (r.score >= POINTS_PER_CARD && !uploaded.has(r.id)));
 }
 
 export const useAppStore = create<AppState>()(
@@ -38,7 +49,11 @@ export const useAppStore = create<AppState>()(
       hasHydrated: false,
       addResult: (result) => {
         const saved = { ...result, id: `${result.playedAt}-${Math.random().toString(36).slice(2, 8)}` };
-        set((s) => ({ history: insertResult(s.history, saved) }));
+        set((s) => {
+          const history = insertResult(s.history, saved, s.uploadedIds);
+          const keep = new Set(history.map((r) => r.id));
+          return { history, uploadedIds: s.uploadedIds.filter((id) => keep.has(id)) };
+        });
         return saved;
       },
       markUploaded: (ids) =>
