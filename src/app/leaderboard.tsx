@@ -12,13 +12,20 @@ import { HStack } from '@/components/ui/hstack';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { fetchCollectors } from '@/lib/collectors';
 import { fetchBoard, localBest, OfflineError, type Board, type BoardRow } from '@/lib/leaderboard';
 import { connectAndSync } from '@/lib/resultsSync';
 import { useAppStore, type GameResult } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCardsStore } from '@/store/useCardsStore';
 
-type Tab = 'global' | 'mine';
-type Load = { state: 'loading' } | { state: 'ready'; board: Board } | { state: 'offline' } | { state: 'error' };
+type Tab = 'global' | 'collectors' | 'mine';
+type OnlineTab = Exclude<Tab, 'mine'>;
+type Load =
+  | { state: 'loading' }
+  | { state: 'ready'; board: Board; tab: OnlineTab }
+  | { state: 'offline' }
+  | { state: 'error' };
 
 function formatDuration(ms: number) {
   const s = Math.round(ms / 1000);
@@ -26,7 +33,7 @@ function formatDuration(ms: number) {
 }
 
 /** One row of the online top list; the own row is highlighted, and red when outside the top 10. */
-function BoardRowView({ row }: { row: BoardRow }) {
+function BoardRowView({ row, suffix = '' }: { row: BoardRow; suffix?: string }) {
   const tone = row.outside ? 'bg-destructive' : row.isMe ? 'bg-secondary' : 'bg-card';
   const text = row.outside ? 'text-sky-foreground' : 'text-foreground';
   return (
@@ -39,6 +46,7 @@ function BoardRowView({ row }: { row: BoardRow }) {
       </Text>
       <Text bold size="lg" className={text}>
         {row.score}
+        {suffix}
       </Text>
     </HStack>
   );
@@ -90,16 +98,18 @@ export default function LeaderboardRoute() {
   const [refreshing, setRefreshing] = useState(false);
 
   const best = localBest(history);
+  const onlineTab: OnlineTab = tab === 'collectors' ? 'collectors' : 'global';
+  const totalCards = useCardsStore((s) => s.catalog.length) || 30;
   const load$ = useCallback(
     () =>
       // retry a failed sign-in and upload first, so the own row is up to date
       connectAndSync()
-        .then(() => fetchBoard(best))
+        .then(() => (onlineTab === 'collectors' ? fetchCollectors() : fetchBoard(best)))
         .then(
-          (board): Load => ({ state: 'ready', board }),
+          (board): Load => ({ state: 'ready', board, tab: onlineTab }),
           (e): Load => (e instanceof OfflineError ? { state: 'offline' } : { state: 'error' }),
         ),
-    [best],
+    [best, onlineTab],
   );
   const refresh = useCallback(async () => setLoad(await load$()), [load$]);
 
@@ -126,6 +136,7 @@ export default function LeaderboardRoute() {
       { text: 'Clear', style: 'destructive', onPress: clearHistory },
     ]);
 
+  const board = load.state === 'ready' && load.tab === onlineTab ? load.board : null;
   const noAccount = authStatus !== 'signedIn';
 
   return (
@@ -150,12 +161,13 @@ export default function LeaderboardRoute() {
 
       <HStack space="sm" className="px-4 pb-2">
         <TabButton label="Globális" active={tab === 'global'} onPress={() => setTab('global')} />
+        <TabButton label="Gyűjtők" active={tab === 'collectors'} onPress={() => setTab('collectors')} />
         <TabButton label="Saját" active={tab === 'mine'} onPress={() => setTab('mine')} />
       </HStack>
 
-      {tab === 'global' ? (
+      {tab !== 'mine' ? (
         <FlatList
-          data={load.state === 'ready' ? load.board.rows : []}
+          data={board?.rows ?? []}
           keyExtractor={(row) => row.key}
           contentContainerStyle={{ padding: 16, gap: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#fff" />}
@@ -170,7 +182,7 @@ export default function LeaderboardRoute() {
             ) : null
           }
           renderItem={({ item, index }) => {
-            const gapBefore = load.state === 'ready' && load.board.gap && index === load.board.rows.length - 1;
+            const gapBefore = board?.gap && index === board.rows.length - 1;
             return (
               <VStack space="sm">
                 {gapBefore && (
@@ -178,12 +190,12 @@ export default function LeaderboardRoute() {
                     …
                   </Text>
                 )}
-                <BoardRowView row={item} />
+                <BoardRowView row={item} suffix={tab === 'collectors' ? `/${totalCards}` : ''} />
               </VStack>
             );
           }}
           ListEmptyComponent={
-            load.state === 'loading' ? (
+            load.state === 'loading' || (load.state === 'ready' && !board) ? (
               <Spinner size="large" className="mt-8 text-sky-foreground" />
             ) : (
               <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>
@@ -191,7 +203,9 @@ export default function LeaderboardRoute() {
                   ? 'Nincs kapcsolat a szerverrel — a Saját fülön látod az eredményeidet.'
                   : load.state === 'error'
                     ? 'Nem sikerült betölteni a ranglistát. Húzd le a frissítéshez.'
-                    : 'Még senki nincs a ranglistán. Légy te az első!'}
+                    : tab === 'collectors'
+                      ? 'Még senki nem fedezett fel kártyát. Légy te az első!'
+                      : 'Még senki nincs a ranglistán. Légy te az első!'}
               </Text>
             )
           }
