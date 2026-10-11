@@ -8,21 +8,32 @@ import type { Card, Rarity } from "@/lib/cardRules";
 /** Width / height of a card (standard trading card, 63 × 88 mm). */
 export const CARD_ASPECT = 63 / 88;
 
-const RARITY: Record<Rarity, { label: string; badge: string; text: string }> = {
-  common: { label: "Common", badge: "bg-muted", text: "text-foreground" },
-  rare: { label: "Rare", badge: "bg-sky", text: "text-sky-foreground" },
-  legendary: {
-    label: "Legendary",
-    badge: "bg-amber-400",
-    text: "text-foreground",
-  },
+/** Badge label and colours per rarity (dark text on the light badges). */
+const RARITY: Record<
+  Rarity,
+  { label: string; background: string; color: string }
+> = {
+  common: { label: "Common", background: "#F5F5F5", color: "#171717" },
+  uncommon: { label: "Uncommon", background: "#16A34A", color: "#FFFFFF" },
+  rare: { label: "Rare", background: "#2563EB", color: "#FFFFFF" },
+  epic: { label: "Epic", background: "#9333EA", color: "#FFFFFF" },
+  legendary: { label: "Legendary", background: "#FACC15", color: "#171717" },
+  mythic: { label: "Mythic", background: "#DC2626", color: "#FFFFFF" },
+  // space blue
+  etheric: { label: "Etheric", background: "#1E2A78", color: "#FFFFFF" },
+  // ghost blue
+  sacred: { label: "Sacred", background: "#C7DDF5", color: "#171717" },
 };
 
 export function RarityBadge({ rarity }: { rarity: Rarity }) {
-  const r = RARITY[rarity];
+  // a rarity added on the server before the app knows it shows as common
+  const r = RARITY[rarity] ?? RARITY.common;
   return (
-    <Box className={`rounded-full px-2 py-0.5 ${r.badge}`}>
-      <Text size="2xs" bold className={r.text}>
+    <Box
+      className="rounded-full border border-border px-2 py-0.5"
+      style={{ backgroundColor: r.background }}
+    >
+      <Text size="2xs" bold style={{ color: r.color }}>
         {r.label}
       </Text>
     </Box>
@@ -42,7 +53,7 @@ export function CardFront({
       space="xs"
       className="flex-1 overflow-hidden rounded-lg border-2 border-border bg-card"
     >
-      <Box className="flex-1 items-center justify-center overflow-hidden rounded-md bg-muted">
+      <Box className="flex-1 items-center justify-center overflow-hidden rounded-xl bg-muted">
         {card.imageUrl ? (
           <Image
             source={{ uri: card.imageUrl }}

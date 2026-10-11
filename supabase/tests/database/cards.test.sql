@@ -1,7 +1,7 @@
 -- TCG cards: draw limits, retry safety and who may touch which rows.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(12);
 
 -- two players (the sign-up trigger creates their profiles) and their uploaded results
 insert into auth.users (id, email) values
@@ -65,6 +65,14 @@ select is(
 select is(
   (select distinct_cards from public.top_collectors(10) where user_id = '00000000-0000-0000-0000-000000000001'),
   1, 'the collectors ranking counts revealed distinct cards'
+);
+
+-- rarities: the full ladder is allowed, anything else is rejected
+update public.cards set rarity = 'epic' where id = 'card-01';
+select is((select rarity from public.cards where id = 'card-01'), 'epic', 'epic is a valid rarity');
+select throws_ok(
+  $$ update public.cards set rarity = 'cosmic' where id = 'card-01' $$,
+  '23514', null, 'an unknown rarity is rejected'
 );
 
 select * from finish();

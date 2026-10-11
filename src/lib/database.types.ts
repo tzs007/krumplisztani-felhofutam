@@ -69,7 +69,7 @@ export type Database = {
           number: number;
           name: string;
           description: string;
-          rarity: 'common' | 'rare' | 'legendary';
+          rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic' | 'etheric' | 'sacred';
           image_url: string | null;
           landing_url: string | null;
           season: number;

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { Card } from '@/lib/cardRules';
 
+import { RarityBadge } from '../CardFaces';
 import { FlipCard } from '../FlipCard';
 
 jest.mock('react-native-worklets', () => jest.requireActual('react-native-worklets/src/mock'));
@@ -44,5 +45,14 @@ describe('FlipCard', () => {
     await render(<FlipCard revealed={false} width={200} onReveal={onReveal} />);
     await fireEvent.press(screen.getByLabelText('Mystery Card, koppints a felfordításhoz'));
     expect(onReveal).not.toHaveBeenCalled();
+  });
+});
+
+describe('RarityBadge', () => {
+  it('labels every rarity, and an unknown one as common', async () => {
+    await render(<RarityBadge rarity="etheric" />);
+    expect(screen.getByText('Etheric')).toBeTruthy();
+    await render(<RarityBadge rarity={'cosmic' as Card['rarity']} />);
+    expect(screen.getByText('Common')).toBeTruthy();
   });
 });
