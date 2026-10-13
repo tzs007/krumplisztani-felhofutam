@@ -42,7 +42,11 @@ export default function RootLayout() {
           <Stack.Screen name="account" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="login" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="cards/index" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="cards/[number]" options={{ presentation: 'modal' }} />
+          {/* transparent sheet: only the parchment panel shows, no background around its frame */}
+          <Stack.Screen
+            name="cards/[number]"
+            options={{ presentation: 'modal', contentStyle: { backgroundColor: 'transparent' } }}
+          />
         </Stack>
       </GluestackUIProvider>
     </GestureHandlerRootView>

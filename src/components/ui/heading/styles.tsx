@@ -4,7 +4,7 @@ const baseStyle = isWeb
   : '';
 
 export const headingStyle = tva({
-  base: `text-foreground font-bold font-heading tracking-sm my-0 ${baseStyle}`,
+  base: `text-foreground font-heading tracking-sm my-0 ${baseStyle}`,
   variants: {
     isTruncated: {
       true: 'truncate',
@@ -27,11 +27,12 @@ export const headingStyle = tva({
     highlight: {
       true: 'bg-yellow-500',
     },
+    // from text-3xl up: Tailwind's tight line heights clip the top of Metamorphous on iOS (it needs ~1.25em)
     size: {
-      '5xl': 'text-6xl',
-      '4xl': 'text-5xl',
-      '3xl': 'text-4xl',
-      '2xl': 'text-3xl',
+      '5xl': 'text-6xl leading-[76px]',
+      '4xl': 'text-5xl leading-[62px]',
+      '3xl': 'text-4xl leading-[46px]',
+      '2xl': 'text-3xl leading-[38px]',
       'xl': 'text-2xl',
       'lg': 'text-xl',
       'md': 'text-lg',

@@ -49,7 +49,6 @@ describe('card details', () => {
     await render(<CardDetailRoute />);
     expect(screen.getAllByText('Demagógia').length).toBeGreaterThan(0);
     expect(screen.getByText('A hangos ígéretek kártyája.')).toBeTruthy();
-    expect(screen.getByText('#4 · Season 1/432')).toBeTruthy();
     await fireEvent.press(screen.getByText('Megnézem a webshopban →'));
     expect(mockOpen).toHaveBeenCalledWith(card.landingUrl);
   });
@@ -66,7 +65,7 @@ describe('card details', () => {
     useCardsStore.setState({ catalog: [{ ...card, landingUrl: null }] });
     await render(<CardDetailRoute />);
     expect(screen.queryByText('Megnézem a webshopban →')).toBeNull();
-    await fireEvent.press(screen.getByText('Bezárás'));
+    await fireEvent.press(screen.getByLabelText('Bezárás'));
     expect(mockBack).toHaveBeenCalled();
   });
 });

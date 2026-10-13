@@ -10,7 +10,7 @@ import { SkyBackground } from '@/components/SkyBackground';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
+import { Paper } from '@/components/Paper';
 import { signInWithEmail } from '@/lib/auth';
 import { connectAndSync } from '@/lib/resultsSync';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -45,7 +45,7 @@ export default function LoginRoute() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 24 }}
         >
-          <VStack space="md" className="rounded-lg bg-card p-4">
+          <Paper className="gap-3 rounded-lg p-4">
             {guestName && (
               <Box className="rounded-md border-l-4 border-destructive bg-background px-3 py-2">
                 <Text size="sm" className="text-foreground">
@@ -77,7 +77,7 @@ export default function LoginRoute() {
             <Button isDisabled={busy} onPress={submit}>
               <ButtonText>{busy ? 'Belépés…' : 'Belépés'}</ButtonText>
             </Button>
-          </VStack>
+          </Paper>
         </ScrollView>
       </KeyboardAvoidingView>
     </Box>

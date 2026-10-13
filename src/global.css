@@ -101,6 +101,9 @@
 }
 
 @theme inline {
+  /* fonts embedded by the expo-font plugin (app.json): titles and body/buttons */
+  --font-heading: Metamorphous;
+  --font-body: Eczar;
   --color-primary: rgb(var(--primary));
   --color-sky: rgb(var(--sky));
   --color-sky-foreground: rgb(var(--sky-foreground));

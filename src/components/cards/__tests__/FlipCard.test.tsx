@@ -36,8 +36,14 @@ describe('FlipCard', () => {
   it('shows the front: rarity and the serial label, named for screen readers', async () => {
     await render(<FlipCard card={card} revealed width={200} onReveal={() => {}} />);
     expect(screen.getByLabelText('Kártya #7')).toBeTruthy();
-    expect(screen.getByText('Legendary')).toBeTruthy();
+    expect(screen.getByText('Legendás')).toBeTruthy();
     expect(screen.getByText('Season 1/432')).toBeTruthy();
+  });
+
+  it('shows only the artwork on the front when artOnly', async () => {
+    await render(<FlipCard card={card} revealed artOnly width={200} onReveal={() => {}} />);
+    expect(screen.queryByText('Legendás')).toBeNull();
+    expect(screen.queryByText('Season 1/432')).toBeNull();
   });
 
   it('cannot be flipped while the card is unknown', async () => {
@@ -51,8 +57,8 @@ describe('FlipCard', () => {
 describe('RarityBadge', () => {
   it('labels every rarity, and an unknown one as common', async () => {
     await render(<RarityBadge rarity="etheric" />);
-    expect(screen.getByText('Etheric')).toBeTruthy();
+    expect(screen.getByText('Éteri')).toBeTruthy();
     await render(<RarityBadge rarity={'cosmic' as Card['rarity']} />);
-    expect(screen.getByText('Common')).toBeTruthy();
+    expect(screen.getByText('Gyakori')).toBeTruthy();
   });
 });

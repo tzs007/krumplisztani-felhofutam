@@ -1,54 +1,77 @@
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, RefreshControl } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { FlatList, RefreshControl, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SkyBackground } from '@/components/SkyBackground';
-import { readableOnArt } from '@/components/SplashBackground';
-import { Box } from '@/components/ui/box';
-import { Button, ButtonText } from '@/components/ui/button';
-import { Heading } from '@/components/ui/heading';
-import { HStack } from '@/components/ui/hstack';
-import { Spinner } from '@/components/ui/spinner';
-import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
-import { fetchCollectors } from '@/lib/collectors';
-import { fetchBoard, localBest, OfflineError, type Board, type BoardRow } from '@/lib/leaderboard';
-import { connectAndSync } from '@/lib/resultsSync';
-import { useAppStore, type GameResult } from '@/store/useAppStore';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useCardsStore } from '@/store/useCardsStore';
+import { MenuButton } from "@/components/MenuButton";
+import { Paper } from "@/components/Paper";
+import { SkyBackground } from "@/components/SkyBackground";
+import { readableOnArt } from "@/components/SplashBackground";
+import { Box } from "@/components/ui/box";
+import { Button, ButtonText } from "@/components/ui/button";
+import { Heading } from "@/components/ui/heading";
+import { HStack } from "@/components/ui/hstack";
+import { Spinner } from "@/components/ui/spinner";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { fetchCollectors } from "@/lib/collectors";
+import {
+  fetchBoard,
+  localBest,
+  OfflineError,
+  type Board,
+  type BoardRow,
+} from "@/lib/leaderboard";
+import { connectAndSync } from "@/lib/resultsSync";
+import { useAppStore, type GameResult } from "@/store/useAppStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useCardsStore } from "@/store/useCardsStore";
 
-type Tab = 'global' | 'collectors' | 'mine';
-type OnlineTab = Exclude<Tab, 'mine'>;
+type Tab = "global" | "collectors" | "mine";
+type OnlineTab = Exclude<Tab, "mine">;
 type Load =
-  | { state: 'loading' }
-  | { state: 'ready'; board: Board; tab: OnlineTab }
-  | { state: 'offline' }
-  | { state: 'error' };
+  | { state: "loading" }
+  | { state: "ready"; board: Board; tab: OnlineTab }
+  | { state: "offline" }
+  | { state: "error" };
 
 function formatDuration(ms: number) {
   const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /** One row of the online top list; the own row is highlighted, and red when outside the top 10. */
-function BoardRowView({ row, suffix = '' }: { row: BoardRow; suffix?: string }) {
-  const tone = row.outside ? 'bg-destructive' : row.isMe ? 'bg-secondary' : 'bg-card';
-  const text = row.outside ? 'text-sky-foreground' : 'text-foreground';
+function BoardRowView({
+  row,
+  suffix = "",
+}: {
+  row: BoardRow;
+  suffix?: string;
+}) {
+  const text = row.outside ? "text-sky-foreground" : "text-foreground";
+  const Row = row.outside ? HStack : Paper;
+  // outside the top 10: red; the own row inside it: paper with a gold edge
+  const tone = row.outside
+    ? "bg-destructive"
+    : row.isMe
+      ? "border-2 border-amber-500"
+      : "";
   return (
-    <HStack space="md" className={`items-center rounded-md px-4 py-3 ${tone}`}>
-      <Text bold className={`w-16 ${row.outside ? 'text-sky-foreground' : 'text-muted-foreground'}`}>
+    <Row className={`flex-row items-center gap-3 rounded-md px-4 py-3 ${tone}`}>
+      <Text
+        bold
+        className={`w-16 pt-2 ${row.outside ? "text-sky-foreground" : "text-muted-foreground"}`}
+      >
         #{row.rank}
       </Text>
-      <Text bold={row.isMe} className={`flex-1 ${text}`} numberOfLines={1}>
+      <Text bold={row.isMe} className={`pt-2 flex-1 ${text}`} numberOfLines={1}>
         {row.name}
       </Text>
-      <Text bold size="lg" className={text}>
+      <Text bold size="lg" className={`pt-2 ${text}`}>
         {row.score}
         {suffix}
       </Text>
-    </HStack>
+    </Row>
   );
 }
 
@@ -56,7 +79,9 @@ function BoardRowView({ row, suffix = '' }: { row: BoardRow; suffix?: string }) 
 function ResultRow({ item, rank }: { item: GameResult; rank: number }) {
   const best = rank === 1;
   return (
-    <HStack space="md" className={`items-center rounded-md px-4 py-3 ${best ? 'bg-secondary' : 'bg-card'}`}>
+    <Paper
+      className={`flex-row items-center gap-3 rounded-md px-4 py-3 ${best ? "border-2 border-amber-500" : ""}`}
+    >
       <Text bold className="w-8 text-muted-foreground">
         #{rank}
       </Text>
@@ -65,7 +90,8 @@ function ResultRow({ item, rank }: { item: GameResult; rank: number }) {
           {item.score} pts
         </Text>
         <Text size="sm" className="text-muted-foreground">
-          {new Date(item.playedAt).toLocaleString()} · {formatDuration(item.durationMs)}
+          {new Date(item.playedAt).toLocaleString()} ·{" "}
+          {formatDuration(item.durationMs)}
         </Text>
       </VStack>
       <VStack className="items-end">
@@ -76,38 +102,38 @@ function ResultRow({ item, rank }: { item: GameResult; rank: number }) {
           {item.pickups} pickups
         </Text>
       </VStack>
-    </HStack>
+    </Paper>
   );
 }
 
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Button size="sm" variant={active ? 'default' : 'secondary'} className="flex-1" onPress={onPress}>
-      <ButtonText>{label}</ButtonText>
-    </Button>
-  );
-}
+/** Width of the header's back button (and the spacer that balances it). */
+const BACK_WIDTH = 96;
 
 export default function LeaderboardRoute() {
   const history = useAppStore((s) => s.history);
   const clearHistory = useAppStore((s) => s.clearHistory);
   const authStatus = useAuthStore((s) => s.status);
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>('global');
-  const [load, setLoad] = useState<Load>({ state: 'loading' });
+  const [tab, setTab] = useState<Tab>("global");
+  const [load, setLoad] = useState<Load>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
   const best = localBest(history);
-  const onlineTab: OnlineTab = tab === 'collectors' ? 'collectors' : 'global';
+  const onlineTab: OnlineTab = tab === "collectors" ? "collectors" : "global";
   const totalCards = useCardsStore((s) => s.catalog.length) || 30;
   const load$ = useCallback(
     () =>
       // retry a failed sign-in and upload first, so the own row is up to date
       connectAndSync()
-        .then(() => (onlineTab === 'collectors' ? fetchCollectors() : fetchBoard(best)))
+        .then(() =>
+          onlineTab === "collectors" ? fetchCollectors() : fetchBoard(best),
+        )
         .then(
-          (board): Load => ({ state: 'ready', board, tab: onlineTab }),
-          (e): Load => (e instanceof OfflineError ? { state: 'offline' } : { state: 'error' }),
+          (board): Load => ({ state: "ready", board, tab: onlineTab }),
+          (e): Load =>
+            e instanceof OfflineError
+              ? { state: "offline" }
+              : { state: "error" },
         ),
     [best, onlineTab],
   );
@@ -130,55 +156,91 @@ export default function LeaderboardRoute() {
     setRefreshing(false);
   };
 
-  const confirmClear = () =>
-    Alert.alert('Clear history?', 'All previous results on this device will be deleted.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: clearHistory },
-    ]);
-
-  const board = load.state === 'ready' && load.tab === onlineTab ? load.board : null;
-  const noAccount = authStatus !== 'signedIn';
+  const board =
+    load.state === "ready" && load.tab === onlineTab ? load.board : null;
+  const noAccount = authStatus !== "signedIn";
 
   return (
-    <Box className="flex-1 bg-sky" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <Box
+      className="flex-1 bg-sky"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       <SkyBackground />
       <HStack className="items-center justify-between px-4 py-3">
-        <Button variant="secondary" size="sm" onPress={() => router.back()}>
-          <ButtonText>Back</ButtonText>
-        </Button>
-        <Heading size="xl" className="text-sky-foreground" style={readableOnArt}>
-          Leaderboard
+        {/* keeps the title centred */}
+        <View style={{ width: BACK_WIDTH }} />
+        <Heading
+          size="xl"
+          className="text-sky-foreground"
+          style={readableOnArt}
+        >
+          Ranglista
         </Heading>
-        <Button
+        <MenuButton
+          art="back"
+          label="Vissza"
+          onPress={() => router.back()}
+          style={{ width: BACK_WIDTH }}
+        />
+        {/* <Button
           variant="secondary"
           size="sm"
           isDisabled={tab !== 'mine' || history.length === 0}
           onPress={confirmClear}
         >
           <ButtonText>Clear</ButtonText>
-        </Button>
+        </Button> */}
       </HStack>
 
       <HStack space="sm" className="px-4 pb-2">
-        <TabButton label="Globális" active={tab === 'global'} onPress={() => setTab('global')} />
-        <TabButton label="Gyűjtők" active={tab === 'collectors'} onPress={() => setTab('collectors')} />
-        <TabButton label="Saját" active={tab === 'mine'} onPress={() => setTab('mine')} />
+        <MenuButton
+          art="tab-global"
+          label="Mindenki"
+          selected={tab === "global"}
+          dimmed={tab !== "global"}
+          onPress={() => setTab("global")}
+          style={{ flex: 1 }}
+        />
+        <MenuButton
+          art="tab-collectors"
+          label="Gyűjtők"
+          selected={tab === "collectors"}
+          dimmed={tab !== "collectors"}
+          onPress={() => setTab("collectors")}
+          style={{ flex: 1 }}
+        />
+        <MenuButton
+          art="tab-mine"
+          label="Saját"
+          selected={tab === "mine"}
+          dimmed={tab !== "mine"}
+          onPress={() => setTab("mine")}
+          style={{ flex: 1 }}
+        />
       </HStack>
 
-      {tab !== 'mine' ? (
+      {tab !== "mine" ? (
         <FlatList
           data={board?.rows ?? []}
           keyExtractor={(row) => row.key}
           contentContainerStyle={{ padding: 16, gap: 8 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#fff" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onPullRefresh}
+              tintColor="#fff"
+            />
+          }
           ListHeaderComponent={
-            noAccount && authStatus !== 'loading' ? (
-              <HStack space="md" className="mb-2 items-center rounded-md border-l-4 border-destructive bg-card px-4 py-3">
-                <Text className="flex-1 text-foreground">Az eredményeid csak a saját eszközödön jelennek meg.</Text>
-                <Button size="sm" onPress={() => router.push('/account')}>
+            noAccount && authStatus !== "loading" ? (
+              <Paper className="mb-2 flex-row items-center gap-3 rounded-md border-l-4 border-destructive px-4 py-3">
+                <Text className="flex-1 text-foreground">
+                  Az eredményeid csak a saját eszközödön jelennek meg.
+                </Text>
+                <Button size="sm" onPress={() => router.push("/account")}>
                   <ButtonText>Fiók</ButtonText>
                 </Button>
-              </HStack>
+              </Paper>
             ) : null
           }
           renderItem={({ item, index }) => {
@@ -186,26 +248,36 @@ export default function LeaderboardRoute() {
             return (
               <VStack space="sm">
                 {gapBefore && (
-                  <Text bold className="text-center text-sky-foreground" style={readableOnArt}>
+                  <Text
+                    bold
+                    className="text-center text-sky-foreground"
+                    style={readableOnArt}
+                  >
                     …
                   </Text>
                 )}
-                <BoardRowView row={item} suffix={tab === 'collectors' ? `/${totalCards}` : ''} />
+                <BoardRowView
+                  row={item}
+                  suffix={tab === "collectors" ? `/${totalCards}` : ""}
+                />
               </VStack>
             );
           }}
           ListEmptyComponent={
-            load.state === 'loading' || (load.state === 'ready' && !board) ? (
+            load.state === "loading" || (load.state === "ready" && !board) ? (
               <Spinner size="large" className="mt-8 text-sky-foreground" />
             ) : (
-              <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>
-                {load.state === 'offline'
-                  ? 'Nincs kapcsolat a szerverrel — a Saját fülön látod az eredményeidet.'
-                  : load.state === 'error'
-                    ? 'Nem sikerült betölteni a ranglistát. Húzd le a frissítéshez.'
-                    : tab === 'collectors'
-                      ? 'Még senki nem fedezett fel kártyát. Légy te az első!'
-                      : 'Még senki nincs a ranglistán. Légy te az első!'}
+              <Text
+                className="mt-8 text-center text-sky-foreground"
+                style={readableOnArt}
+              >
+                {load.state === "offline"
+                  ? "Nincs kapcsolat a szerverrel — a Saját fülön látod az eredményeidet."
+                  : load.state === "error"
+                    ? "Nem sikerült betölteni a ranglistát. Húzd le a frissítéshez."
+                    : tab === "collectors"
+                      ? "Még senki nem fedezett fel kártyát. Légy te az első!"
+                      : "Még senki nincs a ranglistán. Légy te az első!"}
               </Text>
             )
           }
@@ -215,9 +287,16 @@ export default function LeaderboardRoute() {
           data={history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, gap: 8 }}
-          renderItem={({ item, index }) => <ResultRow item={item} rank={index + 1} />}
+          renderItem={({ item, index }) => (
+            <ResultRow item={item} rank={index + 1} />
+          )}
           ListEmptyComponent={
-            <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>No games played yet. Go jump!</Text>
+            <Text
+              className="mt-8 text-center text-sky-foreground"
+              style={readableOnArt}
+            >
+              Még nem játszottál még egy játékot sem. Hajrá Csibe!
+            </Text>
           }
         />
       )}

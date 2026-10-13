@@ -71,7 +71,7 @@ describe('game over screen', () => {
   it('starts a new run, opens the leaderboard, the collection or the menu', async () => {
     Object.assign(mockParams, { score: '5', best: '0' });
     await render(<GameOverRoute />);
-    await fireEvent.press(screen.getByText('Újra játszom'));
+    await fireEvent.press(screen.getByLabelText('Újra játszom'));
     expect(mockRouter.replace).toHaveBeenCalledWith('/game');
     await fireEvent.press(screen.getByText('Ranglista'));
     expect(mockRouter.replace).toHaveBeenCalledWith('/leaderboard');
@@ -110,13 +110,12 @@ describe('game over cards', () => {
 
     expect(screen.getByText('2 kártyát nyithatsz meg (250 pont)')).toBeTruthy();
     expect(mockClaim).toHaveBeenCalledWith('r1');
-    await fireEvent.press(await screen.findByText('Kártyák megnyitása'));
-    await fireEvent(screen.getByTestId('card-swiper'), 'layout', { nativeEvent: { layout: { width: 300, height: 500 } } });
+    await fireEvent(await screen.findByTestId('card-swiper'), 'layout', { nativeEvent: { layout: { width: 300, height: 500 } } });
     await fireEvent.press(screen.getAllByLabelText('Mystery Card, koppints a felfordításhoz')[0]);
     expect(mockReveal).toHaveBeenCalledWith(1);
   });
 
-  it('offers the card details once the shown card is revealed', async () => {
+  it('points to the real card once the shown card is revealed', async () => {
     useCardsStore.setState({
       catalog: [card(4)],
       owned: [{ ...owned(1, 4), revealedAt: 't' }],
@@ -124,10 +123,7 @@ describe('game over cards', () => {
     mockClaim.mockResolvedValue({ status: 'ok', cards: [owned(1, 4)] });
     Object.assign(mockParams, { score: '120', best: '0', resultId: 'r1' });
     await render(<GameOverRoute />);
-    await fireEvent.press(await screen.findByText('Kártyák megnyitása'));
-    expect(screen.getByText('A valódi kártyát is megismerheted!')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Kártya megtekintése →'));
-    expect(mockRouter.push).toHaveBeenCalledWith('/cards/4');
+    expect(await screen.findByText('A valódi kártyát is megismerheted!')).toBeTruthy();
   });
 
   it('keeps the cards for later when offline', async () => {

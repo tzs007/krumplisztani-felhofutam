@@ -15,11 +15,13 @@ type Props = {
   card?: Card;
   revealed: boolean;
   width: number;
+  /** Only the artwork on the front, without the rarity and serial label. */
+  artOnly?: boolean;
   onReveal: () => void;
 };
 
 /** A card that turns from its back to its front around the Y axis when tapped. */
-export function FlipCard({ card, revealed, width, onReveal }: Props) {
+export function FlipCard({ card, revealed, width, artOnly, onReveal }: Props) {
   const turn = useSharedValue(revealed ? 1 : 0);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export function FlipCard({ card, revealed, width, onReveal }: Props) {
           accessibilityElementsHidden={!revealed}
           importantForAccessibility={revealed ? 'auto' : 'no-hide-descendants'}
         >
-          <CardFront card={card} />
+          <CardFront card={card} artOnly={artOnly} />
         </Animated.View>
       )}
     </Pressable>
@@ -65,5 +67,11 @@ export function FlipCard({ card, revealed, width, onReveal }: Props) {
 }
 
 const styles = StyleSheet.create({
-  face: { ...StyleSheet.absoluteFill, backfaceVisibility: 'hidden' },
+  face: {
+    ...StyleSheet.absoluteFill,
+    backfaceVisibility: 'hidden',
+    // a small shadow that turns with the card
+    borderRadius: 12,
+    boxShadow: '0 3px 6px rgba(0, 0, 0, 0.3)',
+  },
 });

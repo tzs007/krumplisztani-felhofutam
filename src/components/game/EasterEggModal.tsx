@@ -51,7 +51,7 @@ export function EasterEggModal({
             style={{ width: '100%', aspectRatio: imageAspectRatio }}
           />
         )}
-        <Text bold size="xl" className="text-center text-foreground">
+        <Text size="xl" className="text-center font-heading text-foreground">
           {title}
         </Text>
         {description ? <Text className="text-center text-muted-foreground">{description}</Text> : null}

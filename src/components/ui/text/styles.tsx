@@ -20,6 +20,7 @@ export const textStyle = tva({
     strikeThrough: {
       true: 'line-through',
     },
+    // from 3xl up: Tailwind's tight line heights clip the top of Eczar on iOS (it needs ~1.25em)
     size: {
       '2xs': 'text-2xs',
       'xs': 'text-xs',
@@ -28,10 +29,10 @@ export const textStyle = tva({
       'lg': 'text-lg',
       'xl': 'text-xl',
       '2xl': 'text-2xl',
-      '3xl': 'text-3xl',
-      '4xl': 'text-4xl',
-      '5xl': 'text-5xl',
-      '6xl': 'text-6xl',
+      '3xl': 'text-3xl leading-[38px]',
+      '4xl': 'text-4xl leading-[46px]',
+      '5xl': 'text-5xl leading-[62px]',
+      '6xl': 'text-6xl leading-[76px]',
     },
     sub: {
       true: 'text-xs',

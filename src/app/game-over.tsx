@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameOverCards } from '@/components/cards/GameOverCards';
@@ -29,6 +29,7 @@ function FooterLink({ label, onPress }: { label: string; onPress: () => void }) 
 export default function GameOverRoute() {
   const params = useLocalSearchParams<{ score?: string; best?: string; resultId?: string }>();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const score = Number(params.score) || 0;
   const previousBest = Number(params.best) || 0;
   const newBest = score > previousBest;
@@ -49,12 +50,13 @@ export default function GameOverRoute() {
           justifyContent: 'center',
           paddingHorizontal: 32,
           paddingTop: insets.top + 16,
-          paddingBottom: insets.bottom + 16,
+          // lifts the board above the centre, clear of the chick at the bottom of the art
+          paddingBottom: insets.bottom + 16 + height * 0.3,
         }}
       >
         <OverlayCard
           title="Game Over"
-          actions={[{ label: 'Újra játszom', primary: true, onPress: () => router.replace('/game') }]}
+          actions={[{ label: 'Újra játszom', art: 'play-again', primary: true, onPress: () => router.replace('/game') }]}
           footer={
             <HStack space="sm" className="justify-center">
               <FooterLink label="Ranglista" onPress={() => router.replace('/leaderboard')} />

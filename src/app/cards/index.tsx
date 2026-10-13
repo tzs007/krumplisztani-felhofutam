@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CARD_ASPECT, CardBack, CardFront } from "@/components/cards/CardFaces";
 import { CardSwiper, type SwiperItem } from "@/components/cards/CardSwiper";
+import { MenuButton } from "@/components/MenuButton";
+import { ModalPanel } from "@/components/ModalPanel";
 import { SkyBackground } from "@/components/SkyBackground";
 import { readableOnArt } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
@@ -21,6 +23,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { Paper } from "@/components/Paper";
 import { buildGrid, collectedCount, unrevealed } from "@/lib/cardRules";
 import { revealCard, syncCards, type CardSyncStatus } from "@/lib/cards";
 import { useCardsStore } from "@/store/useCardsStore";
@@ -75,9 +78,12 @@ export default function CardsRoute() {
     >
       <SkyBackground />
       <HStack className="items-center justify-between px-4 py-3">
-        <Button variant="secondary" size="sm" onPress={() => router.back()}>
-          <ButtonText>Vissza</ButtonText>
-        </Button>
+        <MenuButton
+          art="back"
+          label="Vissza"
+          onPress={() => router.back()}
+          style={{ width: 96 }}
+        />
         <Heading
           size="xl"
           className="text-sky-foreground"
@@ -85,7 +91,7 @@ export default function CardsRoute() {
         >
           Gyűjtemény
         </Heading>
-        <View style={{ width: 64 }} />
+        <View style={{ width: 96 }} />
       </HStack>
 
       <FlatList
@@ -115,21 +121,19 @@ export default function CardsRoute() {
               </Text>
             </HStack>
             {(status === "offline" || status === "error") && (
-              <Text
-                size="sm"
-                className="rounded-md bg-card px-3 py-2 text-foreground"
-              >
-                Nincs kapcsolat — a legutóbb letöltött gyűjteményt látod.
-              </Text>
+              <Paper className="rounded-md px-3 py-2">
+                <Text size="sm" className="text-foreground">
+                  Nincs kapcsolat — a legutóbb letöltött gyűjteményt látod.
+                </Text>
+              </Paper>
             )}
             {pendingClaims.length > 0 && (
-              <Text
-                size="sm"
-                className="rounded-md bg-card px-3 py-2 text-foreground"
-              >
-                {pendingClaims.length} játék kártyái várnak — húzd le a
-                frissítéshez.
-              </Text>
+              <Paper className="rounded-md px-3 py-2">
+                <Text size="sm" className="text-foreground">
+                  {pendingClaims.length} játék kártyái várnak — húzd le a
+                  frissítéshez.
+                </Text>
+              </Paper>
             )}
             {waiting.length > 0 && (
               <Button onPress={() => setUnboxing(waiting.map((o) => o.id))}>
@@ -146,12 +150,18 @@ export default function CardsRoute() {
             accessibilityLabel={
               item.revealed ? item.card.name : "Még nem felfedezett kártya"
             }
-            style={{ width: tileWidth, height: tileWidth / CARD_ASPECT }}
+            style={{
+              width: tileWidth,
+              height: tileWidth / CARD_ASPECT,
+              // on the tile, not the card: the card's clipping would cut the shadow off
+              borderRadius: 12,
+              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+            }}
           >
             {item.revealed ? (
               <CardFront card={item.card} compact />
             ) : (
-              <CardBack mark="?" />
+              <CardBack />
             )}
           </Pressable>
         )}
@@ -171,12 +181,14 @@ export default function CardsRoute() {
 
       {unboxing && (
         <Center className="absolute inset-0 bg-foreground/70 px-4">
-          <VStack space="lg" className="w-full max-w-sm rounded-xl bg-card p-6">
-            <CardSwiper items={swiperItems} onReveal={revealCard} />
-            <Button onPress={() => setUnboxing(null)}>
-              <ButtonText>Kész</ButtonText>
-            </Button>
-          </VStack>
+          <ModalPanel>
+            <VStack space="lg">
+              <CardSwiper items={swiperItems} artOnly onReveal={revealCard} />
+              <Button onPress={() => setUnboxing(null)}>
+                <ButtonText>Kész</ButtonText>
+              </Button>
+            </VStack>
+          </ModalPanel>
         </Center>
       )}
     </Box>

@@ -2,8 +2,9 @@
  * Music and sound effects (expo-audio). Sources live in assets/sounds
  * (AAC m4a, converted from assets/sound-sources).
  *
- * - Music: one looping track at a time, chosen by the screen (setMusic);
- *   paused while the app is in the background or the music is switched off.
+ * - Music: one track at a time, chosen by the screen (setMusic); it loops,
+ *   except the psy track, which plays once and then stays silent. Paused
+ *   while the app is in the background or the music is switched off.
  * - Effects: a couple of preloaded players per sound so quick repeats can
  *   overlap (playSound / stopSound).
  *
@@ -23,9 +24,11 @@ export type SoundEffect = 'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' |
 const MUSIC: Record<MusicTrack, number> = {
   menu: require('@/assets/sounds/music_menu.m4a'),
   game: require('@/assets/sounds/music_game.m4a'),
-  // psy mode (magic mushroom): the game music until a psychedelic trance track arrives
-  psy: require('@/assets/sounds/music_game.m4a'),
+  // psy mode (magic mushroom): a trance track
+  psy: require('@/assets/sounds/music_psy.m4a'),
 };
+/** Tracks that play only once (no loop). */
+const ONCE: ReadonlySet<MusicTrack> = new Set(['psy']);
 const EFFECTS: Record<SoundEffect, number> = {
   jump: require('@/assets/sounds/sfx_jump.m4a'),
   card: require('@/assets/sounds/sfx_card.m4a'),
@@ -70,6 +73,8 @@ function getAudio(): ExpoAudio | null {
 let wantedTrack: MusicTrack | null = null;
 let musicPlayer: AudioPlayer | null = null;
 let musicTrack: MusicTrack | null = null;
+// a play-once track that reached its end: not started again until another track is chosen
+let musicEnded = false;
 // 'unknown' / null right at launch counts as foreground
 let foreground = AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
 
@@ -82,14 +87,20 @@ function applyMusic() {
   const a = getAudio();
   if (!a || !wantedTrack) return;
   if (!musicPlayer) {
-    musicPlayer = a.createAudioPlayer(MUSIC[wantedTrack]);
+    const player = a.createAudioPlayer(MUSIC[wantedTrack]);
+    player.addListener('playbackStatusUpdate', (status) => {
+      if (status.didJustFinish && musicTrack && ONCE.has(musicTrack)) musicEnded = true;
+    });
+    musicPlayer = player;
     musicTrack = wantedTrack;
   } else if (musicTrack !== wantedTrack) {
     // two tracks may share a file (a placeholder): then the music just keeps playing
     if (!musicTrack || MUSIC[musicTrack] !== MUSIC[wantedTrack]) musicPlayer.replace(MUSIC[wantedTrack]);
     musicTrack = wantedTrack;
+    musicEnded = false;
   }
-  musicPlayer.loop = true;
+  if (musicEnded) return;
+  musicPlayer.loop = !ONCE.has(wantedTrack);
   musicPlayer.volume = MUSIC_VOLUME;
   musicPlayer.play();
 }

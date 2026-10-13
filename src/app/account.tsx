@@ -12,7 +12,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
+import { Paper } from '@/components/Paper';
 import { NAME_MAX } from '@/lib/accountForm';
 import { ensureSignedIn, saveAccount, signOut, updateDisplayName } from '@/lib/auth';
 import { connectAndSync } from '@/lib/resultsSync';
@@ -20,12 +20,12 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <VStack space="md" className="rounded-lg bg-card p-4">
+    <Paper className="gap-3 rounded-lg p-4">
       <Heading size="md" className="text-foreground">
         {title}
       </Heading>
       {children}
-    </VStack>
+    </Paper>
   );
 }
 

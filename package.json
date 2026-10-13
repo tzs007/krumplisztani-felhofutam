@@ -69,7 +69,8 @@
     "lint": "expo lint",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "sprites": "node scripts/sprites/generate.mjs"
+    "sprites": "node scripts/sprites/generate.mjs",
+    "menu-buttons": "node scripts/menu-buttons.mjs"
   },
   "private": true,
   "author": "Zsolt Takács",

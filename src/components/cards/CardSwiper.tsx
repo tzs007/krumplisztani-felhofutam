@@ -11,12 +11,14 @@ export type SwiperItem = { owned: OwnedCard; card?: Card };
 
 type Props = {
   items: SwiperItem[];
+  /** Only the artwork on the fronts, without the rarity and serial label. */
+  artOnly?: boolean;
   onReveal: (userCardId: number) => void;
   onIndexChange?: (index: number) => void;
 };
 
 /** One card per page, swipeable also while the cards still show their backs. */
-export function CardSwiper({ items, onReveal, onIndexChange }: Props) {
+export function CardSwiper({ items, artOnly, onReveal, onIndexChange }: Props) {
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const cardWidth = Math.min(width * 0.7, 240);
@@ -41,11 +43,13 @@ export function CardSwiper({ items, onReveal, onIndexChange }: Props) {
           keyExtractor={(item) => String(item.owned.id)}
           onMomentumScrollEnd={onPageEnd}
           renderItem={({ item }) => (
-            <View style={{ width, alignItems: 'center' }}>
+            // the padding leaves room for the card's shadow, which the list would clip
+            <View style={{ width, alignItems: 'center', paddingVertical: 8 }}>
               <FlipCard
                 card={item.card}
                 revealed={item.owned.revealedAt !== null}
                 width={cardWidth}
+                artOnly={artOnly}
                 onReveal={() => onReveal(item.owned.id)}
               />
             </View>

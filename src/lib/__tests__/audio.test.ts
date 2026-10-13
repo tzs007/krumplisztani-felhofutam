@@ -61,6 +61,7 @@ jest.mock('expo-audio', () => ({
 // asset requires resolve to their file name, so tests can tell the sounds apart
 jest.mock('@/assets/sounds/music_menu.m4a', () => 'music_menu', { virtual: true });
 jest.mock('@/assets/sounds/music_game.m4a', () => 'music_game', { virtual: true });
+jest.mock('@/assets/sounds/music_psy.m4a', () => 'music_psy', { virtual: true });
 jest.mock('@/assets/sounds/sfx_jump.m4a', () => 'sfx_jump', { virtual: true });
 jest.mock('@/assets/sounds/sfx_card.m4a', () => 'sfx_card', { virtual: true });
 jest.mock('@/assets/sounds/sfx_bonus.m4a', () => 'sfx_bonus', { virtual: true });
@@ -107,14 +108,25 @@ describe('music', () => {
     expect(music()?.playing).toBe(false);
   });
 
-  it('switching to a track that is the same file keeps the music going (no restart)', () => {
+  it('plays the psy track once, then stays silent until the game music is back', () => {
     const audio = load();
     audio.initAudio();
     audio.setMusic('game');
     const player = music()!;
     audio.setMusic('psy');
-    expect(player.replace).not.toHaveBeenCalled();
-    expect(player.playing).toBe(true);
+    expect(player).toMatchObject({ source: 'music_psy', playing: true, loop: false });
+    // the track ends
+    Object.assign(player, { currentTime: player.duration, playing: false });
+    const onStatus = player.addListener.mock.calls[0][1];
+    onStatus({ didJustFinish: true });
+    // switching the music off and on again doesn't restart it
+    const plays = player.play.mock.calls.length;
+    useSettingsStore.getState().setMusicOn(false);
+    useSettingsStore.getState().setMusicOn(true);
+    expect(player.play.mock.calls.length).toBe(plays);
+    audio.setMusic('game');
+    expect(player).toMatchObject({ source: 'music_game', loop: true });
+    expect(player.play.mock.calls.length).toBe(plays + 1);
   });
 
   it('follows the music switch', () => {
