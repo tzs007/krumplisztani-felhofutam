@@ -76,9 +76,33 @@ const writeSprite = (name, w, h, pixel) => writeSheet(name, w, h, (x, y) => pixe
 // ── platforms: left / mid / right / single, seamless horizontally ───
 
 const platformPalettes = {
-  grass: { outline: '#2B4A12', hi: '#A6EA6E', top: '#6CC24A', topDark: '#4E9A2F', body: '#C77B3F', bodyDark: '#9A5A2A', bodyLight: '#E0A060' },
-  blue: { outline: '#12275E', hi: '#B5D0FF', top: '#4F8DF5', topDark: '#3668C8', body: '#1F3F8F', bodyDark: '#162E6A', bodyLight: '#3A62C4' },
-  brick: { outline: '#3E1209', hi: '#F29A80', top: '#D9573D', topDark: '#A23522', body: '#C8462F', bodyDark: '#7E2A1C', bodyLight: '#E0654C' },
+  grass: {
+    outline: '#2B4A12',
+    hi: '#A6EA6E',
+    top: '#6CC24A',
+    topDark: '#4E9A2F',
+    body: '#C77B3F',
+    bodyDark: '#9A5A2A',
+    bodyLight: '#E0A060',
+  },
+  blue: {
+    outline: '#12275E',
+    hi: '#B5D0FF',
+    top: '#4F8DF5',
+    topDark: '#3668C8',
+    body: '#1F3F8F',
+    bodyDark: '#162E6A',
+    bodyLight: '#3A62C4',
+  },
+  brick: {
+    outline: '#3E1209',
+    hi: '#F29A80',
+    top: '#D9573D',
+    topDark: '#A23522',
+    body: '#C8462F',
+    bodyDark: '#7E2A1C',
+    bodyLight: '#E0654C',
+  },
 };
 
 function platformBody(variant, p, x, y) {
@@ -159,7 +183,7 @@ const doubleScore = roundedBox('#A24BE0', '#4B1673', (x, y, f) => {
 const chevron = ['..X..', '.XXX.', 'XX.XX', 'X...X'];
 const doubleJump = roundedBox('#26D4E0', '#0B5E66', (x, y, f) => {
   // two chevrons scrolling upward inside the box (rows 2..13 wrap)
-  const ry = ((y - 2 + f * 1.5 * 2) % 12 + 12) % 12;
+  const ry = (((y - 2 + f * 1.5 * 2) % 12) + 12) % 12;
   const row = Math.floor(ry) % 6;
   if (row < 4 && chevron[row][x - 5] === 'X') return '#FFFFFF';
   return null;
@@ -179,11 +203,17 @@ function writeImage(name, imgOrFrames) {
     throw new Error(`${name}: source has ${frames.length} frame(s), animations.json says ${framesOf(name)}`);
   }
   const { width, height } = frames[0];
-  writeSheet(name, width, height, (x, y, f) => {
-    const { data } = frames[f];
-    const i = (y * width + x) * 4;
-    return data[i + 3] ? Array.from(data.subarray(i, i + 4)) : null;
-  }, 1);
+  writeSheet(
+    name,
+    width,
+    height,
+    (x, y, f) => {
+      const { data } = frames[f];
+      const i = (y * width + x) * 4;
+      return data[i + 3] ? Array.from(data.subarray(i, i + 4)) : null;
+    },
+    1,
+  );
 }
 
 /** chick_bonus_<type>.png if present, otherwise the shared chick_bonus.png. */
@@ -213,7 +243,10 @@ function portalPixel(x, y, f) {
 }
 
 function starPixel() {
-  const cx = 7.5, cy = 8.3, outer = 7.9, inner = 4.0;
+  const cx = 7.5,
+    cy = 8.3,
+    outer = 7.9,
+    inner = 4.0;
   const pts = Array.from({ length: 10 }, (_, i) => {
     const a = -Math.PI / 2 + (i * Math.PI) / 5;
     const r = i % 2 === 0 ? outer : inner;
@@ -222,7 +255,8 @@ function starPixel() {
   const inside = (x, y) => {
     let hit = false;
     for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      const [xi, yi] = pts[i],
+        [xj, yj] = pts[j];
       if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
     }
     return hit;
@@ -239,8 +273,13 @@ function starPixel() {
 
 function cloudPixel() {
   const inside = (x, y) =>
-    y >= 0 && y < 16 && x >= 0 && x < 32 &&
-    (Math.hypot(x - 9, y - 9) < 5 || Math.hypot(x - 16, y - 6.5) < 6 || Math.hypot(x - 23, y - 9) < 5 ||
+    y >= 0 &&
+    y < 16 &&
+    x >= 0 &&
+    x < 32 &&
+    (Math.hypot(x - 9, y - 9) < 5 ||
+      Math.hypot(x - 16, y - 6.5) < 6 ||
+      Math.hypot(x - 23, y - 9) < 5 ||
       (x >= 6 && x <= 26 && y >= 9 && y <= 13));
   return (x, y) => {
     if (!inside(x, y)) return null;
@@ -287,7 +326,8 @@ for (const variant of [...Object.keys(platformPalettes), ...DRAWN_PLATFORMS]) {
     let tiles;
     for (const part of PARTS) {
       const name = `platform_${variant}_${part}`;
-      if (animations[name]?.surfaceY === undefined) throw new Error(`${name}: drawn pieces need surfaceY in animations.json`);
+      if (animations[name]?.surfaceY === undefined)
+        throw new Error(`${name}: drawn pieces need surfaceY in animations.json`);
       add(name, () => {
         tiles ??= platformTilesFromPieces(drawnPieces(variant), { headroom: animations[name].surfaceY });
         writeImage(name, tiles[part]);
@@ -295,7 +335,8 @@ for (const variant of [...Object.keys(platformPalettes), ...DRAWN_PLATFORMS]) {
     }
     continue;
   }
-  if (!platformPalettes[variant]) throw new Error(`platform_${variant}: no art in sprite-sources and no placeholder palette`);
+  if (!platformPalettes[variant])
+    throw new Error(`platform_${variant}: no art in sprite-sources and no placeholder palette`);
   for (const part of PARTS) {
     const name = `platform_${variant}_${part}`;
     add(name, () => writeSprite(name, GRID, GRID, platformPixel(variant, part)));
@@ -326,19 +367,26 @@ add('pickup_coin', () =>
 // hazards: cells of the 16px fruit atlas (Fruit+.png, 38×6 cells), ×6 → 96, padded to 128
 const fruits = join(SOURCE_DIR, 'Fruit+.png');
 if (existsSync(fruits)) {
-  add('hazard_orange', () => writeImage('hazard_orange', gridCell(fruits, { cell: 16, col: 9, row: 1, scale: 6, pad: 128 })));
+  add('hazard_orange', () =>
+    writeImage('hazard_orange', gridCell(fruits, { cell: 16, col: 9, row: 1, scale: 6, pad: 128 })),
+  );
 }
 // easter egg item: jack-o'-lantern, pixel_pumpkins.png (4×4 cells of 16px), column 2 / row 3 (1-based);
 // ×8 = 128 with no padding, so the pumpkin's bottom is the sprite's bottom (it stands on the platform)
 const pumpkins = join(SOURCE_DIR, 'pixel_pumpkins.png');
 if (existsSync(pumpkins)) {
-  add('easter_pumpkin', () => writeImage('easter_pumpkin', gridCell(pumpkins, { cell: 16, col: 1, row: 2, scale: 8, pad: 128 })));
+  add('easter_pumpkin', () =>
+    writeImage('easter_pumpkin', gridCell(pumpkins, { cell: 16, col: 1, row: 2, scale: 8, pad: 128 })),
+  );
 }
 // score card: 4-frame twinkling card strip (card.png), frames split at the transparent gaps
 const cardSource = join(SOURCE_DIR, 'card.png');
 if (existsSync(cardSource)) {
   add('pickup_card', () =>
-    writeImage('pickup_card', pixelizeStrip(cardSource, { size: 128, colors: 24, expectedFrames: framesOf('pickup_card') }).frames),
+    writeImage(
+      'pickup_card',
+      pixelizeStrip(cardSource, { size: 128, colors: 24, expectedFrames: framesOf('pickup_card') }).frames,
+    ),
   );
 }
 if (existsSync(goldCollect)) {
@@ -398,10 +446,7 @@ add('player_fall', () =>
 const hurtSource = join(SOURCE_DIR, 'chick_hurt.png');
 if (existsSync(hurtSource)) {
   add('player_hurt', () =>
-    writeImage(
-      'player_hurt',
-      pixelize(hurtSource, { cell: cellFor(hurtSource), colors: 24, centerOnCharacter: true }),
-    ),
+    writeImage('player_hurt', pixelize(hurtSource, { cell: cellFor(hurtSource), colors: 24, centerOnCharacter: true })),
   );
 }
 // bonus poses: centre on the body, ignoring what floats above the head (coin, sparkles)
@@ -438,7 +483,11 @@ if (existsSync(psyCloudSource)) add('psy_cloud', () => copyFileSync(psyCloudSour
 const psyBgSource = join(ROOT, 'assets/images/psy-bg.png');
 add('bg_psy', () => copyFileSync(psyBgSource, join(OUT_DIR, 'bg_psy.png')));
 // sky: the sun, its psy-mode twin and (when drawn) the moon, 256 px (drawn at a third of the screen width)
-for (const [name, file] of [['sun', 'sun.png'], ['psy_sun', 'psy-sun.png'], ['moon', 'moon.png']]) {
+for (const [name, file] of [
+  ['sun', 'sun.png'],
+  ['psy_sun', 'psy-sun.png'],
+  ['moon', 'moon.png'],
+]) {
   const src = join(SOURCE_DIR, file);
   if (existsSync(src)) add(name, () => writeImage(name, pixelize(src, { size: 256, colors: 32 })));
 }
@@ -457,7 +506,10 @@ if (existsSync(mushroomSource)) {
 const portalSource = join(SOURCE_DIR, 'portal.png');
 add('portal', () =>
   existsSync(portalSource)
-    ? writeImage('portal', pixelizeStrip(portalSource, { size: 128, colors: 32, expectedFrames: framesOf('portal') }).frames)
+    ? writeImage(
+        'portal',
+        pixelizeStrip(portalSource, { size: 128, colors: 32, expectedFrames: framesOf('portal') }).frames,
+      )
     : writeSheet('portal', GRID, GRID, portalPixel),
 );
 // start: cracked egg shell the chick sits in (drawn in front of it); size set in config.start

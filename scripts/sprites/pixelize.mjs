@@ -20,11 +20,15 @@ const isEffectPixel = (r, g, b) => b > r + 40;
 /** Alpha centroid x of character (non-effect) pixels in rows [y0, y1) and columns [x0, x1]. */
 function characterCentroidX(src, x0, x1, y0, y1) {
   const { width: W, data } = src;
-  let sum = 0, n = 0;
+  let sum = 0,
+    n = 0;
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x <= x1; x++) {
       const i = (y * W + x) * 4;
-      if (data[i + 3] > ALPHA_ON && !isEffectPixel(data[i], data[i + 1], data[i + 2])) { sum += x; n++; }
+      if (data[i + 3] > ALPHA_ON && !isEffectPixel(data[i], data[i + 1], data[i + 2])) {
+        sum += x;
+        n++;
+      }
     }
   }
   return sum / n + 0.5;
@@ -33,12 +37,17 @@ function characterCentroidX(src, x0, x1, y0, y1) {
 /** Bounding box of opaque pixels inside [x0, x1] (inclusive columns). */
 function bbox(src, x0 = 0, x1 = src.width - 1) {
   const { width: W, height: H, data } = src;
-  let minX = W, minY = H, maxX = -1, maxY = -1;
+  let minX = W,
+    minY = H,
+    maxX = -1,
+    maxY = -1;
   for (let y = 0; y < H; y++) {
     for (let x = x0; x <= x1; x++) {
       if (data[(y * W + x) * 4 + 3] > ALPHA_ON) {
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
       }
     }
   }
@@ -59,21 +68,33 @@ function sample(src, { size, cell, centerX, bottom, clipX0 = 0, clipX1 = src.wid
   const opaque = [];
   for (let ty = 0; ty < size; ty++) {
     for (let tx = 0; tx < size; tx++) {
-      const x0 = Math.floor(cropX + tx * cell), x1 = Math.ceil(cropX + (tx + 1) * cell);
-      const y0 = Math.floor(cropY + ty * cell), y1 = Math.ceil(cropY + (ty + 1) * cell);
-      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      const x0 = Math.floor(cropX + tx * cell),
+        x1 = Math.ceil(cropX + (tx + 1) * cell);
+      const y0 = Math.floor(cropY + ty * cell),
+        y1 = Math.ceil(cropY + (ty + 1) * cell);
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0,
+        n = 0;
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
           n++;
           if (x < clipX0 || x > clipX1 || y < 0 || y >= H) continue;
           const i = (y * W + x) * 4;
           const al = data[i + 3] / 255;
-          r += data[i] * al; g += data[i + 1] * al; b += data[i + 2] * al; a += al;
+          r += data[i] * al;
+          g += data[i + 1] * al;
+          b += data[i + 2] * al;
+          a += al;
         }
       }
       if (n === 0 || a / n < alphaThreshold) continue;
       const o = (ty * size + tx) * 4;
-      out[o] = r / a; out[o + 1] = g / a; out[o + 2] = b / a; out[o + 3] = 255;
+      out[o] = r / a;
+      out[o + 1] = g / a;
+      out[o + 2] = b / a;
+      out[o + 3] = 255;
       opaque.push(o);
     }
   }
@@ -119,30 +140,37 @@ export function pixelize(
  * and flames don't shift it).
  * @returns {{ frames: {width, height, data}[], cell: number }}
  */
-export function pixelizeStrip(
-  path,
-  { size, cell: fixedCell, colors = 16, expectedFrames, alphaThreshold = 0.5 } = {},
-) {
+export function pixelizeStrip(path, { size, cell: fixedCell, colors = 16, expectedFrames, alphaThreshold = 0.5 } = {}) {
   const src = readPng(path);
   const { width: W, height: H, data } = src;
 
   const used = new Array(W).fill(false);
   for (let x = 0; x < W; x++) {
-    for (let y = 0; y < H; y++) if (data[(y * W + x) * 4 + 3] > ALPHA_ON) { used[x] = true; break; }
+    for (let y = 0; y < H; y++)
+      if (data[(y * W + x) * 4 + 3] > ALPHA_ON) {
+        used[x] = true;
+        break;
+      }
   }
   const segments = [];
   for (let x = 0, start = -1; x <= W; x++) {
     const on = x < W && used[x];
     if (on && start < 0) start = x;
-    if (!on && start >= 0) { segments.push([start, x - 1]); start = -1; }
+    if (!on && start >= 0) {
+      segments.push([start, x - 1]);
+      start = -1;
+    }
   }
   // small segments (a flame tip or a speck split off by a thin gap) join their nearest neighbour
   const widths = segments.map(([a, b]) => b - a + 1).sort((p, q) => p - q);
   const minFrameWidth = widths[Math.floor(widths.length / 2)] * 0.2;
   const frames = segments.map((sg) => [...sg]);
-  for (let i = 0; i < frames.length; ) {
+  for (let i = 0; i < frames.length;) {
     const [a, b] = frames[i];
-    if (b - a + 1 >= minFrameWidth || frames.length === 1) { i++; continue; }
+    if (b - a + 1 >= minFrameWidth || frames.length === 1) {
+      i++;
+      continue;
+    }
     const gapL = i > 0 ? a - frames[i - 1][1] : Infinity;
     const gapR = i < frames.length - 1 ? frames[i + 1][0] - b : Infinity;
     if (gapL <= gapR) frames[i - 1][1] = b;
@@ -161,7 +189,9 @@ export function pixelizeStrip(
   );
   // square that fits every frame around its centre on the shared ground line
   const content = Math.max(
-    ...boxes.map((bx, i) => Math.max(2 * Math.max(centers[i] - bx.minX, bx.maxX + 1 - centers[i]), ground + 1 - bx.minY)),
+    ...boxes.map((bx, i) =>
+      Math.max(2 * Math.max(centers[i] - bx.minX, bx.maxX + 1 - centers[i]), ground + 1 - bx.minY),
+    ),
   );
   if (!size) size = Math.ceil(content / fixedCell);
   const cell = fixedCell ?? content / size;
@@ -184,27 +214,48 @@ function quantize(imgs, k) {
   const sampleSet = pts.filter((_, i) => i % stride === 0);
   const centers = [sampleSet[0]];
   while (centers.length < k && centers.length < sampleSet.length) {
-    let best = sampleSet[0], bestD = -1;
+    let best = sampleSet[0],
+      bestD = -1;
     for (const p of sampleSet) {
       const d = Math.min(...centers.map((c) => dist(p, c)));
-      if (d > bestD) { bestD = d; best = p; }
+      if (d > bestD) {
+        bestD = d;
+        best = p;
+      }
     }
     centers.push(best);
   }
   const assign = new Array(pts.length).fill(0);
   for (let iter = 0; iter < 12; iter++) {
     pts.forEach((p, i) => {
-      let bi = 0, bd = Infinity;
-      centers.forEach((c, ci) => { const d = dist(p, c); if (d < bd) { bd = d; bi = ci; } });
+      let bi = 0,
+        bd = Infinity;
+      centers.forEach((c, ci) => {
+        const d = dist(p, c);
+        if (d < bd) {
+          bd = d;
+          bi = ci;
+        }
+      });
       assign[i] = bi;
     });
     const sums = centers.map(() => [0, 0, 0, 0]);
-    pts.forEach((p, i) => { const s = sums[assign[i]]; s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; s[3]++; });
-    sums.forEach((s, ci) => { if (s[3]) centers[ci] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]]; });
+    pts.forEach((p, i) => {
+      const s = sums[assign[i]];
+      s[0] += p[0];
+      s[1] += p[1];
+      s[2] += p[2];
+      s[3]++;
+    });
+    sums.forEach((s, ci) => {
+      if (s[3]) centers[ci] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]];
+    });
   }
   refs.forEach(([d, o], i) => {
     const c = centers[assign[i]];
-    d[o] = Math.round(c[0]); d[o + 1] = Math.round(c[1]); d[o + 2] = Math.round(c[2]);
+    d[o] = Math.round(c[0]);
+    d[o + 1] = Math.round(c[1]);
+    d[o + 2] = Math.round(c[2]);
   });
 }
 

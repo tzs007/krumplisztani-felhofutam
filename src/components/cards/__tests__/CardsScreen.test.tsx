@@ -79,7 +79,9 @@ describe('collection screen', () => {
   it('flips waiting cards; a flipped card stays in the swiper', async () => {
     await render(<CardsRoute />);
     await fireEvent.press(screen.getByText('Bontatlan kártyák (2)'));
-    await fireEvent(screen.getByTestId('card-swiper'), 'layout', { nativeEvent: { layout: { width: 300, height: 500 } } });
+    await fireEvent(screen.getByTestId('card-swiper'), 'layout', {
+      nativeEvent: { layout: { width: 300, height: 500 } },
+    });
     await fireEvent.press(screen.getAllByLabelText('Mystery Card, koppints a felfordításhoz')[0]);
     // card 3 (owned id 2) is now open, and the swiper still holds both cards
     expect(screen.getAllByLabelText('Kártya #3').length).toBeGreaterThan(0);

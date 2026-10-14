@@ -131,7 +131,9 @@ describe('claimCards', () => {
       useAppStore.getState().addResult({ score: 300, platforms: 1, pickups: 0, durationMs: 1, playedAt: i });
     }
     useAppStore.getState().markUploaded(useAppStore.getState().history.map((r) => r.id));
-    const saved = useAppStore.getState().addResult({ score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 99 });
+    const saved = useAppStore
+      .getState()
+      .addResult({ score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 99 });
     useCardsStore.setState({ pendingClaims: [saved.id] });
     mockState.open = { data: null, error: { code: 'P0002' } };
     await expect(claimCards(saved.id)).resolves.toMatchObject({ status: 'offline' });

@@ -45,7 +45,10 @@ export function Hud({ score, effects, bonusProgress = null, topInset, onPause }:
                 BÓNUSZ PÁLYA
               </Text>
               <Box className="h-2 w-28 overflow-hidden rounded-full bg-sky-foreground/30">
-                <Box className="h-full rounded-full bg-sky-foreground" style={{ width: `${Math.round(bonusProgress * 100)}%` }} />
+                <Box
+                  className="h-full rounded-full bg-sky-foreground"
+                  style={{ width: `${Math.round(bonusProgress * 100)}%` }}
+                />
               </Box>
             </VStack>
           )}

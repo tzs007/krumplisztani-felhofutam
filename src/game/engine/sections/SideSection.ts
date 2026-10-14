@@ -82,7 +82,10 @@ export class SideSection implements Section {
   /** A tap waits until this time (ms) for the chick to touch down. */
   private jumpBufferedUntil = -Infinity;
 
-  constructor(run: RunContext, { start = sideStart, end = sideEnd, chunks = sideChunks, chunkCount, shuffle = true }: SideSectionOptions = {}) {
+  constructor(
+    run: RunContext,
+    { start = sideStart, end = sideEnd, chunks = sideChunks, chunkCount, shuffle = true }: SideSectionOptions = {},
+  ) {
     const { config, rng } = run;
     this.config = config;
     this.viewColumns = config.side.viewColumns;
@@ -116,7 +119,14 @@ export class SideSection implements Section {
     this.length = x;
     // the floor: one platform under everything
     const ground = config.side.groundTheme;
-    this.platforms.unshift({ id: run.nextId(), x: 0, y: GROUND_Y, width: x, variant: ground, spriteKey: platformSpriteKey(ground) });
+    this.platforms.unshift({
+      id: run.nextId(),
+      x: 0,
+      y: GROUND_Y,
+      width: x,
+      variant: ground,
+      spriteKey: platformSpriteKey(ground),
+    });
 
     this.player = createPlayer(config, 1, GROUND_Y, config.side.runSpeed);
     this.standingOn = this.platforms[0];

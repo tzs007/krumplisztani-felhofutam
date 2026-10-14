@@ -1,18 +1,18 @@
-import { router } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { readableOnArt, SplashBackground } from "@/components/SplashBackground";
-import { Box } from "@/components/ui/box";
-import { Spinner } from "@/components/ui/spinner";
-import { Text } from "@/components/ui/text";
-import { VStack } from "@/components/ui/vstack";
-import { loadSprites } from "@/game/render/loadSprites";
-import { startCardSync } from "@/lib/cards";
-import { syncEasterEggs } from "@/lib/remoteEasterEggs";
-import { startBackgroundSync } from "@/lib/resultsSync";
-import { useAppStore } from "@/store/useAppStore";
+import { readableOnArt, SplashBackground } from '@/components/SplashBackground';
+import { Box } from '@/components/ui/box';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { loadSprites } from '@/game/render/loadSprites';
+import { startCardSync } from '@/lib/cards';
+import { syncEasterEggs } from '@/lib/remoteEasterEggs';
+import { startBackgroundSync } from '@/lib/resultsSync';
+import { useAppStore } from '@/store/useAppStore';
 
 const MIN_SPLASH_MS = 1500;
 /** Hide the native splash even if the background image never reports loaded. */
@@ -39,10 +39,7 @@ export default function SplashRoute() {
     // Season 1 cards: games opened offline and the collection (also retried on foreground)
     startCardSync();
     const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
-    const splashTimer = setTimeout(
-      () => SplashScreen.hideAsync(),
-      BG_LOAD_TIMEOUT_MS,
-    );
+    const splashTimer = setTimeout(() => SplashScreen.hideAsync(), BG_LOAD_TIMEOUT_MS);
     return () => {
       clearTimeout(minTimer);
       clearTimeout(splashTimer);
@@ -51,7 +48,7 @@ export default function SplashRoute() {
 
   useEffect(() => {
     if (hasHydrated && spritesLoaded && contentSynced && minTimeElapsed) {
-      router.replace("/menu");
+      router.replace('/menu');
     }
   }, [hasHydrated, spritesLoaded, contentSynced, minTimeElapsed]);
 

@@ -118,9 +118,7 @@ export async function saveAccount(email: string, password: string): Promise<Acti
 
   const { status, isAnonymous } = useAuthStore.getState();
   const { data, error } =
-    status === 'signedIn' && isAnonymous
-      ? await supabase.auth.updateUser(creds)
-      : await supabase.auth.signUp(creds);
+    status === 'signedIn' && isAnonymous ? await supabase.auth.updateUser(creds) : await supabase.auth.signUp(creds);
   if (error) return authErrorMessage(error);
   if (data.user) await loadProfile(data.user).catch(() => {});
   return null;

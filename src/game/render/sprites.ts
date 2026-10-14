@@ -125,11 +125,7 @@ export const spriteAnimations = animationEntries as Partial<Record<SpriteKey, Sp
  *   the other frames spread over the way up by `progress` 0 (take-off) … <1 (apex).
  * Single images are always frame 0.
  */
-export function spriteFrame(
-  key: SpriteKey,
-  elapsedMs: number,
-  progress = 0,
-): { frame: number; frames: number } {
+export function spriteFrame(key: SpriteKey, elapsedMs: number, progress = 0): { frame: number; frames: number } {
   const anim = spriteAnimations[key];
   if (!anim || anim.frames <= 1) return { frame: 0, frames: 1 };
   if (anim.mode === 'velocity') {

@@ -27,7 +27,8 @@ export async function fetchCollectors(): Promise<Board> {
     const mine = await supabase.rpc('my_collector_rank');
     if (mine.error) throw mine.error;
     const row = mine.data[0];
-    if (row) own = { name: row.display_name, score: row.distinct_cards, playedAt: row.reached_at, rank: row.rank, userId };
+    if (row)
+      own = { name: row.display_name, score: row.distinct_cards, playedAt: row.reached_at, rank: row.rank, userId };
   }
   return buildBoard(entries, own);
 }

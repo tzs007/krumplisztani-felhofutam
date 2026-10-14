@@ -20,14 +20,7 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 
 export type MusicTrack = 'menu' | 'game' | 'psy';
 export type SoundEffect =
-  | 'jump'
-  | 'card'
-  | 'bonus'
-  | 'milestone'
-  | 'gameOver'
-  | 'countdownTick'
-  | 'portal'
-  | 'backspin';
+  'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' | 'countdownTick' | 'portal' | 'backspin';
 
 const MUSIC: Record<MusicTrack, number> = {
   menu: require('@/assets/sounds/music_menu.m4a'),

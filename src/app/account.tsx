@@ -67,8 +67,8 @@ function SaveAccountCard() {
   return (
     <FormPanel title="Vendég fiók">
       <Text className="text-foreground">
-        Most vendégként játszol: a neved és az eredményeid ehhez a telefonhoz kötődnek. Mentsd el a fiókod email
-        címmel, és bármelyik eszközről visszaléphetsz.
+        Most vendégként játszol: a neved és az eredményeid ehhez a telefonhoz kötődnek. Mentsd el a fiókod email címmel,
+        és bármelyik eszközről visszaléphetsz.
       </Text>
       <EmailField value={email} onChangeText={setEmail} />
       <PasswordField

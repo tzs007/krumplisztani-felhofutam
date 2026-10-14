@@ -1,4 +1,4 @@
-import { tva , isWeb } from '@gluestack-ui/utils/nativewind-utils';
+import { tva, isWeb } from '@gluestack-ui/utils/nativewind-utils';
 const baseStyle = isWeb
   ? 'font-sans tracking-sm bg-transparent border-0 box-border display-inline list-none margin-0 padding-0 position-relative text-start no-underline whitespace-pre-wrap word-wrap-break-word'
   : '';
@@ -33,11 +33,11 @@ export const headingStyle = tva({
       '4xl': 'text-5xl leading-[62px]',
       '3xl': 'text-4xl leading-[46px]',
       '2xl': 'text-3xl leading-[38px]',
-      'xl': 'text-2xl',
-      'lg': 'text-xl',
-      'md': 'text-lg',
-      'sm': 'text-base',
-      'xs': 'text-sm',
+      xl: 'text-2xl',
+      lg: 'text-xl',
+      md: 'text-lg',
+      sm: 'text-base',
+      xs: 'text-sm',
     },
   },
 });

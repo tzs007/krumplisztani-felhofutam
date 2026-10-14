@@ -213,7 +213,13 @@ export class World implements RunContext {
     while (this.score >= this.nextMilestone) {
       events.push({ type: 'milestone', score: this.nextMilestone });
       const { x, y, w, h } = this.active.player;
-      const burst: Burst = { id: this.nextId(), startedAt: this.time, x: x + w / 2, y: y + h / 2, particles: this.makeStars() };
+      const burst: Burst = {
+        id: this.nextId(),
+        startedAt: this.time,
+        x: x + w / 2,
+        y: y + h / 2,
+        particles: this.makeStars(),
+      };
       this.active.bursts.push(burst);
       this.nextMilestone += m.every;
       this.milestonesReached++;

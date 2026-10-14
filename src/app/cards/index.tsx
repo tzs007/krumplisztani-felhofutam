@@ -1,37 +1,27 @@
-import { router } from "expo-router";
-import { useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  useWindowDimensions,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { FlatList, Pressable, RefreshControl, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CARD_ASPECT, CardBack, CardFront } from "@/components/cards/CardFaces";
-import { CardSwiper, type SwiperItem } from "@/components/cards/CardSwiper";
-import { ModalPanel } from "@/components/ModalPanel";
-import { ScreenHeader } from "@/components/ScreenHeader";
-import { SkyBackground } from "@/components/SkyBackground";
-import { readableOnArt } from "@/components/SplashBackground";
-import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
-import { Center } from "@/components/ui/center";
-import { HStack } from "@/components/ui/hstack";
-import { Spinner } from "@/components/ui/spinner";
-import { Text } from "@/components/ui/text";
-import { VStack } from "@/components/ui/vstack";
-import { Paper } from "@/components/Paper";
-import { useLoad } from "@/hooks/useLoad";
-import { usePullRefresh } from "@/hooks/usePullRefresh";
-import {
-  buildGrid,
-  collectedCount,
-  unrevealed,
-  withCard,
-} from "@/lib/cardRules";
-import { revealCard, syncCards, type CardSyncStatus } from "@/lib/cards";
-import { useCardsStore } from "@/store/useCardsStore";
+import { CARD_ASPECT, CardBack, CardFront } from '@/components/cards/CardFaces';
+import { CardSwiper, type SwiperItem } from '@/components/cards/CardSwiper';
+import { ModalPanel } from '@/components/ModalPanel';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SkyBackground } from '@/components/SkyBackground';
+import { readableOnArt } from '@/components/SplashBackground';
+import { Box } from '@/components/ui/box';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { HStack } from '@/components/ui/hstack';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { Paper } from '@/components/Paper';
+import { useLoad } from '@/hooks/useLoad';
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import { buildGrid, collectedCount, unrevealed, withCard } from '@/lib/cardRules';
+import { revealCard, syncCards, type CardSyncStatus } from '@/lib/cards';
+import { useCardsStore } from '@/store/useCardsStore';
 
 const GAP = 8;
 const PADDING = 16;
@@ -43,7 +33,7 @@ export default function CardsRoute() {
   const catalog = useCardsStore((s) => s.catalog);
   const owned = useCardsStore((s) => s.owned);
   const pendingClaims = useCardsStore((s) => s.pendingClaims);
-  const [status, setStatus] = useState<CardSyncStatus | "loading">("loading");
+  const [status, setStatus] = useState<CardSyncStatus | 'loading'>('loading');
   // the cards shown in the swiper, fixed when it opens (a flipped card must not jump out of it)
   const [unboxing, setUnboxing] = useState<number[] | null>(null);
 
@@ -51,8 +41,7 @@ export default function CardsRoute() {
   const pull = usePullRefresh(async () => setStatus(await syncCards()));
 
   const columns = width >= 600 ? 5 : 3;
-  const tileWidth =
-    (Math.min(width, 900) - PADDING * 2 - GAP * (columns - 1)) / columns;
+  const tileWidth = (Math.min(width, 900) - PADDING * 2 - GAP * (columns - 1)) / columns;
   const grid = buildGrid(catalog, owned);
   const waiting = unrevealed(owned);
   const swiperItems: SwiperItem[] = (unboxing ?? []).flatMap((id) => {
@@ -61,10 +50,7 @@ export default function CardsRoute() {
   });
 
   return (
-    <Box
-      className="flex-1 bg-sky"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
+    <Box className="flex-1 bg-sky" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <SkyBackground />
       <ScreenHeader title="Gyűjtemény" />
 
@@ -77,12 +63,10 @@ export default function CardsRoute() {
         contentContainerStyle={{
           padding: PADDING,
           gap: GAP,
-          alignSelf: "center",
+          alignSelf: 'center',
           maxWidth: 900,
         }}
-        refreshControl={
-          <RefreshControl {...pull} tintColor="#fff" />
-        }
+        refreshControl={<RefreshControl {...pull} tintColor="#fff" />}
         ListHeaderComponent={
           <VStack space="sm" className="mb-2">
             <HStack className="items-center justify-center">
@@ -90,7 +74,7 @@ export default function CardsRoute() {
                 {collectedCount(catalog, owned)}/{catalog.length} begyűjtve
               </Text>
             </HStack>
-            {(status === "offline" || status === "error") && (
+            {(status === 'offline' || status === 'error') && (
               <Paper className="rounded-md px-3 py-2">
                 <Text size="sm" className="text-foreground">
                   Nincs kapcsolat — a legutóbb letöltött gyűjteményt látod.
@@ -100,8 +84,7 @@ export default function CardsRoute() {
             {pendingClaims.length > 0 && (
               <Paper className="rounded-md px-3 py-2">
                 <Text size="sm" className="text-foreground">
-                  {pendingClaims.length} játék kártyái várnak — húzd le a
-                  frissítéshez.
+                  {pendingClaims.length} játék kártyái várnak — húzd le a frissítéshez.
                 </Text>
               </Paper>
             )}
@@ -116,33 +99,24 @@ export default function CardsRoute() {
           <Pressable
             disabled={!item.revealed}
             onPress={() => router.push(`/cards/${item.card.number}`)}
-            accessibilityRole={item.revealed ? "button" : undefined}
-            accessibilityLabel={
-              item.revealed ? item.card.name : "Még nem felfedezett kártya"
-            }
+            accessibilityRole={item.revealed ? 'button' : undefined}
+            accessibilityLabel={item.revealed ? item.card.name : 'Még nem felfedezett kártya'}
             style={{
               width: tileWidth,
               height: tileWidth / CARD_ASPECT,
               // on the tile, not the card: the card's clipping would cut the shadow off
               borderRadius: 12,
-              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
             }}
           >
-            {item.revealed ? (
-              <CardFront card={item.card} compact />
-            ) : (
-              <CardBack />
-            )}
+            {item.revealed ? <CardFront card={item.card} compact /> : <CardBack />}
           </Pressable>
         )}
         ListEmptyComponent={
-          status === "loading" ? (
+          status === 'loading' ? (
             <Spinner size="large" className="mt-8 text-sky-foreground" />
           ) : (
-            <Text
-              className="mt-8 text-center text-sky-foreground"
-              style={readableOnArt}
-            >
+            <Text className="mt-8 text-center text-sky-foreground" style={readableOnArt}>
               Nem sikerült betölteni a kártyákat. Húzd le a frissítéshez.
             </Text>
           )

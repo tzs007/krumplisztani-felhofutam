@@ -30,7 +30,12 @@ describe('easter egg in the bonus level', () => {
       expect(easterEggs.map((e) => e.id)).toContain(egg.eggId);
       // stands on a platform tile above the floor, before the exit
       const under = side.platforms.find(
-        (p) => p.y > GROUND_Y && egg.x + egg.size / 2 > p.x && egg.x + egg.size / 2 < p.x + p.width && egg.y >= p.y && egg.y < p.y + 0.5,
+        (p) =>
+          p.y > GROUND_Y &&
+          egg.x + egg.size / 2 > p.x &&
+          egg.x + egg.size / 2 < p.x + p.width &&
+          egg.y >= p.y &&
+          egg.y < p.y + 0.5,
       );
       expect(under).toBeDefined();
       expect(egg.x + egg.size).toBeLessThan(side.exit.x);

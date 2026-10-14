@@ -9,7 +9,15 @@ import { join } from 'node:path';
 
 import { PNG } from 'pngjs';
 
-import { buildSnapshot, jumpProgress, Op, platformPart, playerScale, playerSpriteKey, STRIDE } from '../render/snapshot';
+import {
+  buildSnapshot,
+  jumpProgress,
+  Op,
+  platformPart,
+  playerScale,
+  playerSpriteKey,
+  STRIDE,
+} from '../render/snapshot';
 import { SPRITE_KEYS, spriteAnimations, spriteFrame, spriteIndex } from '../render/sprites';
 
 const DT = 1 / 120;
@@ -91,8 +99,15 @@ describe('player sprite state', () => {
   it('switches to the fall pose only after dropping fallPoseAfterTiles below the apex', () => {
     // spawn high above the ground: a 6-tile drop
     const world = makeWorld([
-      '.........', '....P....', '.........', '.........', '.........',
-      '.........', '.........', '.........', '#########',
+      '.........',
+      '....P....',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '#########',
     ]);
     let switchedAtDrop = -1;
     for (let t = 0; t < 2 && switchedAtDrop < 0; t += DT) {
@@ -147,7 +162,12 @@ describe('effect-specific jump animation', () => {
     const world = makeWorld(['.........', '....J....', '....P....', '#########']);
     const FALL = defaultGameConfig.player.fallPoseAfterTiles;
     const key = () =>
-      playerSpriteKey(world.player, world.time, FALL, world.effects.getActive(world.time).map((e) => e.id));
+      playerSpriteKey(
+        world.player,
+        world.time,
+        FALL,
+        world.effects.getActive(world.time).map((e) => e.id),
+      );
     for (let t = 0; t < 1 && world.stats.pickups === 0; t += DT) world.step(DT, idle);
     expect(key()).toBe('player_bonus_double_jump'); // pickup pose first
     const risingAfterPose = () => world.time >= world.player.bonusUntil && world.player.vy > 0;
@@ -210,9 +230,10 @@ describe('bonus pose fallback', () => {
 
 describe('sprite sheets', () => {
   const pngSize = (key: string) => {
-    const path = key === 'bg_psy'
-      ? join(__dirname, '../../../assets/images/psy-bg.png')
-      : join(__dirname, '../../../assets/sprites', `${key}.png`);
+    const path =
+      key === 'bg_psy'
+        ? join(__dirname, '../../../assets/images/psy-bg.png')
+        : join(__dirname, '../../../assets/sprites', `${key}.png`);
     const png = PNG.sync.read(readFileSync(path));
     return { width: png.width, height: png.height };
   };

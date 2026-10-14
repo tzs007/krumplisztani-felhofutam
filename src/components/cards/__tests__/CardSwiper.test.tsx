@@ -40,7 +40,9 @@ async function renderSwiper(onReveal = jest.fn(), onIndexChange = jest.fn()) {
       onIndexChange={onIndexChange}
     />,
   );
-  await fireEvent(screen.getByTestId('card-swiper'), 'layout', { nativeEvent: { layout: { width: 300, height: 500 } } });
+  await fireEvent(screen.getByTestId('card-swiper'), 'layout', {
+    nativeEvent: { layout: { width: 300, height: 500 } },
+  });
   return { onReveal, onIndexChange };
 }
 

@@ -1,8 +1,8 @@
-import { Image } from "expo-image";
-import { useState, type ReactNode } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image } from 'expo-image';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-const ART = require("@/assets/sprite-sources/modal-bg.png");
+const ART = require('@/assets/sprite-sources/modal-bg.png');
 /** Size of modal-bg.png. */
 const ART_W = 906;
 const ART_H = 1367;
@@ -52,36 +52,16 @@ export function ModalPanel({ children, style }: Props) {
         style,
       ]}
     >
-      {size.width > 0 && (
-        <NineSlice width={size.width} height={size.height} scale={scale} />
-      )}
+      {size.width > 0 && <NineSlice width={size.width} height={size.height} scale={scale} />}
       {children}
     </View>
   );
 }
 
-function NineSlice({
-  width,
-  height,
-  scale,
-}: {
-  width: number;
-  height: number;
-  scale: number;
-}) {
+function NineSlice({ width, height, scale }: { width: number; height: number; scale: number }) {
   // screen positions of the cuts: corners at the art's scale, the middle takes the rest
-  const xs = [
-    0,
-    (CUT_X[1] - CUT_X[0]) * scale,
-    width - (CUT_X[3] - CUT_X[2]) * scale,
-    width,
-  ];
-  const ys = [
-    0,
-    (CUT_Y[1] - CUT_Y[0]) * scale,
-    height - (CUT_Y[3] - CUT_Y[2]) * scale,
-    height,
-  ];
+  const xs = [0, (CUT_X[1] - CUT_X[0]) * scale, width - (CUT_X[3] - CUT_X[2]) * scale, width];
+  const ys = [0, (CUT_Y[1] - CUT_Y[0]) * scale, height - (CUT_Y[3] - CUT_Y[2]) * scale, height];
 
   const cells = [];
   for (let row = 0; row < 3; row++) {
@@ -93,19 +73,13 @@ function NineSlice({
       const sx = w / (CUT_X[col + 1] - CUT_X[col]);
       const sy = h / (CUT_Y[row + 1] - CUT_Y[row]);
       cells.push(
-        <View
-          key={`${row}${col}`}
-          style={[
-            styles.cell,
-            { left: xs[col], top: ys[row], width: w, height: h },
-          ]}
-        >
+        <View key={`${row}${col}`} style={[styles.cell, { left: xs[col], top: ys[row], width: w, height: h }]}>
           <Image
             source={ART}
             contentFit="fill"
             accessibilityIgnoresInvertColors
             style={{
-              position: "absolute",
+              position: 'absolute',
               left: -CUT_X[col] * sx,
               top: -CUT_Y[row] * sy,
               width: ART_W * sx,
@@ -124,6 +98,6 @@ function NineSlice({
 }
 
 const styles = StyleSheet.create({
-  panel: { width: "100%", maxWidth: PANEL_MAX_WIDTH },
-  cell: { position: "absolute", overflow: "hidden" },
+  panel: { width: '100%', maxWidth: PANEL_MAX_WIDTH },
+  cell: { position: 'absolute', overflow: 'hidden' },
 });

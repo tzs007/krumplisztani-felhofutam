@@ -77,9 +77,7 @@ export function revealedCardIds(owned: OwnedCard[]): Set<string> {
 /** Every card of the collection by number, open if any copy of it is revealed. */
 export function buildGrid(catalog: Card[], owned: OwnedCard[]): GridCell[] {
   const revealed = revealedCardIds(owned);
-  return [...catalog]
-    .sort((a, b) => a.number - b.number)
-    .map((card) => ({ card, revealed: revealed.has(card.id) }));
+  return [...catalog].sort((a, b) => a.number - b.number).map((card) => ({ card, revealed: revealed.has(card.id) }));
 }
 
 /** Distinct revealed cards (e.g. the 12 in "12/30"). */

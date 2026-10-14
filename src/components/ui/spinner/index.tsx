@@ -4,7 +4,6 @@ import React from 'react';
 import { tva } from '@gluestack-ui/utils/nativewind-utils';
 import { styled } from 'nativewind';
 
-
 const StyledActivityIndicator = styled(ActivityIndicator, {
   className: { target: 'style', nativeStyleMapping: { color: 'color' } },
 });
@@ -13,16 +12,7 @@ const spinnerStyle = tva({});
 const Spinner = React.forwardRef<
   React.ComponentRef<typeof ActivityIndicator>,
   React.ComponentProps<typeof ActivityIndicator>
->(function Spinner(
-  {
-    className,
-    color,
-    focusable = false,
-    'aria-label': ariaLabel = 'loading',
-    ...props
-  },
-  ref
-) {
+>(function Spinner({ className, color, focusable = false, 'aria-label': ariaLabel = 'loading', ...props }, ref) {
   return (
     <StyledActivityIndicator
       ref={ref}

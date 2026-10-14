@@ -29,14 +29,23 @@ function commands(world: World): Cmd[] {
   const raw = buildSnapshot(world, T, SCREEN_H);
   const out: Cmd[] = [];
   for (let i = 0; i < raw.length; i += STRIDE) {
-    out.push({ op: raw[i], arg: raw[i + 1], key: SPRITE_KEYS[raw[i + 1]] ?? '', frame: raw[i + 2], frames: raw[i + 3], w: raw[i + 6], h: raw[i + 7] });
+    out.push({
+      op: raw[i],
+      arg: raw[i + 1],
+      key: SPRITE_KEYS[raw[i + 1]] ?? '',
+      frame: raw[i + 2],
+      frames: raw[i + 3],
+      w: raw[i + 6],
+      h: raw[i + 7],
+    });
   }
   return out;
 }
 const run = (world: World, seconds: number) => {
   for (let t = 0; t < seconds - 1e-9; t += DT) world.step(DT, idle);
 };
-const makeWorld = () => new World({ config, viewHeight: SCREEN_H / T, rng: createRng(1), chunks: [items], startChunk: start });
+const makeWorld = () =>
+  new World({ config, viewHeight: SCREEN_H / T, rng: createRng(1), chunks: [items], startChunk: start });
 
 describe('normal look', () => {
   it('draws the mushroom on its platform', () => {
@@ -110,7 +119,13 @@ describe('psy look', () => {
 
   it('covers the switch with a swirl from the chick that grows over the screen and shrinks back', () => {
     const swirlConfig: GameConfig = { ...config, psy: { ...config.psy, swirlMs: 1200 } };
-    const world = new World({ config: swirlConfig, viewHeight: SCREEN_H / T, rng: createRng(1), chunks: [items], startChunk: start });
+    const world = new World({
+      config: swirlConfig,
+      viewHeight: SCREEN_H / T,
+      rng: createRng(1),
+      chunks: [items],
+      startChunk: start,
+    });
     world.effects.trigger('psy', world.time);
     const radii: number[] = [];
     for (let i = 0; i < 12; i++) {

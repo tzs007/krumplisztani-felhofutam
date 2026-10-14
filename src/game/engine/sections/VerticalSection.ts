@@ -35,7 +35,10 @@ import {
 } from './shared';
 
 /** Platform theme after `milestones` milestones (null = as authored in the chunks). */
-export function platformTheme(milestones: number, { sequence, loop }: GameConfig['platformThemes']): PlatformVariant | null {
+export function platformTheme(
+  milestones: number,
+  { sequence, loop }: GameConfig['platformThemes'],
+): PlatformVariant | null {
   if (sequence.length === 0) return null;
   const i = loop ? milestones % sequence.length : Math.min(milestones, sequence.length - 1);
   return sequence[i];
@@ -298,7 +301,11 @@ export class VerticalSection implements Section {
     if (input.dx !== 0) p.facing = input.dx > 0 ? 1 : -1;
     if (!input.dragging && input.releaseVelocity !== undefined) {
       // glide: push the target a little further in the throw direction
-      const v = clamp(input.releaseVelocity * inputCfg.dragSensitivity, -inputCfg.maxGlideSpeed, inputCfg.maxGlideSpeed);
+      const v = clamp(
+        input.releaseVelocity * inputCfg.dragSensitivity,
+        -inputCfg.maxGlideSpeed,
+        inputCfg.maxGlideSpeed,
+      );
       p.targetOffset += v / inputCfg.releaseFriction;
     }
     const w = this.flying ? (this.config.psy.followFrequency ?? 7) : inputCfg.followFrequency;
@@ -339,7 +346,10 @@ export class VerticalSection implements Section {
     const prevY = p.y;
     // eases toward the wanted height (both ways), never below minRow above the screen bottom
     const target = this.cameraY + this.flightRow;
-    p.y = Math.max(prevY + (target - prevY) * (1 - Math.exp(-(psy.verticalFollow ?? 6) * dt)), this.cameraY + psy.minRow);
+    p.y = Math.max(
+      prevY + (target - prevY) * (1 - Math.exp(-(psy.verticalFollow ?? 6) * dt)),
+      this.cameraY + psy.minRow,
+    );
     p.vy = (p.y - prevY) / dt;
     p.apexY = p.y;
 
@@ -470,7 +480,14 @@ export class VerticalSection implements Section {
     const spot = this.takeFreeSpot(chunk);
     if (!spot) return false;
     const size = this.config.portals.size;
-    this.portals.push({ id: this.run.nextId(), x: spot.x + (1 - size) / 2, y: spot.y, size, spriteKey: 'portal', target: 'bonus' });
+    this.portals.push({
+      id: this.run.nextId(),
+      x: spot.x + (1 - size) / 2,
+      y: spot.y,
+      size,
+      spriteKey: 'portal',
+      target: 'bonus',
+    });
     return true;
   }
 
@@ -479,7 +496,13 @@ export class VerticalSection implements Section {
     const spot = this.takeFreeSpot(chunk);
     if (!spot) return false;
     const size = this.config.mushroom.size;
-    this.mushrooms.push({ id: this.run.nextId(), x: spot.x + (1 - size) / 2, y: spot.y, size, spriteKey: 'pickup_mushroom' });
+    this.mushrooms.push({
+      id: this.run.nextId(),
+      x: spot.x + (1 - size) / 2,
+      y: spot.y,
+      size,
+      spriteKey: 'pickup_mushroom',
+    });
     return true;
   }
 
@@ -553,6 +576,12 @@ const isCard = (pk: Pickup) => pk.spriteKey === 'pickup_card';
  * One roll per run: the chunk number (after the start) that holds the thing,
  * or -1 for none this run. A disabled roll draws no random numbers.
  */
-function rollChunk(rng: Rng, { chancePerGame, chunkRange }: { chancePerGame: number; chunkRange: [number, number] }, enabled = true): number {
-  return enabled && rng() < chancePerGame ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1)) : -1;
+function rollChunk(
+  rng: Rng,
+  { chancePerGame, chunkRange }: { chancePerGame: number; chunkRange: [number, number] },
+  enabled = true,
+): number {
+  return enabled && rng() < chancePerGame
+    ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
+    : -1;
 }

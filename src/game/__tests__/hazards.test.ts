@@ -95,7 +95,8 @@ describe('hazards', () => {
       world.step(DT, idle);
       if (world.stats.hits > 1) break;
       const since = world.time - hitAt;
-      if (since < HZ.hurtPoseMs) expect(playerDrawn()).toBe(true); // solid hurt pose
+      if (since < HZ.hurtPoseMs)
+        expect(playerDrawn()).toBe(true); // solid hurt pose
       else if (since < HZ.invulnerableMs) during.add(playerDrawn());
       else after.add(playerDrawn());
     }

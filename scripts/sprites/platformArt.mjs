@@ -290,7 +290,13 @@ export function platformTilesFromArt(paths, { tile = 128, modules = 3, height = 
   put(single, S, best.b, S.right + 1, lw, tile - lw);
 
   const info = (m) => ({ p: m.p, phase: m.phase, top: m.top, thickness: m.thickness, scale: +scaleOf(m).toFixed(4) });
-  return { left, mid, right, single, info: { midScale: +midScale.toFixed(4), left: info(L), single: info(S), right: info(R) } };
+  return {
+    left,
+    mid,
+    right,
+    single,
+    info: { midScale: +midScale.toFixed(4), left: info(L), single: info(S), right: info(R) },
+  };
 }
 
 /** Walkable surface: first row that is opaque across most of the piece (tufts sticking up don't count). */
@@ -337,7 +343,7 @@ export function splitStrip(path, count) {
   }
   // merge slivers (< 4% of the width) into the closer neighbour
   const minWidth = img.width * 0.04;
-  for (let i = 0; i < runs.length && runs.length > 1; ) {
+  for (let i = 0; i < runs.length && runs.length > 1;) {
     const [a, b] = runs[i];
     if (b - a >= minWidth) {
       i++;

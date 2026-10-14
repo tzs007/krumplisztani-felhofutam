@@ -36,7 +36,9 @@ describe('cap and unuploaded card-earning results', () => {
     }
     // all 50 are uploaded; a new 250 ranks 51st
     useAppStore.getState().markUploaded(useAppStore.getState().history.map((r) => r.id));
-    const saved = useAppStore.getState().addResult({ score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 99 });
+    const saved = useAppStore
+      .getState()
+      .addResult({ score: 250, platforms: 1, pickups: 0, durationMs: 1, playedAt: 99 });
     const s = useAppStore.getState();
     expect(s.history).toHaveLength(MAX_HISTORY + 1);
     expect(s.history.map((r) => r.id)).toContain(saved.id);

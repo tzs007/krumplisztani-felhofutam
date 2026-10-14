@@ -163,8 +163,15 @@ describe('World physics', () => {
 describe('umbrella glide', () => {
   // spawn 7 rows above the ground: a long drop
   const highDrop = [
-    '.........', '....P....', '.........', '.........', '.........',
-    '.........', '.........', '.........', '#########',
+    '.........',
+    '....P....',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '.........',
+    '#########',
   ];
   const dropTime = (config: GameConfig) => {
     const world = makeWorld(highDrop, config);
@@ -241,12 +248,20 @@ describe('EffectRegistry', () => {
 
   it('applies instant and timed effects and expires them', () => {
     const { state, ctx } = makeCtx();
-    const reg = new EffectRegistry(ctx).register(addBonus(3)).register(doubleScore(1000)).register(doubleJumpHeight(500));
+    const reg = new EffectRegistry(ctx)
+      .register(addBonus(3))
+      .register(doubleScore(1000))
+      .register(doubleJumpHeight(500));
     reg.trigger('bonus', 0);
     reg.trigger('doubleScore', 0);
     reg.trigger('doubleJump', 0);
     expect(state).toEqual({ score: 3, scoreMult: 2, jumpMult: 2 });
-    expect(reg.getActive(0).map((e) => e.id).sort()).toEqual(['doubleJump', 'doubleScore']);
+    expect(
+      reg
+        .getActive(0)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(['doubleJump', 'doubleScore']);
 
     reg.tick(600);
     expect(state.jumpMult).toBe(1);
@@ -280,7 +295,12 @@ describe('platform themes per milestone', () => {
   it('picks the theme by the number of milestones reached', () => {
     const t = { sequence: ['grass', 'blue', 'brick'] as PlatformVariant[], loop: true };
     expect([0, 1, 2, 3, 4].map((n) => platformTheme(n, t))).toEqual(['grass', 'blue', 'brick', 'grass', 'blue']);
-    expect([0, 1, 2, 5].map((n) => platformTheme(n, { ...t, loop: false }))).toEqual(['grass', 'blue', 'brick', 'brick']);
+    expect([0, 1, 2, 5].map((n) => platformTheme(n, { ...t, loop: false }))).toEqual([
+      'grass',
+      'blue',
+      'brick',
+      'brick',
+    ]);
     expect(platformTheme(3, { sequence: [], loop: true })).toBeNull();
   });
 

@@ -1,10 +1,10 @@
-import { Image } from "expo-image";
-import { StyleSheet, View } from "react-native";
+import { Image } from 'expo-image';
+import { StyleSheet, View } from 'react-native';
 
-import { Box } from "@/components/ui/box";
-import { Text } from "@/components/ui/text";
-import { VStack } from "@/components/ui/vstack";
-import type { Card, Rarity } from "@/lib/cardRules";
+import { Box } from '@/components/ui/box';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import type { Card, Rarity } from '@/lib/cardRules';
 
 /** Width / height of a card (standard trading card, 63 × 88 mm). */
 export const CARD_ASPECT = 63 / 88;
@@ -18,39 +18,36 @@ const BACK_ART_ZOOM = 1 / (1 - 0.09);
 
 /** Hungarian name of each rarity, shown on the badge. */
 export const RARITY_LABELS: Record<Rarity, string> = {
-  common: "Gyakori",
-  uncommon: "Átlagos",
-  rare: "Ritka",
-  epic: "Epikus",
-  legendary: "Legendás",
-  mythic: "Mitikus",
-  etheric: "Éteri",
-  sacred: "Szakrális",
+  common: 'Gyakori',
+  uncommon: 'Átlagos',
+  rare: 'Ritka',
+  epic: 'Epikus',
+  legendary: 'Legendás',
+  mythic: 'Mitikus',
+  etheric: 'Éteri',
+  sacred: 'Szakrális',
 };
 
 /** Badge colours per rarity (dark text on the light badges). */
 const RARITY_COLORS: Record<Rarity, { background: string; color: string }> = {
-  common: { background: "#F5F5F5", color: "#171717" },
-  uncommon: { background: "#16A34A", color: "#FFFFFF" },
-  rare: { background: "#2563EB", color: "#FFFFFF" },
-  epic: { background: "#9333EA", color: "#FFFFFF" },
-  legendary: { background: "#FACC15", color: "#171717" },
-  mythic: { background: "#DC2626", color: "#FFFFFF" },
+  common: { background: '#F5F5F5', color: '#171717' },
+  uncommon: { background: '#16A34A', color: '#FFFFFF' },
+  rare: { background: '#2563EB', color: '#FFFFFF' },
+  epic: { background: '#9333EA', color: '#FFFFFF' },
+  legendary: { background: '#FACC15', color: '#171717' },
+  mythic: { background: '#DC2626', color: '#FFFFFF' },
   // space blue
-  etheric: { background: "#1E2A78", color: "#FFFFFF" },
+  etheric: { background: '#1E2A78', color: '#FFFFFF' },
   // ghost blue
-  sacred: { background: "#C7DDF5", color: "#171717" },
+  sacred: { background: '#C7DDF5', color: '#171717' },
 };
 
 export function RarityBadge({ rarity }: { rarity: Rarity }) {
   // a rarity added on the server before the app knows it shows as common
-  const known = rarity in RARITY_LABELS ? rarity : "common";
+  const known = rarity in RARITY_LABELS ? rarity : 'common';
   const r = RARITY_COLORS[known];
   return (
-    <Box
-      className="rounded-full border border-border px-2 py-0.5"
-      style={{ backgroundColor: r.background }}
-    >
+    <Box className="rounded-full border border-border px-2 py-0.5" style={{ backgroundColor: r.background }}>
       <Text size="2xs" bold style={{ color: r.color }}>
         {RARITY_LABELS[known]}
       </Text>
@@ -80,17 +77,13 @@ export function CardFront({
             contentFit="cover"
             accessibilityIgnoresInvertColors
             style={{
-              width: "100%",
-              height: "100%",
+              width: '100%',
+              height: '100%',
               transform: [{ scale: FRONT_ART_ZOOM }],
             }}
           />
         ) : (
-          <Text
-            bold
-            size={compact ? "xl" : "4xl"}
-            className="text-muted-foreground"
-          >
+          <Text bold size={compact ? 'xl' : '4xl'} className="text-muted-foreground">
             {card.number}
           </Text>
         )}
@@ -126,12 +119,12 @@ export function CardBack({ mark }: { mark?: string }) {
   return (
     <View style={styles.backFrame}>
       <Image
-        source={require("@/assets/images/card-back.webp")}
+        source={require('@/assets/images/card-back.webp')}
         contentFit="cover"
         accessibilityIgnoresInvertColors
         style={{
-          width: "100%",
-          height: "100%",
+          width: '100%',
+          height: '100%',
           transform: [{ scale: BACK_ART_ZOOM }],
         }}
       />
@@ -140,5 +133,5 @@ export function CardBack({ mark }: { mark?: string }) {
 }
 
 const styles = StyleSheet.create({
-  backFrame: { flex: 1, borderRadius: 12, overflow: "hidden" },
+  backFrame: { flex: 1, borderRadius: 12, overflow: 'hidden' },
 });

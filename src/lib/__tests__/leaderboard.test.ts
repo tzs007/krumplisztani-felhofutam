@@ -1,8 +1,20 @@
 import { buildBoard, type OwnEntry, type TopEntry } from '../leaderboard';
 
 const top = (n: number): TopEntry[] =>
-  Array.from({ length: n }, (_, i) => ({ userId: `u${i + 1}`, name: `Csibe #${1000 + i}`, score: 1000 - i * 10, playedAt: '2026-01-01' }));
-const own = (over: Partial<OwnEntry>): OwnEntry => ({ name: 'Te', score: 0, playedAt: '2026-01-01', rank: 1, userId: null, ...over });
+  Array.from({ length: n }, (_, i) => ({
+    userId: `u${i + 1}`,
+    name: `Csibe #${1000 + i}`,
+    score: 1000 - i * 10,
+    playedAt: '2026-01-01',
+  }));
+const own = (over: Partial<OwnEntry>): OwnEntry => ({
+  name: 'Te',
+  score: 0,
+  playedAt: '2026-01-01',
+  rank: 1,
+  userId: null,
+  ...over,
+});
 
 describe('buildBoard', () => {
   it('signed in and in the top 10: own row highlighted in place, no extra row', () => {

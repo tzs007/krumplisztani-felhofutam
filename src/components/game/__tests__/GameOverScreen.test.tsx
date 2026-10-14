@@ -110,7 +110,9 @@ describe('game over cards', () => {
 
     expect(screen.getByText('2 kártyát nyithatsz meg (250 pont)')).toBeTruthy();
     expect(mockClaim).toHaveBeenCalledWith('r1');
-    await fireEvent(await screen.findByTestId('card-swiper'), 'layout', { nativeEvent: { layout: { width: 300, height: 500 } } });
+    await fireEvent(await screen.findByTestId('card-swiper'), 'layout', {
+      nativeEvent: { layout: { width: 300, height: 500 } },
+    });
     await fireEvent.press(screen.getAllByLabelText('Mystery Card, koppints a felfordításhoz')[0]);
     expect(mockReveal).toHaveBeenCalledWith(1);
   });

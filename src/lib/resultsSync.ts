@@ -35,12 +35,10 @@ async function upload(): Promise<number> {
   const pending = selectPendingUploads(useAppStore.getState());
   if (pending.length === 0) return 0;
 
-  const { error } = await supabase
-    .from('game_results')
-    .upsert(
-      pending.map((r) => toRow(r, userId)),
-      { onConflict: 'user_id,client_id', ignoreDuplicates: true },
-    );
+  const { error } = await supabase.from('game_results').upsert(
+    pending.map((r) => toRow(r, userId)),
+    { onConflict: 'user_id,client_id', ignoreDuplicates: true },
+  );
   if (error) {
     console.warn('Result upload failed, will retry later', error);
     return 0;

@@ -14,8 +14,5 @@ export function hueMatrix(degrees: number, gain: number): number[] {
     [0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.14, 0.072 - c * 0.072 - s * 0.283],
     [0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072],
   ];
-  return [
-    ...rows.flatMap((r) => [...r.map((v) => v * gain), 0, 0]),
-    0, 0, 0, 1, 0,
-  ];
+  return [...rows.flatMap((r) => [...r.map((v) => v * gain), 0, 0]), 0, 0, 0, 1, 0];
 }

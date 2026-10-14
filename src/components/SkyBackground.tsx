@@ -1,7 +1,7 @@
-import { Image } from "expo-image";
-import { StyleSheet } from "react-native";
+import { Image } from 'expo-image';
+import { StyleSheet } from 'react-native';
 
-const sky = require("@/assets/sprites/bg_sky.png");
+const sky = require('@/assets/sprites/bg_sky.png');
 
 /**
  * The game's sky backdrop (bg_sky: gradient with the cloud bank at the

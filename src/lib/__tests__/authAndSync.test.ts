@@ -30,7 +30,9 @@ jest.mock('../supabase', () => ({
           },
           from: (table: string) => ({
             select: () => ({
-              eq: () => ({ maybeSingle: async () => ({ data: table === 'profiles' ? { display_name: 'Csibe #4821' } : null }) }),
+              eq: () => ({
+                maybeSingle: async () => ({ data: table === 'profiles' ? { display_name: 'Csibe #4821' } : null }),
+              }),
             }),
             upsert: async (rows: Record<string, unknown>[], options: unknown) => {
               mockState.upserts.push({ rows, options });
@@ -42,7 +44,9 @@ jest.mock('../supabase', () => ({
 }));
 
 const addResult = (score: number) =>
-  useAppStore.getState().addResult({ score, platforms: score, pickups: 1, durationMs: 12345.6, playedAt: 1_700_000_000_000 + score });
+  useAppStore
+    .getState()
+    .addResult({ score, platforms: score, pickups: 1, durationMs: 12345.6, playedAt: 1_700_000_000_000 + score });
 
 beforeEach(() => {
   Object.assign(mockState, { available: true, session: null, anonError: null, upserts: [], upsertError: null });

@@ -83,7 +83,7 @@ describe('psy flight', () => {
     run(world, DT, { dragging: true, dx: 0, dy: -100 });
     run(world, 0.6, { dragging: true, dx: 0, dy: 0 });
     // Following a moving camera leaves a speed-dependent steady-state lag.
-    const followLag = config.psy.riseSpeed * DT / Math.expm1(config.psy.verticalFollow * DT);
+    const followLag = (config.psy.riseSpeed * DT) / Math.expm1(config.psy.verticalFollow * DT);
     expect(world.player.y - world.cameraY).toBeCloseTo(world.viewHeight - config.psy.topMargin - followLag, 0);
     run(world, DT, { dragging: true, dx: 0, dy: 100 });
     run(world, 0.6, { dragging: true, dx: 0, dy: 0 });

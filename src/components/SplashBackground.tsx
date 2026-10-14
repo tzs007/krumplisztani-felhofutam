@@ -1,14 +1,14 @@
-import { Image } from "expo-image";
-import { StyleSheet } from "react-native";
+import { Image } from 'expo-image';
+import { StyleSheet } from 'react-native';
 
-const background = require("@/assets/images/splash-bg.png");
+const background = require('@/assets/images/splash-bg.png');
 
 /**
  * Text on top of the busy splash illustration gets a dark shadow to stay
  * readable (inline style: NativeWind has no text-shadow utilities).
  */
 export const readableOnArt = {
-  textShadowColor: "rgba(0, 0, 0, 0.6)",
+  textShadowColor: 'rgba(0, 0, 0, 0.6)',
   textShadowOffset: { width: 0, height: 2 },
   textShadowRadius: 6,
 };

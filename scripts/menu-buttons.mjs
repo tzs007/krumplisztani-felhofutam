@@ -7,38 +7,36 @@
  *
  * Re-run after updating a sheet. Buttons are read row by row, left to right.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import pngjs from "pngjs";
+import pngjs from 'pngjs';
 
 const { PNG } = pngjs;
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT_DIR = join(ROOT, "assets/images/menu");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT_DIR = join(ROOT, 'assets/images/menu');
 
 /** Each sheet and the names of its buttons, by grid row. */
 const SHEETS = [
   {
-    file: "menu.png",
+    file: 'menu.png',
     names: [
-      ["start", "leaderboard", "collection"],
-      ["account", "music-off", "music-on"],
-      ["sounds-off", "sounds-on", "back"],
-      ["tab-global", "tab-collectors", "tab-mine"],
+      ['start', 'leaderboard', 'collection'],
+      ['account', 'music-off', 'music-on'],
+      ['sounds-off', 'sounds-on', 'back'],
+      ['tab-global', 'tab-collectors', 'tab-mine'],
     ],
   },
-  { file: "menu2.png", names: [["open-cards"], ["play-again"]] },
-  { file: "close.png", names: [["close"]] },
+  { file: 'menu2.png', names: [['open-cards'], ['play-again']] },
+  { file: 'close.png', names: [['close']] },
   // buttons.webp converted with: sips -s format png buttons.webp --out buttons.png
-  { file: "buttons.png", names: [["save-name"], ["save-account"], ["sign-in"]] },
+  { file: 'buttons.png', names: [['save-name'], ['save-account'], ['sign-in']] },
 ];
 const SOLID = 16; // alpha above this counts as part of a button
 
 function cutSheet({ file, names: NAMES }) {
-  const sheet = PNG.sync.read(
-    readFileSync(join(ROOT, "assets/sprite-sources", file)),
-  );
+  const sheet = PNG.sync.read(readFileSync(join(ROOT, 'assets/sprite-sources', file)));
   const { width, height, data } = sheet;
   const alpha = (x, y) => data[(y * width + x) * 4 + 3];
 
@@ -48,8 +46,7 @@ function cutSheet({ file, names: NAMES }) {
     let start = -1;
     for (let i = 0; i <= length; i++) {
       let solid = false;
-      for (let j = 0; i < length && j < crossLength && !solid; j++)
-        solid = solidAt(i, j);
+      for (let j = 0; i < length && j < crossLength && !solid; j++) solid = solidAt(i, j);
       if (solid && start < 0) start = i;
       if (!solid && start >= 0) {
         if (i - start > 10) runs.push([start, i - 1]);

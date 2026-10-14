@@ -57,7 +57,9 @@ describe('mushroom placement', () => {
     );
     for (let seed = 1; seed <= 20; seed++) {
       const world = makeWorld(cfg, seed);
-      const ys = [...world.main.mushrooms, ...world.main.portals, ...world.main.easterEggs].map((it) => Math.round(it.y));
+      const ys = [...world.main.mushrooms, ...world.main.portals, ...world.main.easterEggs].map((it) =>
+        Math.round(it.y),
+      );
       expect(new Set(ys).size).toBe(ys.length);
     }
   });

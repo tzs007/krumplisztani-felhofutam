@@ -1,4 +1,4 @@
-import type { PlatformVariant } from "./level/tiles";
+import type { PlatformVariant } from './level/tiles';
 
 /**
  * Central tuning config. All world units are TILES (1 = one grid cell);
@@ -13,7 +13,7 @@ export type EasterEggItemDef = {
   spriteKey: string;
   /** Drawn size and hitbox in tiles. */
   size: number;
-  placement: "ground" | "hover";
+  placement: 'ground' | 'hover';
 };
 
 export type GameConfig = {
@@ -214,7 +214,7 @@ export type GameConfig = {
      * Where easter eggs hide: 'bonus' = every bonus level hides one (always);
      * 'main' = the main level may hide one (chancePerGame, chunkRange).
      */
-    sections: ("main" | "bonus")[];
+    sections: ('main' | 'bonus')[];
     /**
      * Main level only: chance (0–1) that this run hides an easter egg there
      * at all. At most one per game; 0.1 ≈ one in every ten games on average.
@@ -318,15 +318,7 @@ export const defaultGameConfig: GameConfig = {
   },
   platformThemes: {
     // one look per 100 points from the start, then again from the first
-    sequence: [
-      "grass",
-      "planks",
-      "brick",
-      "byzantine",
-      "topaz",
-      "emerald",
-      "ruby",
-    ],
+    sequence: ['grass', 'planks', 'brick', 'byzantine', 'topaz', 'emerald', 'ruby'],
     loop: true,
   },
   portals: {
@@ -374,23 +366,23 @@ export const defaultGameConfig: GameConfig = {
     jumpBufferMs: 120,
     finishBonus: 10,
     glide: true,
-    groundTheme: "grass",
+    groundTheme: 'grass',
   },
   background: {
-    spriteKey: "bg_sky",
+    spriteKey: 'bg_sky',
     heightScreens: 1.5,
     parallax: 0.05,
   },
   easterEggs: {
     // only the bonus level hides them (reached through a portal)
-    sections: ["bonus"],
+    sections: ['bonus'],
     chancePerGame: 0.1,
     chunkRange: [2, 12],
     // 1.125 → the pumpkin looks as big as the coin
     defaultItem: {
-      spriteKey: "easter_pumpkin",
+      spriteKey: 'easter_pumpkin',
       size: 1.125,
-      placement: "ground",
+      placement: 'ground',
     },
   },
   start: {

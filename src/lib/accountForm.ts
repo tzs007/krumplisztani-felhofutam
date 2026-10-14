@@ -50,6 +50,7 @@ const MESSAGES: Record<string, string> = {
 export function authErrorMessage(error: { code?: string | null; message?: string } | null | undefined): string {
   const byCode = error?.code ? MESSAGES[error.code] : undefined;
   if (byCode) return byCode;
-  if (error?.message && /fetch|network/i.test(error.message)) return 'Nincs kapcsolat a szerverrel. Próbáld újra később.';
+  if (error?.message && /fetch|network/i.test(error.message))
+    return 'Nincs kapcsolat a szerverrel. Próbáld újra később.';
   return 'Valami hiba történt. Próbáld újra.';
 }

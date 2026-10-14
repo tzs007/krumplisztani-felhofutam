@@ -64,11 +64,7 @@ export function fallStep(
   glideFallSpeed: number | null,
   cfg: GameConfig['player'],
 ): void {
-  if (
-    glideFallSpeed !== null &&
-    isFalling(p, cfg.fallPoseAfterTiles) &&
-    p.vy - gravity * dt < -glideFallSpeed
-  ) {
+  if (glideFallSpeed !== null && isFalling(p, cfg.fallPoseAfterTiles) && p.vy - gravity * dt < -glideFallSpeed) {
     p.vy = -glideFallSpeed + (p.vy + glideFallSpeed) * Math.exp(-cfg.glideDrag * dt);
   } else {
     p.vy -= gravity * dt;

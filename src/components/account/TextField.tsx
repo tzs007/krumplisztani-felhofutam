@@ -10,7 +10,10 @@ type Props = TextInputProps & { label: string };
 const PARCHMENT = '#F9EDD4';
 
 /** Labelled single-line text input: a dark field with parchment-coloured text, on the framed parchment panels. */
-export const TextField = forwardRef<TextInput, Props>(function TextField({ label, editable = true, style, ...props }, ref) {
+export const TextField = forwardRef<TextInput, Props>(function TextField(
+  { label, editable = true, style, ...props },
+  ref,
+) {
   return (
     <VStack space="xs">
       <Text size="sm" bold className="text-muted-foreground">

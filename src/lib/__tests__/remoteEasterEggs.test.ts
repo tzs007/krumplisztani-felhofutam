@@ -104,7 +104,10 @@ describe('syncEasterEggs', () => {
     mockConfigResult = { data: { value: { chancePerGame: 0.5, chunkRange: [2, 4] } }, error: null };
     await expect(syncEasterEggs()).resolves.toBe('remote');
     expect(getEasterEggs().map((e) => e.id)).toEqual(['doge']);
-    expect(withEasterEggSettings(defaultGameConfig).easterEggs).toMatchObject({ chancePerGame: 0.5, chunkRange: [2, 4] });
+    expect(withEasterEggSettings(defaultGameConfig).easterEggs).toMatchObject({
+      chancePerGame: 0.5,
+      chunkRange: [2, 4],
+    });
     expect(await mockAsyncStorage.getItem('remote-easter-eggs-v1')).toContain('doge');
   });
 
@@ -139,7 +142,10 @@ describe('the game uses the active content', () => {
     mockEggsResult = { data: [row({ id: 'remote-meme', item_sprite_key: 'pickup_coin' })], error: null };
     mockConfigResult = { data: { value: { chancePerGame: 1 } }, error: null };
     await syncEasterEggs();
-    const config = withEasterEggSettings({ ...defaultGameConfig, start: { ...defaultGameConfig.start, countdownMs: 0 } });
+    const config = withEasterEggSettings({
+      ...defaultGameConfig,
+      start: { ...defaultGameConfig.start, countdownMs: 0 },
+    });
     const world = new World({ config, viewHeight: 400, rng: createRng(1) });
     const bonus = new SideSection(world);
     expect(bonus.easterEggs).toHaveLength(1);

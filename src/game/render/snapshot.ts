@@ -241,7 +241,15 @@ function drawPickups(v: View, pickups: Pickup[], time: number) {
     if (!v.shows(pk)) continue;
     const phase = time + pickupPhaseMs(pk.id);
     const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
-    v.sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, v.sx(pk.x), v.sy(pk.y + pk.size + bob), pk.size * v.t, pk.size * v.t);
+    v.sprite(
+      Op.sprite,
+      pk.spriteKey as SpriteKey,
+      phase,
+      v.sx(pk.x),
+      v.sy(pk.y + pk.size + bob),
+      pk.size * v.t,
+      pk.size * v.t,
+    );
   }
 }
 
@@ -251,7 +259,15 @@ function drawEasterEggs(v: View, eggs: EasterEggItem[], time: number) {
     if (!v.shows(egg)) continue;
     const phase = time + pickupPhaseMs(egg.id);
     const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
-    v.sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, v.sx(egg.x), v.sy(egg.y + egg.size + bob), egg.size * v.t, egg.size * v.t);
+    v.sprite(
+      Op.sprite,
+      egg.spriteKey as SpriteKey,
+      phase,
+      v.sx(egg.x),
+      v.sy(egg.y + egg.size + bob),
+      egg.size * v.t,
+      egg.size * v.t,
+    );
   }
 }
 
@@ -259,7 +275,15 @@ function drawEasterEggs(v: View, eggs: EasterEggItem[], time: number) {
 function drawBoxes(v: View, items: (Box & { spriteKey: string })[], time: number) {
   for (const it of items) {
     if (!v.shows(it)) continue;
-    v.sprite(Op.sprite, it.spriteKey as SpriteKey, time, v.sx(it.x), v.sy(it.y + it.size), it.size * v.t, it.size * v.t);
+    v.sprite(
+      Op.sprite,
+      it.spriteKey as SpriteKey,
+      time,
+      v.sx(it.x),
+      v.sy(it.y + it.size),
+      it.size * v.t,
+      it.size * v.t,
+    );
   }
 }
 
@@ -281,7 +305,15 @@ function drawBursts(v: View, bursts: Burst[], time: number, gravity: number) {
       const st = starState(star, time - burst.startedAt, gravity);
       if (!st || st.size <= 0) continue;
       const half = st.size / 2;
-      v.sprite(Op.sprite, 'effect_star', 0, v.sx(burst.x + st.dx - half), v.sy(burst.y + st.dy + half), st.size * v.t, st.size * v.t);
+      v.sprite(
+        Op.sprite,
+        'effect_star',
+        0,
+        v.sx(burst.x + st.dx - half),
+        v.sy(burst.y + st.dy + half),
+        st.size * v.t,
+        st.size * v.t,
+      );
     }
   }
 }
@@ -341,7 +373,16 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     const { hueDegPerSecond, pulseGain, pulsePeriodMs } = world.config.psy;
     const hue = ((world.time / 1000) * hueDegPerSecond) % 360;
     const gain = 1 + pulseGain * Math.sin((world.time / pulsePeriodMs) * 2 * Math.PI);
-    out.push(Op.backdropHue, spriteIndex('bg_psy'), hue, Math.round(gain * 1000), 0, screenHeight + bgOffset, cols * t, bgHeight);
+    out.push(
+      Op.backdropHue,
+      spriteIndex('bg_psy'),
+      hue,
+      Math.round(gain * 1000),
+      0,
+      screenHeight + bgOffset,
+      cols * t,
+      bgHeight,
+    );
   } else {
     out.push(Op.backdrop, spriteIndex(bg.spriteKey), 0, 1, 0, screenHeight + bgOffset, cols * t, bgHeight);
   }
@@ -349,11 +390,27 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   // sun and moon, fixed to the screen, behind the clouds (psy mode: the psy sun)
   const { sun, moon } = skyBodies(world.skyAngle, cols * t, screenHeight, world.config.sky);
   if (sun.visible) {
-    sprite(Op.sprite, psy ? 'psy_sun' : 'sun', world.time, sun.x - sun.size / 2, sun.y - sun.size / 2, sun.size, sun.size);
+    sprite(
+      Op.sprite,
+      psy ? 'psy_sun' : 'sun',
+      world.time,
+      sun.x - sun.size / 2,
+      sun.y - sun.size / 2,
+      sun.size,
+      sun.size,
+    );
   }
   if (moon.visible && hasSprite('moon')) {
     // registered once moon.png is drawn (see sprites.ts)
-    sprite(Op.sprite, 'moon' as SpriteKey, world.time, moon.x - moon.size / 2, moon.y - moon.size / 2, moon.size, moon.size);
+    sprite(
+      Op.sprite,
+      'moon' as SpriteKey,
+      world.time,
+      moon.x - moon.size / 2,
+      moon.y - moon.size / 2,
+      moon.size,
+      moon.size,
+    );
   }
 
   // background clouds (parallax), drawn with the cloud image's own aspect ratio

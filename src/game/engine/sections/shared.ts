@@ -53,7 +53,13 @@ export function takeOff(p: Player, vy: number, time: number) {
 
 // ── chunk → entities (x0, y0: where the chunk's bottom-left corner sits in the level) ──
 
-export function platformFrom(pl: ParsedPlatform, id: number, x0: number, y0: number, theme?: PlatformVariant | null): Platform {
+export function platformFrom(
+  pl: ParsedPlatform,
+  id: number,
+  x0: number,
+  y0: number,
+  theme?: PlatformVariant | null,
+): Platform {
   return {
     id,
     x: x0 + pl.col,
@@ -158,7 +164,11 @@ export function stepHazards(
 }
 
 /** Drops the milestone bursts and collect animations that have finished. */
-export function cullEffects(section: { bursts: Burst[]; collected: CollectedPickup[] }, time: number, config: GameConfig) {
+export function cullEffects(
+  section: { bursts: Burst[]; collected: CollectedPickup[] },
+  time: number,
+  config: GameConfig,
+) {
   const maxLife = config.milestones.lifeMs * 1.2;
   section.bursts = section.bursts.filter((b) => time - b.startedAt < maxLife);
   section.collected = section.collected.filter((c) => time - c.collectedAt < COLLECTED_TTL_MS);

@@ -25,7 +25,15 @@ export type Pickup = {
  * Hovering obstacle: `baseY` is its lowest point (just above the platform),
  * `y` bobs between baseY and baseY + bobTiles. Touching it costs points.
  */
-export type Hazard = { id: number; x: number; y: number; baseY: number; size: number; spriteKey: string; phase: number };
+export type Hazard = {
+  id: number;
+  x: number;
+  y: number;
+  baseY: number;
+  size: number;
+  spriteKey: string;
+  phase: number;
+};
 /** One star of a milestone burst, relative to the burst origin (tiles, y up). */
 export type StarParticle = { vx: number; vy: number; size: number; lifeMs: number };
 /**
@@ -114,4 +122,3 @@ export type GameEvent =
   /** Reached the exit portal of the bonus level: back to the main level. */
   | { type: 'portalExit' }
   | { type: 'gameOver' };
-

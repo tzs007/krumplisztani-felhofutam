@@ -13,12 +13,17 @@ function contentRatio(key: SpriteKey): number {
   const fw = png.width / frames;
   let best = 0;
   for (let f = 0; f < frames; f++) {
-    let minX = Infinity, minY = Infinity, maxX = -1, maxY = -1;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -1,
+      maxY = -1;
     for (let y = 0; y < png.height; y++) {
       for (let x = 0; x < fw; x++) {
         if (png.data[(y * png.width + f * fw + x) * 4 + 3]) {
-          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
         }
       }
     }

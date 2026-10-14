@@ -117,7 +117,11 @@ describe('signInWithEmail / signOut', () => {
   it('switches to the existing account', async () => {
     mockState.profileName = 'Kotkodács';
     await expect(signInWithEmail('regi@test.hu', 'secret1')).resolves.toBeNull();
-    expect(useAuthStore.getState()).toMatchObject({ userId: 'existing', email: 'regi@test.hu', displayName: 'Kotkodács' });
+    expect(useAuthStore.getState()).toMatchObject({
+      userId: 'existing',
+      email: 'regi@test.hu',
+      displayName: 'Kotkodács',
+    });
   });
 
   it('reports wrong credentials', async () => {
@@ -129,7 +133,12 @@ describe('signInWithEmail / signOut', () => {
   it('continues as a new guest after signing out', async () => {
     await expect(signOut()).resolves.toBeNull();
     expect(mockState.calls).toEqual(['signOut', 'signInAnonymously']);
-    expect(useAuthStore.getState()).toMatchObject({ status: 'signedIn', userId: 'anon-2', isAnonymous: true, email: null });
+    expect(useAuthStore.getState()).toMatchObject({
+      status: 'signedIn',
+      userId: 'anon-2',
+      isAnonymous: true,
+      email: null,
+    });
   });
 });
 

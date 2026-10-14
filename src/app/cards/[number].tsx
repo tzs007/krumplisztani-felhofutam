@@ -1,38 +1,25 @@
-import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from 'expo-image';
+import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  CARD_ASPECT,
-  CardBack,
-  CardFront,
-  FRONT_ART_ZOOM,
-  RarityBadge,
-} from "@/components/cards/CardFaces";
-import { MenuButton } from "@/components/MenuButton";
-import { ModalPanel, panelContentWidth } from "@/components/ModalPanel";
-import { Button, ButtonText } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import { VStack } from "@/components/ui/vstack";
-import { revealedCardIds } from "@/lib/cardRules";
-import { useCardsStore } from "@/store/useCardsStore";
+import { CARD_ASPECT, CardBack, CardFront, FRONT_ART_ZOOM, RarityBadge } from '@/components/cards/CardFaces';
+import { MenuButton } from '@/components/MenuButton';
+import { ModalPanel, panelContentWidth } from '@/components/ModalPanel';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { revealedCardIds } from '@/lib/cardRules';
+import { useCardsStore } from '@/store/useCardsStore';
 
 /** One card large (modal): artwork, text, rarity, serial label and its webshop page. */
 export default function CardDetailRoute() {
   const { number } = useLocalSearchParams<{ number: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const card = useCardsStore((s) =>
-    s.catalog.find((c) => c.number === Number(number)),
-  );
+  const card = useCardsStore((s) => s.catalog.find((c) => c.number === Number(number)));
   const owned = useCardsStore((s) => s.owned);
   const revealed = card ? revealedCardIds(owned).has(card.id) : false;
   const landingUrl = card?.landingUrl;
@@ -48,26 +35,19 @@ export default function CardDetailRoute() {
       {/* the frame fills the whole sheet, down to its bottom edge */}
       <ModalPanel style={styles.fullPanel}>
         <VStack space="lg" className="flex-1 items-center justify-center">
-          <View
-            style={[styles.cardBox, { width: cardWidth, height: cardHeight }]}
-          >
+          <View style={[styles.cardBox, { width: cardWidth, height: cardHeight }]}>
             {card?.imageUrl && revealed ? (
               // the artwork is the whole printed card (frame included): the frame takes the
               // image's own ratio and clips its corners, so the image itself stays square
-              <View
-                style={[
-                  styles.artFrame,
-                  { width: artWidth, height: artWidth / artAspect },
-                ]}
-              >
+              <View style={[styles.artFrame, { width: artWidth, height: artWidth / artAspect }]}>
                 <Image
                   source={{ uri: card.imageUrl }}
                   contentFit="cover"
                   accessibilityIgnoresInvertColors
                   onLoad={(e) => setArtAspect(e.source.width / e.source.height)}
                   style={{
-                    width: "100%",
-                    height: "100%",
+                    width: '100%',
+                    height: '100%',
                     transform: [{ scale: FRONT_ART_ZOOM }],
                   }}
                 />
@@ -80,22 +60,15 @@ export default function CardDetailRoute() {
           </View>
 
           {!card ? (
-            <Text className="text-center text-muted-foreground">
-              Ez a kártya nem található.
-            </Text>
+            <Text className="text-center text-muted-foreground">Ez a kártya nem található.</Text>
           ) : revealed ? (
             <VStack space="sm" className="w-full max-w-sm items-center">
-              <Text
-                size="2xl"
-                className="text-center font-heading text-foreground"
-              >
+              <Text size="2xl" className="text-center font-heading text-foreground">
                 {card.name}
               </Text>
               <RarityBadge rarity={card.rarity} />
 
-              <Text className="text-center text-foreground">
-                {card.description}
-              </Text>
+              <Text className="text-center text-foreground">{card.description}</Text>
               {landingUrl && (
                 <Button
                   className="mt-2 w-full"
@@ -109,17 +82,10 @@ export default function CardDetailRoute() {
               )}
             </VStack>
           ) : (
-            <Text className="text-center text-muted-foreground">
-              Még nem fedezted fel ezt a kártyát.
-            </Text>
+            <Text className="text-center text-muted-foreground">Még nem fedezted fel ezt a kártyát.</Text>
           )}
 
-          <MenuButton
-            art="close"
-            label="Bezárás"
-            onPress={() => router.back()}
-            style={{ width: "70%" }}
-          />
+          <MenuButton art="close" label="Bezárás" onPress={() => router.back()} style={{ width: '70%' }} />
           {/* keep the button above the home indicator */}
           <View style={{ height: insets.bottom }} />
         </VStack>
@@ -129,8 +95,8 @@ export default function CardDetailRoute() {
 }
 
 const styles = StyleSheet.create({
-  fullPanel: { flexGrow: 1, maxWidth: "100%" },
-  cardBox: { alignItems: "center", justifyContent: "center" },
+  fullPanel: { flexGrow: 1, maxWidth: '100%' },
+  cardBox: { alignItems: 'center', justifyContent: 'center' },
   // clips the artwork's corners; the image stays unrounded inside
-  artFrame: { borderRadius: 16, overflow: "hidden" },
+  artFrame: { borderRadius: 16, overflow: 'hidden' },
 });
