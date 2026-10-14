@@ -54,8 +54,10 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
     "jest-expo": "^57.0.5",
+    "lint-staged": "^17.6.0",
     "pngjs": "^7.0.0",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
@@ -72,7 +74,8 @@
     "typecheck": "tsc --noEmit",
     "sprites": "node scripts/sprites/generate.mjs",
     "menu-buttons": "node scripts/menu-buttons.mjs",
-    "format": "prettier --write src scripts"
+    "format": "prettier --write src scripts",
+    "prepare": "husky"
   },
   "private": true,
   "author": "Zsolt Takács",
@@ -92,5 +95,12 @@
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@gluestack-ui/.*|@gluestack/.*|nativewind|react-native-css|tailwind-variants|@legendapp/.*)"
     ]
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css}": "prettier --write"
+  }
 }
