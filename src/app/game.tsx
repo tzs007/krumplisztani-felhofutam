@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AppState, type LayoutChangeEvent } from "react-native";
+import { type LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,16 +17,17 @@ import {
   withEasterEggSettings,
   type EasterEgg,
 } from "@/game/easterEggs";
-import type { ActiveEffect } from "@/game/engine/effects/EffectRegistry";
 import { World } from "@/game/engine/World";
+import { feedbackFor, type HapticKind } from "@/game/feedback";
 import { useGameLoop } from "@/game/hooks/useGameLoop";
+import { useHud } from "@/game/hooks/useHud";
+import { useSprites } from "@/game/hooks/useSprites";
 import { DragInput } from "@/game/input/DragInput";
 import { TapInput } from "@/game/input/TapInput";
 import { countdownLabel } from "@/game/render/countdown";
 import { GameCanvas } from "@/game/render/GameCanvas";
-import { getLoadedSprites, loadSprites } from "@/game/render/loadSprites";
 import { buildSnapshot } from "@/game/render/snapshot";
-import { SPRITE_KEYS } from "@/game/render/sprites";
+import { useOnBackground } from "@/hooks/useOnBackground";
 import { playSound, setMusic } from "@/lib/audio";
 import { cardsForScore } from "@/lib/cardRules";
 import { connectAndSync } from "@/lib/resultsSync";
@@ -34,14 +35,21 @@ import { selectBestScore, useAppStore } from "@/store/useAppStore";
 import { useCardsStore } from "@/store/useCardsStore";
 
 type Status = "playing" | "paused" | "easterEgg" | "over";
-type HudState = {
-  score: number;
-  effects: ActiveEffect[];
-  bonusProgress: number | null;
-};
 
 const config = defaultGameConfig;
-const HUD_INTERVAL_MS = 200;
+
+function playHaptic(kind: HapticKind) {
+  if (kind === "success")
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  else
+    Haptics.impactAsync(
+      {
+        light: Haptics.ImpactFeedbackStyle.Light,
+        medium: Haptics.ImpactFeedbackStyle.Medium,
+        heavy: Haptics.ImpactFeedbackStyle.Heavy,
+      }[kind],
+    );
+}
 
 export default function GameRoute() {
   const insets = useSafeAreaInsets();
@@ -49,11 +57,7 @@ export default function GameRoute() {
     null,
   );
   const [status, setStatus] = useState<Status>("playing");
-  const [hud, setHud] = useState<HudState>({
-    score: 0,
-    effects: [],
-    bonusProgress: null,
-  });
+  const { hud, update: updateHud, reset: resetHud } = useHud();
   const [countdown, setCountdown] = useState<string | null>(null);
   // psy mode (magic mushroom): its own music while it lasts
   const [psy, setPsy] = useState(false);
@@ -63,15 +67,7 @@ export default function GameRoute() {
   const [input] = useState(() => new DragInput());
   // the same touch as a button: the bonus level jumps on a tap
   const [tap] = useState(() => new TapInput());
-  // normally decoded on the splash screen; deep links straight into /game load them here.
-  // The images are tied to the sprite order they were built for: if that order changed
-  // (a sprite was added and Fast Refresh kept this state), they are stale and reloaded.
-  const [loaded, setLoaded] = useState(() => ({
-    keys: SPRITE_KEYS,
-    images: getLoadedSprites(),
-  }));
-  const sprites = loaded.keys === SPRITE_KEYS ? loaded.images : null;
-  const hudUpdatedAt = useRef(0);
+  const sprites = useSprites();
   // psy mode as last rendered, per world: its end (not a new run) plays the backspin
   const lastPsy = useRef<{ world: World | null; on: boolean }>({
     world: null,
@@ -94,7 +90,7 @@ export default function GameRoute() {
     input.reset();
     tap.reset();
     commands.set(buildSnapshot(world, ts, canvas.height));
-    setHud({ score: 0, effects: [], bonusProgress: null });
+    resetHud();
     setCountdown(countdownLabel(world));
     setStatus("playing");
   };
@@ -113,19 +109,8 @@ export default function GameRoute() {
       playSound("countdownTick");
   }, [countdown, status]);
 
-  useEffect(() => {
-    if (!sprites)
-      loadSprites().then((images) => setLoaded({ keys: SPRITE_KEYS, images }));
-  }, [sprites]);
-
   // pause when the app goes to background
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active")
-        setStatus((s) => (s === "playing" ? "paused" : s));
-    });
-    return () => sub.remove();
-  }, []);
+  useOnBackground(() => setStatus((s) => (s === "playing" ? "paused" : s)));
 
   const finishRun = (world: World) => {
     const saved = addResult({
@@ -161,13 +146,9 @@ export default function GameRoute() {
       tap: tap.consume(),
     });
     for (const e of events) {
-      if (e.type === "pickup") {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // score card: its own sound; timed bonuses (×2, double jump): the "bonus" chime
-        playSound(e.effect === "bonus" ? "card" : "bonus");
-      }
-      if (e.type === "hit")
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      const { haptic, sound } = feedbackFor(e);
+      if (haptic) playHaptic(haptic);
+      if (sound) playSound(sound);
       if (e.type === "easterEgg") {
         const egg = getEasterEgg(e.eggId);
         if (egg) {
@@ -175,24 +156,6 @@ export default function GameRoute() {
           setFoundEgg(egg);
           setStatus("easterEgg"); // stops the loop until "Tovább"
         }
-      }
-      if (e.type === "launch")
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // every take-off: the hop out of the egg and each bounce off a platform (new or not)
-      if (e.type === "launch" || e.type === "bounce") playSound("jump");
-      if (e.type === "death")
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      if (e.type === "mushroom") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound("bonus");
-      }
-      if (e.type === "portalEnter" || e.type === "portalExit") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound("portal");
-      }
-      if (e.type === "milestone") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound("milestone");
       }
       if (e.type === "gameOver") finishRun(world);
     }
@@ -212,20 +175,7 @@ export default function GameRoute() {
     )
       playSound("backspin");
     lastPsy.current = { world, on: world.psyActive };
-    const now = Date.now();
-    if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
-      hudUpdatedAt.current = now;
-      const effects = world.effects.getActive(world.time);
-      const bonusProgress = world.bonusProgress;
-      setHud((prev) =>
-        prev.score === world.score &&
-        prev.effects.length === 0 &&
-        effects.length === 0 &&
-        prev.bonusProgress === bonusProgress
-          ? prev
-          : { score: world.score, effects, bonusProgress },
-      );
-    }
+    updateHud(world);
   };
 
   useGameLoop(
