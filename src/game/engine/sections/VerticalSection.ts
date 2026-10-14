@@ -109,6 +109,8 @@ export class VerticalSection implements Section {
   private safeUntil = -Infinity;
   /** While flying: where the finger wants the chick, in tiles above the screen bottom. */
   private flightRow = 0;
+  /** Platforms flown past in this flight: only every platformsPerPoint-th one scores. */
+  private flightPassed = 0;
   /** Set while stepping: the run this section belongs to. */
   private run: RunContext;
 
@@ -381,6 +383,7 @@ export class VerticalSection implements Section {
     if (!this.flying) {
       this.flying = true;
       this.flightRow = clamp(p.y - this.cameraY, psy.minRow, top);
+      this.flightPassed = 0;
       for (const pk of this.pickups) this.scatterFlightCard(pk);
     }
     this.steer(dt, input);
@@ -395,12 +398,15 @@ export class VerticalSection implements Section {
     p.vy = (p.y - prevY) / dt;
     p.apexY = p.y;
 
-    // every platform passed on the way up scores once
+    // platforms passed on the way up: the flight is much faster than climbing,
+    // so only every platformsPerPoint-th one scores (about the normal pace)
     for (const pl of this.platforms) {
       if (pl.y > prevY && pl.y <= p.y && !this.visited.has(pl.id)) {
         this.visited.add(pl.id);
-        run.addScore(run.scoreMultiplier);
         run.stats.platforms++;
+        this.flightPassed++;
+        if (this.flightPassed % psy.platformsPerPoint !== 0) continue;
+        run.addScore(run.scoreMultiplier);
         events.push({ type: 'land', platformId: pl.id, points: run.scoreMultiplier });
       }
     }

@@ -1,20 +1,31 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
-import { ScrollView, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
+import { ScrollView, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GameOverCards } from '@/components/cards/GameOverCards';
-import { GameOverBackground } from '@/components/game/GameOverBackground';
-import { OverlayCard } from '@/components/game/GameOverlay';
-import { Box } from '@/components/ui/box';
-import { HStack } from '@/components/ui/hstack';
-import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
-import { playSound, stopSound } from '@/lib/audio';
+import { GameOverCards } from "@/components/cards/GameOverCards";
+import { GameOverBackground } from "@/components/game/GameOverBackground";
+import { OverlayCard } from "@/components/game/GameOverlay";
+import { Box } from "@/components/ui/box";
+import { HStack } from "@/components/ui/hstack";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { playSound, stopSound } from "@/lib/audio";
 
-function FooterLink({ label, onPress }: { label: string; onPress: () => void }) {
+function FooterLink({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <Text size="sm" className="text-muted-foreground underline" onPress={onPress} accessibilityRole="link">
+    <Text
+      size="sm"
+      className="text-muted-foreground underline"
+      onPress={onPress}
+      accessibilityRole="link"
+    >
       {label}
     </Text>
   );
@@ -27,7 +38,11 @@ function FooterLink({ label, onPress }: { label: string; onPress: () => void }) 
  * run's id on this device; its cards are drawn by it).
  */
 export default function GameOverRoute() {
-  const params = useLocalSearchParams<{ score?: string; best?: string; resultId?: string }>();
+  const params = useLocalSearchParams<{
+    score?: string;
+    best?: string;
+    resultId?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const score = Number(params.score) || 0;
@@ -36,8 +51,8 @@ export default function GameOverRoute() {
 
   // the game over jingle (the music is off on this screen); cut it short when leaving
   useEffect(() => {
-    playSound('gameOver');
-    return () => stopSound('gameOver');
+    playSound("gameOver");
+    return () => stopSound("gameOver");
   }, []);
 
   return (
@@ -46,8 +61,8 @@ export default function GameOverRoute() {
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           paddingHorizontal: 32,
           paddingTop: insets.top + 16,
           // lifts the board above the centre, clear of the chick at the bottom of the art
@@ -56,14 +71,34 @@ export default function GameOverRoute() {
       >
         <OverlayCard
           title="Game Over"
-          actions={[{ label: 'Újra játszom', art: 'play-again', primary: true, onPress: () => router.replace('/game') }]}
+          actions={[
+            {
+              label: "Újra játszom",
+              art: "play-again",
+              primary: true,
+              onPress: () => router.replace("/game"),
+            },
+          ]}
           footer={
             <HStack space="sm" className="justify-center">
-              <FooterLink label="Ranglista" onPress={() => router.replace('/leaderboard')} />
-              <Text size="sm" className="text-muted-foreground">·</Text>
-              <FooterLink label="Gyűjtemény" onPress={() => router.replace('/cards')} />
-              <Text size="sm" className="text-muted-foreground">·</Text>
-              <FooterLink label="Menü" onPress={() => router.dismissTo('/menu')} />
+              <FooterLink
+                label="Ranglista"
+                onPress={() => router.replace("/leaderboard")}
+              />
+              <Text size="sm" className="text-muted-foreground">
+                ·
+              </Text>
+              <FooterLink
+                label="Gyűjtemény"
+                onPress={() => router.replace("/cards")}
+              />
+              <Text size="sm" className="text-muted-foreground">
+                ·
+              </Text>
+              <FooterLink
+                label="Menü"
+                onPress={() => router.dismissTo("/menu")}
+              />
             </HStack>
           }
         >
@@ -72,7 +107,9 @@ export default function GameOverRoute() {
               {score}
             </Text>
             <Text className="text-muted-foreground">
-              {newBest ? 'New best score!' : `Best: ${Math.max(previousBest, score)}`}
+              {newBest
+                ? "Új rekord!"
+                : `Rekord: ${Math.max(previousBest, score)}`}
             </Text>
           </VStack>
           <GameOverCards resultId={params.resultId} score={score} />

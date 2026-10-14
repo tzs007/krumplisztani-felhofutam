@@ -19,6 +19,8 @@ const config: GameConfig = {
   easterEggs: { ...defaultGameConfig.easterEggs, chancePerGame: 0 },
   portals: { ...defaultGameConfig.portals, chancePerGame: 0 },
   mushroom: { ...defaultGameConfig.mushroom, chancePerGame: 1, chunkRange: [1, 1] },
+  // the psy look itself: the switch happens at once (the swirl is tested below)
+  psy: { ...defaultGameConfig.psy, swirlMs: 0 },
 };
 const items: LevelChunk = { id: 'items', difficulty: 0, map: ['.........', '..K.X.O..', '..#####..'] };
 const start: LevelChunk = { id: 'start', difficulty: 0, map: ['.........', '....P....', '#########'] };
@@ -93,16 +95,40 @@ describe('psy look', () => {
     expect(Math.min(...sizes)).toBeCloseTo(Math.round(T * 2 ** -config.psy.zAmplitude), 0);
   });
 
-  it('flashes white when the mode switches', () => {
-    const world = makeWorld();
+  it('blurs the chick only while it is further than normal, most at the farthest', () => {
+    const world = psyWorld();
+    let farthest = { w: Infinity, blur: 0 };
+    for (let i = 0; i < 30; i++) {
+      run(world, 0.1);
+      const chick = commands(world).find((c) => c.key === 'player_psy')!;
+      expect(chick.op).toBe(Op.psyPlayer);
+      if (chick.w >= T) expect(chick.frame).toBe(0);
+      else expect(chick.frame).toBeGreaterThan(0);
+      if (chick.w < farthest.w) farthest = { w: chick.w, blur: chick.frame / 1000 };
+    }
+    expect(farthest.blur).toBeCloseTo(config.psy.farBlur * T, 1);
+  });
+
+  it('covers the switch with a swirl from the chick that grows over the screen and shrinks back', () => {
+    const swirlConfig: GameConfig = { ...config, psy: { ...config.psy, swirlMs: 1200 } };
+    const world = new World({ config: swirlConfig, viewHeight: SCREEN_H / T, rng: createRng(1), chunks: [items], startChunk: start });
     world.effects.trigger('psy', world.time);
-    run(world, DT * 2);
-    const last = commands(world).at(-1)!;
-    expect(last.op).toBe(Op.fillAlpha);
-    expect(last.arg).toBe(Color.white);
-    expect(last.frame).toBeGreaterThan(300);
-    run(world, config.psy.flashMs / 1000);
-    expect(commands(world).at(-1)!.op).not.toBe(Op.fillAlpha);
+    const radii: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      run(world, 0.1);
+      const swirl = commands(world).find((c) => c.op === Op.swirl);
+      radii.push(swirl ? swirl.w : 0);
+    }
+    // grows to beyond the screen's diagonal around the middle, then back to nothing
+    const peak = Math.max(...radii);
+    expect(peak).toBeGreaterThan(Math.hypot(swirlConfig.columns * T, SCREEN_H) / 2);
+    const top = radii.indexOf(peak);
+    expect(top).toBeGreaterThan(2);
+    expect(top).toBeLessThan(9);
+    expect(radii[0]).toBeLessThan(peak / 4);
+    expect(radii.at(-1)!).toBeLessThan(peak / 4);
+    run(world, 0.1);
+    expect(commands(world).some((c) => c.op === Op.swirl)).toBe(false);
   });
 });
 

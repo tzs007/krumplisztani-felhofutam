@@ -51,8 +51,12 @@ export class World implements RunContext {
   milestonesReached = 0;
   /** Psy mode (magic mushroom) is on: the main level flies instead of bouncing, looks different. */
   psyActive = false;
-  /** Game time (ms) the psy mode last switched on or off (drives the switch flash). */
-  psyChangedAt = -Infinity;
+  /**
+   * Psy mode switching on or off: everything stands still while a swirl grows
+   * from the chick (centre in level tiles) until it covers the screen, the mode
+   * switches (`switched`), and the swirl shrinks back.
+   */
+  psySwirl: { to: boolean; startedAt: number; switched: boolean; x: number; y: number } | null = null;
   /** Sun / moon angle (degrees) when the run started, from the real time of day. */
   readonly skyStartAngle: number;
   readonly main: VerticalSection;
@@ -84,10 +88,7 @@ export class World implements RunContext {
       addScore: (n) => (this.score += n),
       setScoreMultiplier: (m) => (this.scoreMultiplier = m),
       setJumpMultiplier: (m) => (this.jumpMultiplier = m),
-      setPsy: (on) => {
-        this.psyActive = on;
-        this.psyChangedAt = this.time;
-      },
+      setPsy: (on) => this.startPsySwirl(on),
     };
     this.effects = new EffectRegistry(ctx)
       .register(addBonus(config.effects.coinBonus))
@@ -112,6 +113,10 @@ export class World implements RunContext {
     this.time += dtSeconds * 1000;
     if (this.transition) {
       this.stepTransition();
+      return [];
+    }
+    if (this.psySwirl) {
+      this.stepPsySwirl();
       return [];
     }
     const events = this.active.step(dtSeconds, input, this);
@@ -142,6 +147,12 @@ export class World implements RunContext {
     return k < 0.5 ? k * 2 : (1 - k) * 2;
   }
 
+  /** How far along the psy swirl is (0 = just started … 1 = done), or null when there is none. */
+  psySwirlProgress(): number | null {
+    if (!this.psySwirl) return null;
+    return Math.min(1, (this.time - this.psySwirl.startedAt) / this.swirlMs);
+  }
+
   /** How far along the bonus level (0–1) while in it, otherwise null. */
   get bonusProgress(): number | null {
     return this.active === this.bonus && this.bonus ? this.bonus.progress : null;
@@ -163,6 +174,37 @@ export class World implements RunContext {
       this.active.enter(this);
     }
     if (elapsed >= duration) this.transition = null;
+  }
+
+  /** The swirl's length; a config without it (or a bad value) switches at once rather than freezing the game. */
+  private get swirlMs(): number {
+    const ms = this.config.psy.swirlMs;
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+  }
+
+  private startPsySwirl(on: boolean) {
+    if (on === this.psyActive && !this.psySwirl) return;
+    if (this.swirlMs <= 0) {
+      this.psyActive = on;
+      return;
+    }
+    const p = this.player;
+    this.psySwirl = { to: on, startedAt: this.time, switched: false, x: p.x + p.w / 2, y: p.y + p.h / 2 };
+  }
+
+  private stepPsySwirl() {
+    const s = this.psySwirl!;
+    const elapsed = this.time - s.startedAt;
+    const duration = this.swirlMs;
+    if (!s.switched && elapsed >= duration / 2) {
+      s.switched = true;
+      this.psyActive = s.to;
+    }
+    if (elapsed >= duration) {
+      this.psySwirl = null;
+      // the psy time starts once the swirl is gone: the frozen time doesn't count
+      if (s.to) this.effects.extend('psy', duration);
+    }
   }
 
   private checkMilestones(events: GameEvent[]) {

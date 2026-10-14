@@ -19,7 +19,15 @@ import { AppState } from 'react-native';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 export type MusicTrack = 'menu' | 'game' | 'psy';
-export type SoundEffect = 'jump' | 'card' | 'bonus' | 'milestone' | 'gameOver' | 'countdownTick' | 'portal';
+export type SoundEffect =
+  | 'jump'
+  | 'card'
+  | 'bonus'
+  | 'milestone'
+  | 'gameOver'
+  | 'countdownTick'
+  | 'portal'
+  | 'backspin';
 
 const MUSIC: Record<MusicTrack, number> = {
   menu: require('@/assets/sounds/music_menu.m4a'),
@@ -38,11 +46,17 @@ const EFFECTS: Record<SoundEffect, number> = {
   countdownTick: require('@/assets/sounds/sfx_countdown_tick.m4a'),
   // until a portal sound of its own arrives: the bonus chime
   portal: require('@/assets/sounds/sfx_bonus.m4a'),
+  // the end of psy mode, back on the normal level
+  backspin: require('@/assets/sounds/sfx_backspin.m4a'),
 };
 /** Players per effect: how many of the same sound may overlap (the jump repeats faster than it fades). */
 const VOICES: Partial<Record<SoundEffect, number>> = { jump: 3 };
 const DEFAULT_VOICES = 2;
+/** Effects quieter than full volume. */
+const EFFECT_VOLUME: Partial<Record<SoundEffect, number>> = { backspin: 0.5, card: 0.7, jump: 0.7, bonus: 0.6 };
 const MUSIC_VOLUME = 0.5;
+/** Tracks louder (or quieter) than the default music volume. */
+const TRACK_VOLUME: Partial<Record<MusicTrack, number>> = { game: 0.7, psy: 1 };
 
 type ExpoAudio = typeof import('expo-audio');
 let audio: ExpoAudio | null | undefined;
@@ -101,7 +115,7 @@ function applyMusic() {
   }
   if (musicEnded) return;
   musicPlayer.loop = !ONCE.has(wantedTrack);
-  musicPlayer.volume = MUSIC_VOLUME;
+  musicPlayer.volume = TRACK_VOLUME[wantedTrack] ?? MUSIC_VOLUME;
   musicPlayer.play();
 }
 
@@ -124,9 +138,14 @@ function voicesOf(effect: SoundEffect): AudioPlayer[] | null {
   if (!list) {
     list = Array.from({ length: VOICES[effect] ?? DEFAULT_VOICES }, () => {
       const player = a.createAudioPlayer(EFFECTS[effect]);
-      // a finished effect stays at its end: rewind it right away, so the next play can start at once
+      player.volume = EFFECT_VOLUME[effect] ?? 1;
+      // a finished effect stays at its end: rewind it right away, so the next play can start at once.
+      // Paused first: on Android the player still "plays" at its end, so a bare seek starts it over
+      // (and the next finish rewinds it again: an endless loop)
       player.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) player.seekTo(0).catch(() => {});
+        if (!status.didJustFinish) return;
+        player.pause();
+        player.seekTo(0).catch(() => {});
       });
       return player;
     });

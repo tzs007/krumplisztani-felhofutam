@@ -6,8 +6,11 @@ import { VStack } from '@/components/ui/vstack';
 
 type Props = TextInputProps & { label: string };
 
-/** Labelled single-line text input in the app's card style. */
-export const TextField = forwardRef<TextInput, Props>(function TextField({ label, editable = true, ...props }, ref) {
+/** The parchment's light brown (the middle of modal-bg.png): the text on the dark field. */
+const PARCHMENT = '#F9EDD4';
+
+/** Labelled single-line text input: a dark field with parchment-coloured text, on the framed parchment panels. */
+export const TextField = forwardRef<TextInput, Props>(function TextField({ label, editable = true, style, ...props }, ref) {
   return (
     <VStack space="xs">
       <Text size="sm" bold className="text-muted-foreground">
@@ -17,7 +20,9 @@ export const TextField = forwardRef<TextInput, Props>(function TextField({ label
         ref={ref}
         editable={editable}
         placeholderTextColor="#a3a3a3"
-        className={`rounded-md border border-border bg-background px-3 py-3 text-base text-foreground ${editable ? '' : 'opacity-50'}`}
+        selectionColor={PARCHMENT}
+        className={`rounded-md border border-border px-3 py-3 text-base ${editable ? '' : 'opacity-50'}`}
+        style={[{ backgroundColor: '#000000', color: PARCHMENT }, style]}
         {...props}
       />
     </VStack>

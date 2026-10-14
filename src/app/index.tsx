@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { readableOnArt, SplashBackground } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
-import { Heading } from "@/components/ui/heading";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
@@ -61,19 +60,12 @@ export default function SplashRoute() {
       {/* swap the native splash for this screen only once the picture is on screen */}
       <SplashBackground onDisplay={() => SplashScreen.hideAsync()} />
       <VStack
-        className="flex-1 items-center justify-between px-6"
+        className="flex-1 items-center justify-end px-6"
         style={{
           paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + 32,
         }}
       >
-        <Heading
-          size="3xl"
-          className="text-center text-sky-foreground"
-          style={readableOnArt}
-        >
-          Krumplisztáni Felhőfutam: Hiperventi Kalandjai
-        </Heading>
         <VStack space="sm" className="items-center">
           <Spinner size="large" className="text-sky-foreground" />
           <Text className="text-sky-foreground" style={readableOnArt}>

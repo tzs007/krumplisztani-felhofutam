@@ -22,6 +22,10 @@ import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIn
  *  op 8 = see-through fill (arg = palette color, frame slot = opacity × 1000;  x, y, w, h)
  *  op 9 = backdrop with turned colours (as op 5; frame slot = hue in degrees, frames slot =
  *         brightness gain × 1000) — the psy mode's rainbow vision
+ *  op 10 = the flying psy chick (arg = sprite index, frame slot = blur sigma in px × 1000;
+ *         x, y, w, h): blurred as it moves away
+ *  op 11 = psy swirl (arg = sprite index, frame slot = turn in degrees;  centre x, centre y, radius, _):
+ *         the swirl art that covers the psy mode switching on and off; its solid part reaches the radius
  */
 export const Op = {
   fill: 0,
@@ -34,8 +38,12 @@ export const Op = {
   tile: 7,
   fillAlpha: 8,
   backdropHue: 9,
+  psyPlayer: 10,
+  swirl: 11,
 } as const;
 export const STRIDE = 8;
+/** How far the swirl turns while it plays (degrees). */
+const SWIRL_TURN_DEG = 720;
 /** Sprite px per tile (fixed pixel density of the art). */
 const TILE_PX = 128;
 /** Platform art may reach this many tiles below the walkable top (for culling). */
@@ -188,12 +196,17 @@ export function buildSnapshot(world: World, tileSize: number, screenHeight: numb
   const out = bonus
     ? snapshotSide(world, bonus, screenWidth, screenHeight)
     : snapshotVertical(world, tileSize, screenHeight);
-  // psy mode switched on or off: a white flash fading out
-  const sinceSwitch = world.time - world.psyChangedAt;
-  const { flashMs } = world.config.psy;
-  if (!bonus && sinceSwitch >= 0 && sinceSwitch < flashMs) {
-    const flash = (1 - sinceSwitch / flashMs) * 0.8;
-    out.push(Op.fillAlpha, Color.white, Math.round(flash * 1000), 1, 0, 0, screenWidth, screenHeight);
+  // psy mode switching on or off: the swirl grows from the chick until it covers the screen, then shrinks back
+  const swirl = world.psySwirl;
+  const k = world.psySwirlProgress();
+  if (!bonus && swirl && k !== null) {
+    const cx = swirl.x * tileSize;
+    const cy = screenHeight - (swirl.y - world.cameraY) * tileSize;
+    // far enough to reach the farthest corner
+    const cover = Math.hypot(Math.max(cx, screenWidth - cx), Math.max(cy, screenHeight - cy)) * 1.05;
+    const half = k < 0.5 ? k * 2 : (1 - k) * 2;
+    const radius = cover * half * half * (3 - 2 * half);
+    out.push(Op.swirl, spriteIndex('swirl'), Math.round(k * SWIRL_TURN_DEG), 1, cx, cy, radius, 0);
   }
   const alpha = world.transitionAlpha();
   if (alpha > 0) out.push(Op.fillAlpha, Color.black, Math.round(alpha * 1000), 1, 0, 0, screenWidth, screenHeight);
@@ -326,13 +339,18 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   const { hurtPoseMs } = world.config.hazards;
   if (psy) {
     // flying: the psy chick, growing and shrinking as if it came closer and went away (depth)
-    const { zAmplitude, zPeriodMs } = world.config.psy;
-    const z = 2 ** (zAmplitude * Math.sin((world.time / zPeriodMs) * 2 * Math.PI));
+    const { zAmplitude, zPeriodMs, farBlur } = world.config.psy;
+    const depth = Math.sin((world.time / zPeriodMs) * 2 * Math.PI);
+    const z = 2 ** (zAmplitude * depth);
     const size = t * z;
+    // out of focus while further than normal: none at normal size, farBlur at the farthest
+    const blur = depth < 0 ? -depth * farBlur * t : 0;
     const cx = (p.x + p.w / 2) * t;
     const cy = sy(p.y + p.h / 2);
-    sprite(op, 'player_psy', world.time, cx - size / 2, cy - size / 2, size, size);
-    if (p.x + p.w > cols) sprite(op, 'player_psy', world.time, cx - cols * t - size / 2, cy - size / 2, size, size);
+    const chick = (x: number) =>
+      out.push(Op.psyPlayer, spriteIndex('player_psy'), Math.round(blur * 1000), 1, x, cy - size / 2, size, size);
+    chick(cx - size / 2);
+    if (p.x + p.w > cols) chick(cx - cols * t - size / 2);
   }
   // dying: skeleton (hurt) pose all the way down, no squash/stretch
   const key = world.dying

@@ -168,7 +168,12 @@ export default function LeaderboardRoute() {
       <SkyBackground />
       <HStack className="items-center justify-between px-4 py-3">
         {/* keeps the title centred */}
-        <View style={{ width: BACK_WIDTH }} />
+        <MenuButton
+          art="back"
+          label="Vissza"
+          onPress={() => router.back()}
+          style={{ width: BACK_WIDTH }}
+        />
         <Heading
           size="xl"
           className="text-sky-foreground"
@@ -176,20 +181,7 @@ export default function LeaderboardRoute() {
         >
           Ranglista
         </Heading>
-        <MenuButton
-          art="back"
-          label="Vissza"
-          onPress={() => router.back()}
-          style={{ width: BACK_WIDTH }}
-        />
-        {/* <Button
-          variant="secondary"
-          size="sm"
-          isDisabled={tab !== 'mine' || history.length === 0}
-          onPress={confirmClear}
-        >
-          <ButtonText>Clear</ButtonText>
-        </Button> */}
+        <View style={{ width: BACK_WIDTH }} />
       </HStack>
 
       <HStack space="sm" className="px-4 pb-2">

@@ -13,6 +13,8 @@ const config: GameConfig = {
   easterEggs: { ...defaultGameConfig.easterEggs, chancePerGame: 0 },
   portals: { ...defaultGameConfig.portals, chancePerGame: 0 },
   mushroom: { ...defaultGameConfig.mushroom, chancePerGame: 0 },
+  // the flight itself: the switch happens at once (the swirl has its own tests)
+  psy: { ...defaultGameConfig.psy, swirlMs: 0 },
 };
 
 // a platform every 3 rows
@@ -89,14 +91,16 @@ describe('psy flight', () => {
     expect(world.dying).toBe(false);
   });
 
-  it('scores each platform it flies past, once, without touching it', () => {
+  it('scores every platformsPerPoint-th platform it flies past, without touching it', () => {
     const world = makeWorld();
     const score0 = world.score;
+    const platforms0 = world.stats.platforms;
     const events = run(world, 3);
-    const passed = events.filter((e) => e.type === 'land').length;
+    const passed = world.stats.platforms - platforms0;
     // ~12 tiles climbed, a platform every 3 rows
     expect(passed).toBeGreaterThanOrEqual(3);
-    expect(world.score - score0).toBe(passed);
+    expect(world.score - score0).toBe(Math.floor(passed / config.psy.platformsPerPoint));
+    expect(events.filter((e) => e.type === 'land')).toHaveLength(world.score - score0);
     expect(events.filter((e) => e.type === 'bounce')).toHaveLength(0);
   });
 

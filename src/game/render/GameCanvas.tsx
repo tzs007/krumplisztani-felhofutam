@@ -6,6 +6,7 @@ import {
   PaintStyle,
   Picture,
   Skia,
+  TileMode,
   useAnimatedImageValue,
   type SkImage,
 } from '@shopify/react-native-skia';
@@ -14,8 +15,7 @@ import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import { Color, palette } from '@/theme/colors';
 
 import { hueMatrix } from './colorMatrix';
-import { STRIDE } from './snapshot';
-import { spriteIndex } from './sprites';
+import { Op, STRIDE } from './snapshot';
 
 type Props = {
   width: number;
@@ -27,9 +27,10 @@ type Props = {
 };
 
 const colors = palette.map((c) => Skia.Color(c));
+/** The swirl art is solid out to this part of its half size: drawn so that part reaches the given radius. */
+const SWIRL_SOLID = 0.5;
 /** Fixed pixel density: this many px of frame height = the size the snapshot asked for. */
 const BASE_FRAME_PX = 128;
-const PSY_PLAYER = spriteIndex('player_psy');
 const nyanCatSource = require('@/assets/sprite-sources/nyan-cat-rainbow.gif');
 // Fixed bounds across all 24 frames: cat + rainbow, excluding distant sparkles.
 const NYAN_CROP = { x: 0, y: 90, width: 240, height: 130 };
@@ -71,6 +72,20 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
           paint.setAlphaf(frame / 1000);
           canvas.drawRect(Skia.XYWHRect(x, y, w, h), paint);
           paint.setAlphaf(1);
+          continue;
+        }
+
+        if (op === Op.swirl) {
+          // the swirl art around centre (x, y), turned by `frame` degrees; its solid part reaches radius w
+          const img = sprites[arg];
+          if (!img || w <= 0) continue;
+          const half = w / SWIRL_SOLID;
+          canvas.save();
+          canvas.translate(x, y);
+          canvas.rotate(frame, 0, 0);
+          const src = Skia.XYWHRect(0, 0, img.width(), img.height());
+          canvas.drawImageRectOptions(img, src, Skia.XYWHRect(-half, -half, 2 * half, 2 * half), FilterMode.Nearest, MipmapMode.None);
+          canvas.restore();
           continue;
         }
 
@@ -123,8 +138,11 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
           continue;
         }
 
-        if (op === 3 || op === 4) {
-          if (arg === PSY_PLAYER && nyanImage) {
+        if (op === Op.psyPlayer) {
+          // blurred as it moves away: sigma in px travels in the frame slot (× 1000)
+          const blurPaint = Skia.Paint();
+          if (frame > 0) blurPaint.setImageFilter(Skia.ImageFilter.MakeBlur(frame / 1000, frame / 1000, TileMode.Decal, null));
+          if (nyanImage) {
             // Rotate the cropped GIF counterclockwise around the cat body.
             // Keep the cat facing up regardless of horizontal movement.
             const scale = w / NYAN_CROP.height;
@@ -142,10 +160,21 @@ export function GameCanvas({ width, height, commands, sprites }: Props) {
               ),
               FilterMode.Nearest,
               MipmapMode.None,
+              blurPaint,
             );
             canvas.restore();
             continue;
           }
+          // GIF not decoded yet: the still psy chick
+          const img = sprites[arg];
+          if (img) {
+            const src = Skia.XYWHRect(0, 0, img.width(), img.height());
+            canvas.drawImageRectOptions(img, src, Skia.XYWHRect(x, y, w, h), FilterMode.Nearest, MipmapMode.None, blurPaint);
+          }
+          continue;
+        }
+
+        if (op === 3 || op === 4) {
           const img = sprites[arg];
           if (!img) {
             paint.setStyle(PaintStyle.Fill);

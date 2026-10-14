@@ -49,6 +49,12 @@ export class EffectRegistry {
     }
   }
 
+  /** Pushes an active timed effect's end later (e.g. by a pause that ran on the game clock). */
+  extend(id: EffectId, ms: number): void {
+    const a = this.active.get(id);
+    if (a) a.expiresAt += ms;
+  }
+
   tick(now: number): void {
     for (const [id, { expiresAt }] of this.active) {
       if (now >= expiresAt) {

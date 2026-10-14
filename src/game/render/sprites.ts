@@ -67,6 +67,8 @@ export const spriteSources = {
   psy_cloud: require('@/assets/sprites/psy_cloud.png'),
   bg_psy: require('@/assets/images/psy-bg.png'),
   player_psy: require('@/assets/sprites/player_psy.png'),
+  // covers the psy mode switching on and off (turned and zoomed by the renderer)
+  swirl: require('@/assets/sprites/swirl.png'),
   bg_sky: require('@/assets/sprites/bg_sky.png'),
   effect_star: require('@/assets/sprites/effect_star.png'),
   // placeholder art (generated) until a drawn portal arrives

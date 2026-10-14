@@ -48,6 +48,8 @@ describe('sky in the main level', () => {
     ...defaultGameConfig,
     start: { ...defaultGameConfig.start, countdownMs: 0 },
     mushroom: { ...defaultGameConfig.mushroom, chancePerGame: 0 },
+    // psy mode switches at once (no swirl)
+    psy: { ...defaultGameConfig.psy, swirlMs: 0 },
   };
   const sunCmd = (world: World) => {
     const raw = buildSnapshot(world, W / config.columns, H);

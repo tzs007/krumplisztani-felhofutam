@@ -8,24 +8,30 @@ import { ScreenHeader } from '@/components/account/ScreenHeader';
 import { TextField } from '@/components/account/TextField';
 import { SkyBackground } from '@/components/SkyBackground';
 import { Box } from '@/components/ui/box';
+import { MenuButton } from '@/components/MenuButton';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
-import { Paper } from '@/components/Paper';
+import { VStack } from '@/components/ui/vstack';
+import { ModalPanel } from '@/components/ModalPanel';
 import { NAME_MAX } from '@/lib/accountForm';
 import { ensureSignedIn, saveAccount, signOut, updateDisplayName } from '@/lib/auth';
 import { connectAndSync } from '@/lib/resultsSync';
 import { useAuthStore } from '@/store/useAuthStore';
 
+
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Paper className="gap-3 rounded-lg p-4">
-      <Heading size="md" className="text-foreground">
-        {title}
-      </Heading>
-      {children}
-    </Paper>
+    // the gold-framed parchment of the modals, centred at its maximum width
+    <ModalPanel style={{ alignSelf: 'center' }}>
+      <VStack space="md">
+        <Heading size="md" className="text-foreground">
+          {title}
+        </Heading>
+        {children}
+      </VStack>
+    </ModalPanel>
   );
 }
 
@@ -64,9 +70,7 @@ function NameCard() {
         onSubmitEditing={() => changed && save()}
       />
       <FormMessage {...msg} />
-      <Button isDisabled={!changed || busy} onPress={save}>
-        <ButtonText>{busy ? 'Mentés…' : 'Név mentése'}</ButtonText>
-      </Button>
+      <MenuButton art="save-name" label={busy ? 'Mentés…' : 'Név mentése'} disabled={!changed || busy} onPress={save} />
     </Card>
   );
 }
@@ -115,9 +119,7 @@ function SaveAccountCard() {
         onSubmitEditing={submit}
       />
       <FormMessage error={error} />
-      <Button isDisabled={busy} onPress={submit}>
-        <ButtonText>{busy ? 'Mentés…' : 'Fiók mentése'}</ButtonText>
-      </Button>
+      <MenuButton art="save-account" label={busy ? 'Mentés…' : 'Fiók mentése'} disabled={busy} onPress={submit} />
       <Button variant="link" onPress={() => router.push('/login')}>
         <ButtonText>Van már fiókod? Belépés</ButtonText>
       </Button>

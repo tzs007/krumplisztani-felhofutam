@@ -148,6 +148,8 @@ export type GameConfig = {
   psy: {
     /** The camera climbs this fast (tiles/s); the chick flies along. */
     riseSpeed: number;
+    /** Flying past this many platforms scores one point (the flight is much faster than climbing). */
+    platformsPerPoint: number;
     /** The chick stays at least this far above the screen bottom (tiles). */
     minRow: number;
     /** … and at least this far below the screen top (room for the HUD). */
@@ -156,12 +158,14 @@ export type GameConfig = {
     zAmplitude: number;
     /** … over this period (ms). */
     zPeriodMs: number;
+    /** Blur (Gaussian sigma, tiles) at the farthest point; none from normal size up. */
+    farBlur: number;
     /** Horizontal spring frequency while flying (lower = slower response). */
     followFrequency: number;
     /** Vertical target follow rate while flying (1/s). */
     verticalFollow: number;
-    /** Flash when the mode switches on or off (ms). */
-    flashMs: number;
+    /** The swirl that covers the switch on and off (ms; the game stands still meanwhile, 0 = switch at once). */
+    swirlMs: number;
     /** The backdrop's colours turn around the rainbow this fast (degrees/s) … */
     hueDegPerSecond: number;
     /** … and pulse brighter / darker by this fraction … */
@@ -345,13 +349,15 @@ export const defaultGameConfig: GameConfig = {
   },
   psy: {
     riseSpeed: 24,
+    platformsPerPoint: 3,
     minRow: 1.5,
     topMargin: 3,
     zAmplitude: 1,
     zPeriodMs: 3000,
+    farBlur: 0.025,
     followFrequency: 7,
     verticalFollow: 6,
-    flashMs: 400,
+    swirlMs: 2000,
     hueDegPerSecond: 90,
     pulseGain: 0.18,
     pulsePeriodMs: 1200,

@@ -10,20 +10,19 @@ import { VStack } from "@/components/ui/vstack";
 import { selectBestScore, useAppStore } from "@/store/useAppStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
 
-/** Where the buttons may go, as parts of the screen height: below the logo, above the chick (both are in splash-bg). */
-const BAND_TOP = 0.32;
-const BAND_BOTTOM = 0.7;
+/** The buttons' height as a part of the screen height (sizes them; the menu sits in the middle). */
+const BAND_HEIGHT = 0.38;
 const GAP = 1;
 /** The settings toggles are this much smaller than the main buttons. */
 const TOGGLE_SCALE = 0.6;
 
-/** Main menu over the splash illustration; buttons between the logo and the chick. */
+/** Main menu over the splash illustration, in the middle of the screen. */
 export default function MenuRoute() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   // four main buttons and the toggle row fill the band (5 gaps), at most 230 pt wide
   const rowHeight =
-    ((BAND_BOTTOM - BAND_TOP) * height - 5 * GAP) / (4 + TOGGLE_SCALE);
+    (BAND_HEIGHT * height - 5 * GAP) / (4 + TOGGLE_SCALE);
   const buttonWidth = Math.min(rowHeight * MENU_BUTTON_ASPECT, 230, width - 64);
   const best = useAppStore(selectBestScore);
   const { musicOn, soundsOn, setMusicOn, setSoundsOn } = useSettingsStore();
@@ -32,8 +31,8 @@ export default function MenuRoute() {
     <Box className="flex-1 bg-sky">
       <SplashBackground />
       <VStack
-        className="flex-1 items-center"
-        style={{ paddingTop: Math.max(insets.top, BAND_TOP * height) }}
+        className="flex-1 items-center justify-center"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <VStack style={{ width: buttonWidth, gap: GAP }}>
           <MenuButton

@@ -1,45 +1,59 @@
-import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AppState, type LayoutChangeEvent } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useSharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Countdown } from '@/components/game/Countdown';
-import { EasterEggModal } from '@/components/game/EasterEggModal';
-import { GameOverlay } from '@/components/game/GameOverlay';
-import { Hud } from '@/components/game/Hud';
-import { Box } from '@/components/ui/box';
-import { defaultGameConfig } from '@/game/config';
-import { getEasterEgg, withEasterEggSettings, type EasterEgg } from '@/game/easterEggs';
-import type { ActiveEffect } from '@/game/engine/effects/EffectRegistry';
-import { World } from '@/game/engine/World';
-import { useGameLoop } from '@/game/hooks/useGameLoop';
-import { DragInput } from '@/game/input/DragInput';
-import { TapInput } from '@/game/input/TapInput';
-import { GameCanvas } from '@/game/render/GameCanvas';
-import { getLoadedSprites, loadSprites } from '@/game/render/loadSprites';
-import { SPRITE_KEYS } from '@/game/render/sprites';
-import { countdownLabel } from '@/game/render/countdown';
-import { cardsForScore } from '@/lib/cardRules';
-import { playSound, setMusic } from '@/lib/audio';
-import { buildSnapshot } from '@/game/render/snapshot';
-import { connectAndSync } from '@/lib/resultsSync';
-import { selectBestScore, useAppStore } from '@/store/useAppStore';
-import { useCardsStore } from '@/store/useCardsStore';
+import { Countdown } from "@/components/game/Countdown";
+import { EasterEggModal } from "@/components/game/EasterEggModal";
+import { GameOverlay } from "@/components/game/GameOverlay";
+import { Hud } from "@/components/game/Hud";
+import { Box } from "@/components/ui/box";
+import { defaultGameConfig } from "@/game/config";
+import {
+  getEasterEgg,
+  withEasterEggSettings,
+  type EasterEgg,
+} from "@/game/easterEggs";
+import type { ActiveEffect } from "@/game/engine/effects/EffectRegistry";
+import { World } from "@/game/engine/World";
+import { useGameLoop } from "@/game/hooks/useGameLoop";
+import { DragInput } from "@/game/input/DragInput";
+import { TapInput } from "@/game/input/TapInput";
+import { countdownLabel } from "@/game/render/countdown";
+import { GameCanvas } from "@/game/render/GameCanvas";
+import { getLoadedSprites, loadSprites } from "@/game/render/loadSprites";
+import { buildSnapshot } from "@/game/render/snapshot";
+import { SPRITE_KEYS } from "@/game/render/sprites";
+import { playSound, setMusic } from "@/lib/audio";
+import { cardsForScore } from "@/lib/cardRules";
+import { connectAndSync } from "@/lib/resultsSync";
+import { selectBestScore, useAppStore } from "@/store/useAppStore";
+import { useCardsStore } from "@/store/useCardsStore";
 
-type Status = 'playing' | 'paused' | 'easterEgg' | 'over';
-type HudState = { score: number; effects: ActiveEffect[]; bonusProgress: number | null };
+type Status = "playing" | "paused" | "easterEgg" | "over";
+type HudState = {
+  score: number;
+  effects: ActiveEffect[];
+  bonusProgress: number | null;
+};
 
 const config = defaultGameConfig;
 const HUD_INTERVAL_MS = 200;
 
 export default function GameRoute() {
   const insets = useSafeAreaInsets();
-  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
-  const [status, setStatus] = useState<Status>('playing');
-  const [hud, setHud] = useState<HudState>({ score: 0, effects: [], bonusProgress: null });
+  const [size, setSize] = useState<{ width: number; height: number } | null>(
+    null,
+  );
+  const [status, setStatus] = useState<Status>("playing");
+  const [hud, setHud] = useState<HudState>({
+    score: 0,
+    effects: [],
+    bonusProgress: null,
+  });
   const [countdown, setCountdown] = useState<string | null>(null);
   // psy mode (magic mushroom): its own music while it lasts
   const [psy, setPsy] = useState(false);
@@ -52,9 +66,17 @@ export default function GameRoute() {
   // normally decoded on the splash screen; deep links straight into /game load them here.
   // The images are tied to the sprite order they were built for: if that order changed
   // (a sprite was added and Fast Refresh kept this state), they are stale and reloaded.
-  const [loaded, setLoaded] = useState(() => ({ keys: SPRITE_KEYS, images: getLoadedSprites() }));
+  const [loaded, setLoaded] = useState(() => ({
+    keys: SPRITE_KEYS,
+    images: getLoadedSprites(),
+  }));
   const sprites = loaded.keys === SPRITE_KEYS ? loaded.images : null;
   const hudUpdatedAt = useRef(0);
+  // psy mode as last rendered, per world: its end (not a new run) plays the backspin
+  const lastPsy = useRef<{ world: World | null; on: boolean }>({
+    world: null,
+    on: false,
+  });
   const commands = useSharedValue<number[]>([]);
   const addResult = useAppStore((s) => s.addResult);
   const bestScore = useAppStore(selectBestScore);
@@ -64,14 +86,17 @@ export default function GameRoute() {
   const startRun = (canvas: { width: number; height: number }) => {
     const ts = canvas.width / config.columns;
     // downloaded easter egg drop-rate settings (if any) apply from this run on
-    const world = new World({ config: withEasterEggSettings(config), viewHeight: canvas.height / ts });
+    const world = new World({
+      config: withEasterEggSettings(config),
+      viewHeight: canvas.height / ts,
+    });
     worldRef.current = world;
     input.reset();
     tap.reset();
     commands.set(buildSnapshot(world, ts, canvas.height));
     setHud({ score: 0, effects: [], bonusProgress: null });
     setCountdown(countdownLabel(world));
-    setStatus('playing');
+    setStatus("playing");
   };
 
   const restart = () => {
@@ -79,22 +104,25 @@ export default function GameRoute() {
   };
 
   useEffect(() => {
-    setMusic(psy ? 'psy' : 'game');
+    setMusic(psy ? "psy" : "game");
   }, [psy]);
 
   // a tick on each number of the start countdown (3, 2, 1)
   useEffect(() => {
-    if (countdown && countdown !== 'GO!' && status === 'playing') playSound('countdownTick');
+    if (countdown && countdown !== "GO!" && status === "playing")
+      playSound("countdownTick");
   }, [countdown, status]);
 
   useEffect(() => {
-    if (!sprites) loadSprites().then((images) => setLoaded({ keys: SPRITE_KEYS, images }));
+    if (!sprites)
+      loadSprites().then((images) => setLoaded({ keys: SPRITE_KEYS, images }));
   }, [sprites]);
 
   // pause when the app goes to background
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') setStatus((s) => (s === 'playing' ? 'paused' : s));
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active")
+        setStatus((s) => (s === "playing" ? "paused" : s));
     });
     return () => sub.remove();
   }, []);
@@ -108,54 +136,65 @@ export default function GameRoute() {
       playedAt: Date.now(),
     });
     // the cards it earned are kept even if the app closes before they're drawn
-    if (cardsForScore(saved.score) > 0) useCardsStore.getState().addClaim(saved.id);
+    if (cardsForScore(saved.score) > 0)
+      useCardsStore.getState().addClaim(saved.id);
     // upload it (plus anything queued while offline), signing in first if that failed earlier; fire and forget
     connectAndSync();
-    setStatus('over');
+    setStatus("over");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     // the death sequence has played: on to the game over screen (best = before this run)
     router.replace({
-      pathname: '/game-over',
-      params: { score: String(world.score), best: String(bestScore), resultId: saved.id },
+      pathname: "/game-over",
+      params: {
+        score: String(world.score),
+        best: String(bestScore),
+        resultId: saved.id,
+      },
     });
   };
 
   const step = (dt: number) => {
     const world = worldRef.current;
     if (!world || world.over) return;
-    const events = world.step(dt, { ...input.consume(tileSize), tap: tap.consume() });
+    const events = world.step(dt, {
+      ...input.consume(tileSize),
+      tap: tap.consume(),
+    });
     for (const e of events) {
-      if (e.type === 'pickup') {
+      if (e.type === "pickup") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         // score card: its own sound; timed bonuses (×2, double jump): the "bonus" chime
-        playSound(e.effect === 'bonus' ? 'card' : 'bonus');
+        playSound(e.effect === "bonus" ? "card" : "bonus");
       }
-      if (e.type === 'hit') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      if (e.type === 'easterEgg') {
+      if (e.type === "hit")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === "easterEgg") {
         const egg = getEasterEgg(e.eggId);
         if (egg) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setFoundEgg(egg);
-          setStatus('easterEgg'); // stops the loop until "Tovább"
+          setStatus("easterEgg"); // stops the loop until "Tovább"
         }
       }
-      if (e.type === 'launch') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (e.type === "launch")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // every take-off: the hop out of the egg and each bounce off a platform (new or not)
-      if (e.type === 'launch' || e.type === 'bounce') playSound('jump');
-      if (e.type === 'death') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      if (e.type === 'mushroom') {
+      if (e.type === "launch" || e.type === "bounce") playSound("jump");
+      if (e.type === "death")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (e.type === "mushroom") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound('bonus');
+        playSound("bonus");
       }
-      if (e.type === 'portalEnter' || e.type === 'portalExit') {
+      if (e.type === "portalEnter" || e.type === "portalExit") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound('portal');
+        playSound("portal");
       }
-      if (e.type === 'milestone') {
+      if (e.type === "milestone") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        playSound('milestone');
+        playSound("milestone");
       }
-      if (e.type === 'gameOver') finishRun(world);
+      if (e.type === "gameOver") finishRun(world);
     }
   };
 
@@ -166,6 +205,13 @@ export default function GameRoute() {
     // countdown text changes exactly on time (setState bails out when unchanged)
     setCountdown(countdownLabel(world));
     setPsy(world.psyActive);
+    if (
+      lastPsy.current.world === world &&
+      lastPsy.current.on &&
+      !world.psyActive
+    )
+      playSound("backspin");
+    lastPsy.current = { world, on: world.psyActive };
     const now = Date.now();
     if (now - hudUpdatedAt.current >= HUD_INTERVAL_MS) {
       hudUpdatedAt.current = now;
@@ -182,7 +228,11 @@ export default function GameRoute() {
     }
   };
 
-  useGameLoop(status === 'playing' && size !== null && sprites !== null, step, render);
+  useGameLoop(
+    status === "playing" && size !== null && sprites !== null,
+    step,
+    render,
+  );
 
   const pan = useMemo(
     () =>
@@ -214,34 +264,45 @@ export default function GameRoute() {
     <Box className="flex-1 bg-sky">
       <GestureDetector gesture={pan}>
         <Box className="flex-1" onLayout={onLayout}>
-          {size && sprites && <GameCanvas width={size.width} height={size.height} commands={commands} sprites={sprites} />}
+          {size && sprites && (
+            <GameCanvas
+              width={size.width}
+              height={size.height}
+              commands={commands}
+              sprites={sprites}
+            />
+          )}
         </Box>
       </GestureDetector>
 
-      {status !== 'over' && (
+      {status !== "over" && (
         <Hud
           score={hud.score}
           effects={hud.effects}
           bonusProgress={hud.bonusProgress}
           topInset={insets.top}
-          onPause={() => setStatus('paused')}
+          onPause={() => setStatus("paused")}
         />
       )}
 
-      {status === 'playing' && <Countdown label={countdown} />}
+      {status === "playing" && <Countdown label={countdown} />}
 
-      {status === 'paused' && (
+      {status === "paused" && (
         <GameOverlay
           title="Paused"
           actions={[
-            { label: 'Resume', primary: true, onPress: () => setStatus('playing') },
-            { label: 'Restart', onPress: () => restart() },
-            { label: 'Menu', onPress: () => router.back() },
+            {
+              label: "Resume",
+              primary: true,
+              onPress: () => setStatus("playing"),
+            },
+            { label: "Restart", onPress: () => restart() },
+            { label: "Menu", onPress: () => router.back() },
           ]}
         />
       )}
 
-      {status === 'easterEgg' && foundEgg && (
+      {status === "easterEgg" && foundEgg && (
         <EasterEggModal
           title={foundEgg.title}
           description={foundEgg.description}
@@ -249,7 +310,7 @@ export default function GameRoute() {
           image={foundEgg.image}
           imageAspectRatio={foundEgg.imageAspectRatio}
           continueLabel={foundEgg.continueLabel}
-          onContinue={() => setStatus('playing')}
+          onContinue={() => setStatus("playing")}
         />
       )}
     </Box>

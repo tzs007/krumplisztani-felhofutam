@@ -1,5 +1,5 @@
 /**
- * Cuts the menu button sheets (assets/sprite-sources/menu.png, menu2.png and close.png:
+ * Cuts the menu button sheets (assets/sprite-sources/menu.png, menu2.png, close.png and buttons.png:
  * grids of labelled buttons on transparency) into one image per button in
  * assets/images/menu/, each trimmed to its own opaque pixels.
  *
@@ -30,6 +30,8 @@ const SHEETS = [
   },
   { file: "menu2.png", names: [["open-cards"], ["play-again"]] },
   { file: "close.png", names: [["close"]] },
+  // buttons.webp converted with: sips -s format png buttons.webp --out buttons.png
+  { file: "buttons.png", names: [["save-name"], ["save-account"], ["sign-in"]] },
 ];
 const SOLID = 16; // alpha above this counts as part of a button
 

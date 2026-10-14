@@ -68,6 +68,7 @@ jest.mock('@/assets/sounds/sfx_bonus.m4a', () => 'sfx_bonus', { virtual: true })
 jest.mock('@/assets/sounds/sfx_milestone.m4a', () => 'sfx_milestone', { virtual: true });
 jest.mock('@/assets/sounds/sfx_game_over.m4a', () => 'sfx_game_over', { virtual: true });
 jest.mock('@/assets/sounds/sfx_countdown_tick.m4a', () => 'sfx_countdown_tick', { virtual: true });
+jest.mock('@/assets/sounds/sfx_backspin.m4a', () => 'sfx_backspin', { virtual: true });
 
 type Settings = typeof import('@/store/useSettingsStore').useSettingsStore;
 let useSettingsStore: Settings;
@@ -114,7 +115,7 @@ describe('music', () => {
     audio.setMusic('game');
     const player = music()!;
     audio.setMusic('psy');
-    expect(player).toMatchObject({ source: 'music_psy', playing: true, loop: false });
+    expect(player).toMatchObject({ source: 'music_psy', playing: true, loop: false, volume: 1 });
     // the track ends
     Object.assign(player, { currentTime: player.duration, playing: false });
     const onStatus = player.addListener.mock.calls[0][1];
@@ -125,7 +126,7 @@ describe('music', () => {
     useSettingsStore.getState().setMusicOn(true);
     expect(player.play.mock.calls.length).toBe(plays);
     audio.setMusic('game');
-    expect(player).toMatchObject({ source: 'music_game', loop: true });
+    expect(player).toMatchObject({ source: 'music_game', loop: true, volume: 0.7 });
     expect(player.play.mock.calls.length).toBe(plays + 1);
   });
 
@@ -161,6 +162,24 @@ describe('effects', () => {
     audio.playSound('card');
     await new Promise((r) => setTimeout(r, 0));
     expect(cards.some((p) => p.currentTime === 0 && p.play.mock.calls.length === 2)).toBe(true);
+  });
+
+  it('plays some effects quieter (backspin, card, jump)', () => {
+    const audio = load();
+    audio.initAudio();
+    expect(playersOf('sfx_backspin').every((p) => p.volume === 0.5)).toBe(true);
+    expect(playersOf('sfx_jump').every((p) => p.volume === 0.7)).toBe(true);
+    expect(playersOf('sfx_milestone').every((p) => p.volume === 1)).toBe(true);
+  });
+
+  it('pauses a finished effect before rewinding it (Android would play it over again)', () => {
+    const audio = load();
+    audio.initAudio();
+    const [tick] = playersOf('sfx_countdown_tick');
+    const onStatus = tick.addListener.mock.calls[0][1];
+    onStatus({ didJustFinish: true });
+    expect(tick.pause).toHaveBeenCalled();
+    expect(tick.pause.mock.invocationCallOrder[0]).toBeLessThan(tick.seekTo.mock.invocationCallOrder[0]);
   });
 
   it('stays quiet when the sounds are off, and stops what is playing when switched off', () => {
