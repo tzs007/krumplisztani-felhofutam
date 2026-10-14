@@ -11,6 +11,7 @@ import {
   type World,
 } from '../engine/World';
 import { Color } from '../../theme/colors';
+import { clamp } from '../math';
 import { skyBodies } from './skyOrbit';
 import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
 
@@ -174,7 +175,7 @@ export function isBlinkOff(sinceHitMs: number): boolean {
  * top reaches the screen top.
  */
 export function backdropOffsetPx(cameraPx: number, parallax: number, maxScrollPx: number): number {
-  return Math.min(maxScrollPx, Math.max(0, cameraPx * parallax));
+  return clamp(cameraPx * parallax, 0, maxScrollPx);
 }
 
 /** Cloud layout in tiles, repeating every CLOUD_PERIOD rows, drawn with parallax. */

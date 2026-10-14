@@ -115,7 +115,6 @@ function ResultRow({ item, rank }: { item: GameResult; rank: number }) {
 
 export default function LeaderboardRoute() {
   const history = useAppStore((s) => s.history);
-  const clearHistory = useAppStore((s) => s.clearHistory);
   const authStatus = useAuthStore((s) => s.status);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("global");

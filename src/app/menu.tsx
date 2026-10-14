@@ -7,7 +7,6 @@ import { SplashBackground } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
-import { selectBestScore, useAppStore } from "@/store/useAppStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
 
 /** The buttons' height as a part of the screen height (sizes them; the menu sits in the middle). */
@@ -24,7 +23,6 @@ export default function MenuRoute() {
   const rowHeight =
     (BAND_HEIGHT * height - 5 * GAP) / (4 + TOGGLE_SCALE);
   const buttonWidth = Math.min(rowHeight * MENU_BUTTON_ASPECT, 230, width - 64);
-  const best = useAppStore(selectBestScore);
   const { musicOn, soundsOn, setMusicOn, setSoundsOn } = useSettingsStore();
 
   return (

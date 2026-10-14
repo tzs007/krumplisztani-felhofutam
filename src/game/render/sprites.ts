@@ -1,5 +1,7 @@
 import animationsJson from '@/assets/sprites/animations.json';
 
+import { clamp } from '../math';
+
 /**
  * Sprite registry: spriteKey → PNG. The file name IS the key, so a sprite
  * can be replaced by dropping a new PNG (128×128 per frame; cloud: 256×128;
@@ -132,7 +134,7 @@ export function spriteFrame(
   if (!anim || anim.frames <= 1) return { frame: 0, frames: 1 };
   if (anim.mode === 'velocity') {
     const last = anim.frames - 1;
-    const p = Math.min(1, Math.max(0, progress));
+    const p = clamp(progress, 0, 1);
     return { frame: p >= 1 ? last : Math.floor(p * last), frames: anim.frames };
   }
   const n = Math.floor((Math.max(0, elapsedMs) / 1000) * (anim.fps ?? 10));

@@ -6,7 +6,6 @@ import type { LevelChunk } from '../level/chunks';
 import { hueMatrix } from '../render/colorMatrix';
 import { buildSnapshot, Op, STRIDE } from '../render/snapshot';
 import { SPRITE_KEYS } from '../render/sprites';
-import { Color } from '../../theme/colors';
 
 const DT = 1 / 120;
 const T = 40;

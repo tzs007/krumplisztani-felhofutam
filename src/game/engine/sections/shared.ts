@@ -18,10 +18,6 @@ export const COLLECTED_TTL_MS = 1500;
 /** How far pickups and hazards float above the tile they were authored on. */
 const ITEM_LIFT = 0.15;
 
-export function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
-}
-
 /** The in-level object of an easter egg: its own `item` fields over the config default. */
 export function easterEggItemDef(eggId: string, config: GameConfig): EasterEggItemDef {
   const own = getEasterEggs().find((e) => e.id === eggId)?.item;

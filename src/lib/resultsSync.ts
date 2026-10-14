@@ -4,12 +4,12 @@
  * Each result carries its device id as client_id, so a retry never
  * duplicates it (unique per player on the server).
  */
-import { AppState } from 'react-native';
-
 import { useAppStore, selectPendingUploads, type GameResult } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
 import { ensureSignedIn } from './auth';
+import { onForeground } from './onForeground';
+import { singleFlight } from './singleFlight';
 import { getSupabase } from './supabase';
 
 export function toRow(r: GameResult, userId: string) {
@@ -24,15 +24,8 @@ export function toRow(r: GameResult, userId: string) {
   };
 }
 
-let running: Promise<number> | null = null;
-
 /** Uploads pending results; resolves with how many were sent (0 when offline). Never throws. */
-export function syncResults(): Promise<number> {
-  running ??= upload().finally(() => {
-    running = null;
-  });
-  return running;
-}
+export const syncResults = singleFlight(upload);
 
 async function upload(): Promise<number> {
   const supabase = getSupabase();
@@ -68,7 +61,5 @@ export function startBackgroundSync() {
   connectAndSync();
   if (watchingForeground) return;
   watchingForeground = true;
-  AppState.addEventListener('change', (state) => {
-    if (state === 'active') connectAndSync();
-  });
+  onForeground(connectAndSync);
 }

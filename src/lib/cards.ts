@@ -9,7 +9,6 @@
  * is kept). Nothing here throws or blocks the game.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { AppState } from 'react-native';
 
 import { selectPendingUploads, useAppStore } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -18,7 +17,9 @@ import { useCardsStore } from '@/store/useCardsStore';
 import { ensureSignedIn } from './auth';
 import { rowToCard, rowToOwned, type OwnedCard } from './cardRules';
 import type { Database } from './database.types';
+import { onForeground } from './onForeground';
 import { syncResults } from './resultsSync';
+import { singleFlight } from './singleFlight';
 import { getSupabase } from './supabase';
 import { withTimeout } from './withTimeout';
 
@@ -91,15 +92,8 @@ export async function revealCard(userCardId: number): Promise<void> {
   await sendReveals([userCardId]);
 }
 
-let running: Promise<CardSyncStatus> | null = null;
-
 /** Opens queued games, sends queued reveals, then takes the server's collection. */
-export function syncCards(): Promise<CardSyncStatus> {
-  running ??= sync().finally(() => {
-    running = null;
-  });
-  return running;
-}
+export const syncCards = singleFlight(sync);
 
 async function sync(): Promise<CardSyncStatus> {
   const supabase = getSupabase();
@@ -127,7 +121,5 @@ export function startCardSync() {
   syncCards();
   if (watchingForeground) return;
   watchingForeground = true;
-  AppState.addEventListener('change', (state) => {
-    if (state === 'active') syncCards();
-  });
+  onForeground(syncCards);
 }

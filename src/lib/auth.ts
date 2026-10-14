@@ -12,11 +12,11 @@ import type { User } from '@supabase/supabase-js';
 import { useAuthStore } from '@/store/useAuthStore';
 
 import { authErrorMessage, validateCredentials, validateDisplayName } from './accountForm';
+import { singleFlight } from './singleFlight';
 import { getSupabase } from './supabase';
 import { withTimeout } from './withTimeout';
 
 let listening = false;
-let inFlight: Promise<AuthResult> | null = null;
 let lastAttemptAt = -Infinity;
 
 type AuthResult = 'offline' | 'signedIn';
@@ -27,6 +27,8 @@ export type ActionError = string | null;
 export const RETRY_INTERVAL_MS = 15_000;
 
 const OFFLINE_MESSAGE = 'Nincs kapcsolat a szerverrel. Próbáld újra később.';
+/** The store with no player signed in. */
+const SIGNED_OUT = { status: 'offline', userId: null, displayName: null, isAnonymous: false, email: null } as const;
 
 async function loadProfile(user: User) {
   const supabase = getSupabase();
@@ -42,12 +44,7 @@ async function loadProfile(user: User) {
 }
 
 /** Restores the session or signs in anonymously; resolves with the resulting status. Never throws. */
-export function initAuth({ timeoutMs = 4000 } = {}): Promise<AuthResult> {
-  inFlight ??= signIn(timeoutMs).finally(() => {
-    inFlight = null;
-  });
-  return inFlight;
-}
+export const initAuth = singleFlight(({ timeoutMs = 4000 }: { timeoutMs?: number } = {}) => signIn(timeoutMs));
 
 /**
  * Signed in already → nothing to do. Otherwise retries the sign-in (e.g. the
@@ -57,7 +54,7 @@ export function initAuth({ timeoutMs = 4000 } = {}): Promise<AuthResult> {
  */
 export function ensureSignedIn(): Promise<AuthResult> {
   if (useAuthStore.getState().status === 'signedIn') return Promise.resolve('signedIn');
-  if (inFlight) return inFlight;
+  if (initAuth.isRunning()) return initAuth();
   if (Date.now() - lastAttemptAt < RETRY_INTERVAL_MS) return Promise.resolve('offline');
   return initAuth();
 }
@@ -74,7 +71,7 @@ async function signIn(timeoutMs: number): Promise<AuthResult> {
     listening = true;
     supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        useAuthStore.setState({ status: 'offline', userId: null, displayName: null, isAnonymous: false, email: null });
+        useAuthStore.setState(SIGNED_OUT);
         return;
       }
       // profile load is async; don't await inside the auth callback (Supabase advice)
@@ -147,7 +144,7 @@ export async function signOut(): Promise<ActionError> {
   if (!supabase) return OFFLINE_MESSAGE;
   const { error } = await supabase.auth.signOut();
   if (error) return authErrorMessage(error);
-  useAuthStore.setState({ status: 'offline', userId: null, displayName: null, isAnonymous: false, email: null });
+  useAuthStore.setState(SIGNED_OUT);
   await initAuth();
   return null;
 }

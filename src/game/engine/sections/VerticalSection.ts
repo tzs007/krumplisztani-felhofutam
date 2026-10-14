@@ -19,8 +19,8 @@ import type {
   StepInput,
 } from '../entities';
 import type { RunContext, Section } from './Section';
+import { clamp } from '../../math';
 import {
-  clamp,
   collectEasterEggs,
   collectPickups,
   createPlayer,
@@ -48,7 +48,7 @@ export function platformTheme(milestones: number, { sequence, loop }: GameConfig
  */
 export function deathScale(sinceDeathMs: number, config: GameConfig): number {
   const { zoomMaxScale, zoomDurationMs } = config.death;
-  const k = Math.min(1, Math.max(0, sinceDeathMs / zoomDurationMs));
+  const k = clamp(sinceDeathMs / zoomDurationMs, 0, 1);
   return 1 + (zoomMaxScale - 1) * k * k;
 }
 

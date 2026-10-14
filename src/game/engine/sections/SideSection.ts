@@ -4,6 +4,7 @@ import type { LevelChunk } from '../../level/chunks';
 import { parseChunk } from '../../level/parser';
 import { sideChunks, sideEnd, sideStart } from '../../level/sideChunks';
 import { platformSpriteKey } from '../../level/tiles';
+import { clamp } from '../../math';
 import { fallStep, findLanding, touchesBox } from '../collide';
 import type {
   Burst,
@@ -164,7 +165,7 @@ export class SideSection implements Section {
   /** How far along the level (0 at the start … 1 at the exit). */
   get progress(): number {
     if (this.finished) return 1;
-    return Math.min(1, Math.max(0, this.player.x / this.exit.x));
+    return clamp(this.player.x / this.exit.x, 0, 1);
   }
 
   isInvulnerable(time: number): boolean {
@@ -252,7 +253,7 @@ export class SideSection implements Section {
 
     // ── camera: keeps the chick at followX, within the level ──
     const maxCamera = Math.max(0, this.length - this.viewColumns);
-    this.cameraX = Math.min(maxCamera, Math.max(0, p.x - this.viewColumns * side.followX));
+    this.cameraX = clamp(p.x - this.viewColumns * side.followX, 0, maxCamera);
 
     cullEffects(this, run.time, this.config);
     return events;
