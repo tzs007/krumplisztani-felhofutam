@@ -1,19 +1,21 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { useCallback, useState } from "react";
+import { FlatList, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MenuButton } from "@/components/MenuButton";
+import { MenuButton, type MenuButtonArt } from "@/components/MenuButton";
 import { Paper } from "@/components/Paper";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { SkyBackground } from "@/components/SkyBackground";
 import { readableOnArt } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
-import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { useLoad } from "@/hooks/useLoad";
+import { usePullRefresh } from "@/hooks/usePullRefresh";
 import { fetchCollectors } from "@/lib/collectors";
 import {
   fetchBoard,
@@ -29,6 +31,11 @@ import { useCardsStore } from "@/store/useCardsStore";
 
 type Tab = "global" | "collectors" | "mine";
 type OnlineTab = Exclude<Tab, "mine">;
+const TABS: { id: Tab; art: MenuButtonArt; label: string }[] = [
+  { id: "global", art: "tab-global", label: "Mindenki" },
+  { id: "collectors", art: "tab-collectors", label: "Gyűjtők" },
+  { id: "mine", art: "tab-mine", label: "Saját" },
+];
 type Load =
   | { state: "loading" }
   | { state: "ready"; board: Board; tab: OnlineTab }
@@ -106,9 +113,6 @@ function ResultRow({ item, rank }: { item: GameResult; rank: number }) {
   );
 }
 
-/** Width of the header's back button (and the spacer that balances it). */
-const BACK_WIDTH = 96;
-
 export default function LeaderboardRoute() {
   const history = useAppStore((s) => s.history);
   const clearHistory = useAppStore((s) => s.clearHistory);
@@ -116,7 +120,6 @@ export default function LeaderboardRoute() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("global");
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [refreshing, setRefreshing] = useState(false);
 
   const best = localBest(history);
   const onlineTab: OnlineTab = tab === "collectors" ? "collectors" : "global";
@@ -137,24 +140,9 @@ export default function LeaderboardRoute() {
         ),
     [best, onlineTab],
   );
-  const refresh = useCallback(async () => setLoad(await load$()), [load$]);
-
   // (re)load when opened and when the account state settles (e.g. anonymous sign-in finished)
-  useEffect(() => {
-    let alive = true;
-    load$().then((next) => {
-      if (alive) setLoad(next);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [load$, authStatus]);
-
-  const onPullRefresh = async () => {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
-  };
+  useLoad(load$, setLoad, [load$, authStatus]);
+  const pull = usePullRefresh(async () => setLoad(await load$()));
 
   const board =
     load.state === "ready" && load.tab === onlineTab ? load.board : null;
@@ -166,49 +154,20 @@ export default function LeaderboardRoute() {
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <SkyBackground />
-      <HStack className="items-center justify-between px-4 py-3">
-        {/* keeps the title centred */}
-        <MenuButton
-          art="back"
-          label="Vissza"
-          onPress={() => router.back()}
-          style={{ width: BACK_WIDTH }}
-        />
-        <Heading
-          size="xl"
-          className="text-sky-foreground"
-          style={readableOnArt}
-        >
-          Ranglista
-        </Heading>
-        <View style={{ width: BACK_WIDTH }} />
-      </HStack>
+      <ScreenHeader title="Ranglista" />
 
       <HStack space="sm" className="px-4 pb-2">
-        <MenuButton
-          art="tab-global"
-          label="Mindenki"
-          selected={tab === "global"}
-          dimmed={tab !== "global"}
-          onPress={() => setTab("global")}
-          style={{ flex: 1 }}
-        />
-        <MenuButton
-          art="tab-collectors"
-          label="Gyűjtők"
-          selected={tab === "collectors"}
-          dimmed={tab !== "collectors"}
-          onPress={() => setTab("collectors")}
-          style={{ flex: 1 }}
-        />
-        <MenuButton
-          art="tab-mine"
-          label="Saját"
-          selected={tab === "mine"}
-          dimmed={tab !== "mine"}
-          onPress={() => setTab("mine")}
-          style={{ flex: 1 }}
-        />
+        {TABS.map((t) => (
+          <MenuButton
+            key={t.id}
+            art={t.art}
+            label={t.label}
+            selected={tab === t.id}
+            dimmed={tab !== t.id}
+            onPress={() => setTab(t.id)}
+            style={{ flex: 1 }}
+          />
+        ))}
       </HStack>
 
       {tab !== "mine" ? (
@@ -217,11 +176,7 @@ export default function LeaderboardRoute() {
           keyExtractor={(row) => row.key}
           contentContainerStyle={{ padding: 16, gap: 8 }}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onPullRefresh}
-              tintColor="#fff"
-            />
+            <RefreshControl {...pull} tintColor="#fff" />
           }
           ListHeaderComponent={
             noAccount && authStatus !== "loading" ? (

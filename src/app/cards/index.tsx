@@ -1,30 +1,35 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   FlatList,
   Pressable,
   RefreshControl,
   useWindowDimensions,
-  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CARD_ASPECT, CardBack, CardFront } from "@/components/cards/CardFaces";
 import { CardSwiper, type SwiperItem } from "@/components/cards/CardSwiper";
-import { MenuButton } from "@/components/MenuButton";
 import { ModalPanel } from "@/components/ModalPanel";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { SkyBackground } from "@/components/SkyBackground";
 import { readableOnArt } from "@/components/SplashBackground";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Center } from "@/components/ui/center";
-import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Paper } from "@/components/Paper";
-import { buildGrid, collectedCount, unrevealed } from "@/lib/cardRules";
+import { useLoad } from "@/hooks/useLoad";
+import { usePullRefresh } from "@/hooks/usePullRefresh";
+import {
+  buildGrid,
+  collectedCount,
+  unrevealed,
+  withCard,
+} from "@/lib/cardRules";
 import { revealCard, syncCards, type CardSyncStatus } from "@/lib/cards";
 import { useCardsStore } from "@/store/useCardsStore";
 
@@ -39,25 +44,11 @@ export default function CardsRoute() {
   const owned = useCardsStore((s) => s.owned);
   const pendingClaims = useCardsStore((s) => s.pendingClaims);
   const [status, setStatus] = useState<CardSyncStatus | "loading">("loading");
-  const [refreshing, setRefreshing] = useState(false);
   // the cards shown in the swiper, fixed when it opens (a flipped card must not jump out of it)
   const [unboxing, setUnboxing] = useState<number[] | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    syncCards().then((s) => {
-      if (alive) setStatus(s);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setStatus(await syncCards());
-    setRefreshing(false);
-  };
+  useLoad(syncCards, setStatus, []);
+  const pull = usePullRefresh(async () => setStatus(await syncCards()));
 
   const columns = width >= 600 ? 5 : 3;
   const tileWidth =
@@ -66,9 +57,7 @@ export default function CardsRoute() {
   const waiting = unrevealed(owned);
   const swiperItems: SwiperItem[] = (unboxing ?? []).flatMap((id) => {
     const o = owned.find((x) => x.id === id);
-    return o
-      ? [{ owned: o, card: catalog.find((c) => c.id === o.cardId) }]
-      : [];
+    return o ? [withCard(o, catalog)] : [];
   });
 
   return (
@@ -77,22 +66,7 @@ export default function CardsRoute() {
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <SkyBackground />
-      <HStack className="items-center justify-between px-4 py-3">
-        <MenuButton
-          art="back"
-          label="Vissza"
-          onPress={() => router.back()}
-          style={{ width: 96 }}
-        />
-        <Heading
-          size="xl"
-          className="text-sky-foreground"
-          style={readableOnArt}
-        >
-          Gyűjtemény
-        </Heading>
-        <View style={{ width: 96 }} />
-      </HStack>
+      <ScreenHeader title="Gyűjtemény" />
 
       <FlatList
         key={columns}
@@ -107,11 +81,7 @@ export default function CardsRoute() {
           maxWidth: 900,
         }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#fff"
-          />
+          <RefreshControl {...pull} tintColor="#fff" />
         }
         ListHeaderComponent={
           <VStack space="sm" className="mb-2">

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { cardsForScore, type OwnedCard } from "@/lib/cardRules";
+import { useLoad } from "@/hooks/useLoad";
+import { cardsForScore, withCard, type OwnedCard } from "@/lib/cardRules";
 import { claimCards, revealCard } from "@/lib/cards";
 import { useCardsStore } from "@/store/useCardsStore";
 
@@ -33,18 +34,16 @@ export function GameOverCards({
   const owned = useCardsStore((s) => s.owned);
   const catalog = useCardsStore((s) => s.catalog);
 
-  useEffect(() => {
-    if (!resultId || count === 0) return;
-    let alive = true;
-    claimCards(resultId).then((r) => {
-      if (!alive) return;
-      if (r.status === "ok") setClaim({ state: "ready", cards: r.cards });
-      else setClaim({ state: r.status });
-    });
-    return () => {
-      alive = false;
-    };
-  }, [resultId, count]);
+  useLoad(
+    () => (resultId && count > 0 ? claimCards(resultId) : null),
+    (r) =>
+      setClaim(
+        r.status === "ok"
+          ? { state: "ready", cards: r.cards }
+          : { state: r.status },
+      ),
+    [resultId, count],
+  );
 
   if (!resultId || count === 0) return null;
 
@@ -52,10 +51,9 @@ export function GameOverCards({
   // replaced the store's list, so fall back to the card claimed here
   const items: SwiperItem[] =
     claim.state === "ready"
-      ? claim.cards.map((claimed) => {
-          const o = owned.find((x) => x.id === claimed.id) ?? claimed;
-          return { owned: o, card: catalog.find((c) => c.id === o.cardId) };
-        })
+      ? claim.cards.map((claimed) =>
+          withCard(owned.find((x) => x.id === claimed.id) ?? claimed, catalog),
+        )
       : [];
   const current = items[index];
 

@@ -65,6 +65,11 @@ export function rowToOwned(row: UserCardRow): OwnedCard {
   };
 }
 
+/** A drawn copy with its card from the catalog (no card while the catalog doesn't know it yet). */
+export function withCard(owned: OwnedCard, catalog: Card[]): { owned: OwnedCard; card?: Card } {
+  return { owned, card: catalog.find((c) => c.id === owned.cardId) };
+}
+
 export function revealedCardIds(owned: OwnedCard[]): Set<string> {
   return new Set(owned.filter((o) => o.revealedAt).map((o) => o.cardId));
 }
