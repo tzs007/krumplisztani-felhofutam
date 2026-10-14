@@ -1,9 +1,10 @@
-import type { EasterEggItemDef, GameConfig } from '../../config';
+import type { GameConfig } from '../../config';
 import { getEasterEggs } from '../../easterEggs';
 import type { LevelChunk } from '../../level/chunks';
 import { LevelGenerator, type PlacedChunk } from '../../level/generator';
 import { platformSpriteKey, type PlatformVariant } from '../../level/tiles';
 import { fallStep, findLanding, overlapsX, touchesBox, wrap } from '../collide';
+import type { Rng } from '../random';
 import type {
   Burst,
   CollectedPickup,
@@ -18,18 +19,26 @@ import type {
   StepInput,
 } from '../entities';
 import type { RunContext, Section } from './Section';
+import {
+  clamp,
+  collectEasterEggs,
+  collectPickups,
+  createPlayer,
+  cullEffects,
+  easterEggItemDef,
+  hazardFrom,
+  HOVER_LIFT,
+  pickupFrom,
+  platformFrom,
+  stepHazards,
+  takeOff,
+} from './shared';
 
 /** Platform theme after `milestones` milestones (null = as authored in the chunks). */
 export function platformTheme(milestones: number, { sequence, loop }: GameConfig['platformThemes']): PlatformVariant | null {
   if (sequence.length === 0) return null;
   const i = loop ? milestones % sequence.length : Math.min(milestones, sequence.length - 1);
   return sequence[i];
-}
-
-/** The in-level object of an easter egg: its own `item` fields over the config default. */
-export function easterEggItemDef(eggId: string, config: GameConfig): EasterEggItemDef {
-  const own = getEasterEggs().find((e) => e.id === eggId)?.item;
-  return { ...config.easterEggs.defaultItem, ...own };
 }
 
 /**
@@ -43,12 +52,8 @@ export function deathScale(sinceDeathMs: number, config: GameConfig): number {
   return 1 + (zoomMaxScale - 1) * k * k;
 }
 
-/** How far a "hover" item floats above its platform (like pickups). */
-export const HOVER_LIFT = 0.15;
 /** Coming back from the bonus level: the return platform is at least this far above the screen bottom. */
 const RETURN_MARGIN_TILES = 3;
-/** How long a collected pickup is remembered for its collect animation. */
-export const COLLECTED_TTL_MS = 1500;
 
 export type VerticalSectionOptions = {
   /** Visible height in tiles (screenHeight / tileSize). */
@@ -121,44 +126,22 @@ export class VerticalSection implements Section {
     this.viewHeight = viewHeight;
     // drop rate: one roll per game, at most one easter egg
     this.easterEggIds = getEasterEggs().map((e) => e.id);
-    const { chancePerGame, chunkRange } = config.easterEggs;
-    this.easterEggChunk =
-      config.easterEggs.sections.includes('main') && this.easterEggIds.length > 0 && rng() < chancePerGame
-        ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1))
-        : -1;
-    // portal: one roll per run as well
-    const portals = config.portals;
-    this.portalChunk =
-      rng() < portals.chancePerGame
-        ? portals.chunkRange[0] + Math.floor(rng() * (portals.chunkRange[1] - portals.chunkRange[0] + 1))
-        : -1;
-    const mushroom = config.mushroom;
-    this.mushroomChunk =
-      rng() < mushroom.chancePerGame
-        ? mushroom.chunkRange[0] + Math.floor(rng() * (mushroom.chunkRange[1] - mushroom.chunkRange[0] + 1))
-        : -1;
+    this.easterEggChunk = rollChunk(
+      rng,
+      config.easterEggs,
+      config.easterEggs.sections.includes('main') && this.easterEggIds.length > 0,
+    );
+    // portal and mushroom: one roll per run as well
+    this.portalChunk = rollChunk(rng, config.portals);
+    this.mushroomChunk = rollChunk(rng, config.mushroom);
     this.generator = new LevelGenerator(config, rng, chunks, startChunk);
 
     const start = this.generator.placeStart();
     this.addChunk(start, false);
     const spawn = start.spawn ?? { col: Math.floor(config.columns / 2), row: 1 };
-    const { widthTiles: w, heightTiles: h } = config.player;
+    const w = config.player.widthTiles;
     const y = start.baseRow + spawn.row;
-    this.player = {
-      x: spawn.col + (1 - w) / 2,
-      y,
-      w,
-      h,
-      vx: 0,
-      vy: 0,
-      facing: 1,
-      bonusUntil: 0,
-      bonusSpriteKey: null,
-      landedAt: -Infinity,
-      apexY: y,
-      targetOffset: 0,
-      hurtAt: -Infinity,
-    };
+    this.player = createPlayer(config, spawn.col + (1 - w) / 2, y);
     const { eggSizeTiles, eggSinkTiles, countdownMs } = config.start;
     // no countdown: play from the first step (the chick drops onto the ground and bounces)
     this.started = countdownMs <= 0;
@@ -198,9 +181,7 @@ export class VerticalSection implements Section {
     p.y = back.y;
     p.vx = 0;
     p.targetOffset = 0;
-    p.vy = run.physics.jumpVelocity;
-    p.landedAt = run.time;
-    p.apexY = p.y;
+    takeOff(p, run.physics.jumpVelocity, run.time);
     // counted from when the screen has cleared (this runs halfway through the fade)
     const { returnSafeMs, transitionMs } = this.config.portals;
     this.safeUntil = run.time + transitionMs / 2 + returnSafeMs;
@@ -221,10 +202,7 @@ export class VerticalSection implements Section {
       if (run.time < this.config.start.countdownMs) return [];
       this.started = true;
       this.launchedAt = run.time;
-      const p = this.player;
-      p.vy = run.physics.jumpVelocity;
-      p.landedAt = run.time;
-      p.apexY = p.y;
+      takeOff(this.player, run.physics.jumpVelocity, run.time);
       return [{ type: 'launch' }];
     }
     if (run.psyActive) return this.stepFlight(dt, input, run);
@@ -243,9 +221,7 @@ export class VerticalSection implements Section {
     const landed = findLanding(p, prevY, this.platforms, columns);
     if (landed) {
       p.y = landed.y;
-      p.vy = jumpVelocity * Math.sqrt(run.jumpMultiplier);
-      p.landedAt = run.time;
-      p.apexY = p.y;
+      takeOff(p, jumpVelocity * Math.sqrt(run.jumpMultiplier), run.time);
       events.push({ type: 'bounce', platformId: landed.id });
       if (!this.visited.has(landed.id)) {
         this.visited.add(landed.id);
@@ -257,22 +233,8 @@ export class VerticalSection implements Section {
     }
 
     // ── pickups ──
-    this.pickups = this.pickups.filter((pk) => {
-      if (!touchesBox(p, pk.x, pk.y, pk.size, columns)) return true;
-      run.effects.trigger(pk.effect, run.time);
-      p.bonusUntil = run.time + this.config.player.bonusPoseMs;
-      p.bonusSpriteKey = pk.spriteKey;
-      run.stats.pickups++;
-      this.collected.push({ ...pk, collectedAt: run.time });
-      events.push({ type: 'pickup', effect: pk.effect });
-      return false;
-    });
-    this.easterEggs = this.easterEggs.filter((egg) => {
-      if (!touchesBox(p, egg.x, egg.y, egg.size, columns)) return true;
-      run.stats.easterEggs++;
-      events.push({ type: 'easterEgg', eggId: egg.eggId });
-      return false;
-    });
+    this.pickups = collectPickups(this.pickups, this.collected, p, run, columns, events);
+    this.easterEggs = collectEasterEggs(this.easterEggs, p, run, columns, events);
     const shroom = this.mushrooms.find((m) => touchesBox(p, m.x, m.y, m.size, columns));
     if (shroom) {
       this.mushrooms = [];
@@ -291,24 +253,7 @@ export class VerticalSection implements Section {
     }
     run.effects.tick(run.time);
 
-    // ── hazards: hover up and down; touching one costs points (then brief invulnerability) ──
-    const hz = this.config.hazards;
-    for (const h of this.hazards) {
-      h.y = h.baseY + ((1 - Math.cos((run.time / 1000) * hz.bobHz * 2 * Math.PI + h.phase)) / 2) * hz.bobTiles;
-    }
-    if (!this.isInvulnerable) {
-      const hit = this.hazards.find((h) => {
-        const box = h.size * hz.hitboxScale;
-        const inset = (h.size - box) / 2;
-        return touchesBox(p, h.x + inset, h.y + inset, box, columns);
-      });
-      if (hit) {
-        run.addScore(-hz.damage);
-        p.hurtAt = run.time;
-        run.stats.hits++;
-        events.push({ type: 'hit', damage: hz.damage });
-      }
-    }
+    stepHazards(this.hazards, p, run, columns, this.isInvulnerable, events);
 
     // ── camera: only moves up ──
     const { followRatio, smoothing, autoScrollSpeed } = this.config.camera;
@@ -412,16 +357,7 @@ export class VerticalSection implements Section {
     }
 
     // only the cards
-    this.pickups = this.pickups.filter((pk) => {
-      if (pk.spriteKey !== 'pickup_card' || !touchesBox(p, pk.x, pk.y, pk.size, this.config.columns)) return true;
-      run.effects.trigger(pk.effect, run.time);
-      p.bonusUntil = run.time + this.config.player.bonusPoseMs;
-      p.bonusSpriteKey = pk.spriteKey;
-      run.stats.pickups++;
-      this.collected.push({ ...pk, collectedAt: run.time });
-      events.push({ type: 'pickup', effect: pk.effect });
-      return false;
-    });
+    this.pickups = collectPickups(this.pickups, this.collected, p, run, this.config.columns, events, isCard);
     run.effects.tick(run.time);
     this.fillAhead();
     this.cull();
@@ -462,9 +398,7 @@ export class VerticalSection implements Section {
       this.visited.add(ground.id); // no points for the rescue platform
     }
     p.y = ground.y;
-    p.vy = run.physics.jumpVelocity * Math.sqrt(run.jumpMultiplier);
-    p.landedAt = run.time;
-    p.apexY = p.y;
+    takeOff(p, run.physics.jumpVelocity * Math.sqrt(run.jumpMultiplier), run.time);
     this.safeUntil = run.time + this.config.psy.endSafeMs;
   }
 
@@ -501,19 +435,28 @@ export class VerticalSection implements Section {
   /** Platforms that already hold the easter egg or the portal (one thing per platform). */
   private readonly usedPlatforms = new Set<string>();
 
+  /**
+   * Picks a random free platform tile of the chunk and reserves its platform;
+   * returns its level position (x = tile's left edge, y = platform top), or null if there is none.
+   */
+  private takeFreeSpot(chunk: PlacedChunk): { x: number; y: number } | null {
+    const spots = this.freeSpots(chunk);
+    if (spots.length === 0) return null;
+    const spot = spots[Math.floor(this.run.rng() * spots.length)];
+    this.usedPlatforms.add(platformKey(chunk, spot.platform));
+    return { x: spot.col, y: chunk.baseRow + spot.row + 1 };
+  }
+
   /** Puts this game's easter egg object on a free platform tile of the chunk; false if there is none. */
   private hideEasterEgg(chunk: PlacedChunk): boolean {
-    const spots = this.freeSpots(chunk);
-    if (spots.length === 0) return false;
-    const { rng } = this.run;
-    const spot = spots[Math.floor(rng() * spots.length)];
-    this.usedPlatforms.add(platformKey(chunk, spot.platform));
-    const eggId = this.easterEggIds[Math.floor(rng() * this.easterEggIds.length)];
+    const spot = this.takeFreeSpot(chunk);
+    if (!spot) return false;
+    const eggId = this.easterEggIds[Math.floor(this.run.rng() * this.easterEggIds.length)];
     const { spriteKey, size, placement } = easterEggItemDef(eggId, this.config);
     this.easterEggs.push({
       id: this.run.nextId(),
-      x: spot.col + (1 - size) / 2,
-      y: chunk.baseRow + spot.row + 1 + (placement === 'hover' ? HOVER_LIFT : 0),
+      x: spot.x + (1 - size) / 2,
+      y: spot.y + (placement === 'hover' ? HOVER_LIFT : 0),
       size,
       spriteKey,
       placement,
@@ -524,36 +467,19 @@ export class VerticalSection implements Section {
 
   /** Puts this run's portal on a free platform tile of the chunk; false if there is none. */
   private placePortal(chunk: PlacedChunk): boolean {
-    const spots = this.freeSpots(chunk);
-    if (spots.length === 0) return false;
-    const spot = spots[Math.floor(this.run.rng() * spots.length)];
-    this.usedPlatforms.add(platformKey(chunk, spot.platform));
+    const spot = this.takeFreeSpot(chunk);
+    if (!spot) return false;
     const size = this.config.portals.size;
-    this.portals.push({
-      id: this.run.nextId(),
-      x: spot.col + (1 - size) / 2,
-      y: chunk.baseRow + spot.row + 1,
-      size,
-      spriteKey: 'portal',
-      target: 'bonus',
-    });
+    this.portals.push({ id: this.run.nextId(), x: spot.x + (1 - size) / 2, y: spot.y, size, spriteKey: 'portal', target: 'bonus' });
     return true;
   }
 
   /** Puts this run's mushroom on a free platform tile of the chunk; false if there is none. */
   private placeMushroom(chunk: PlacedChunk): boolean {
-    const spots = this.freeSpots(chunk);
-    if (spots.length === 0) return false;
-    const spot = spots[Math.floor(this.run.rng() * spots.length)];
-    this.usedPlatforms.add(platformKey(chunk, spot.platform));
+    const spot = this.takeFreeSpot(chunk);
+    if (!spot) return false;
     const size = this.config.mushroom.size;
-    this.mushrooms.push({
-      id: this.run.nextId(),
-      x: spot.col + (1 - size) / 2,
-      y: chunk.baseRow + spot.row + 1,
-      size,
-      spriteKey: 'pickup_mushroom',
-    });
+    this.mushrooms.push({ id: this.run.nextId(), x: spot.x + (1 - size) / 2, y: spot.y, size, spriteKey: 'pickup_mushroom' });
     return true;
   }
 
@@ -582,10 +508,7 @@ export class VerticalSection implements Section {
   }
 
   private cull() {
-    const { time } = this.run;
-    const maxLife = this.config.milestones.lifeMs * 1.2;
-    this.bursts = this.bursts.filter((b) => time - b.startedAt < maxLife);
-    this.collected = this.collected.filter((c) => time - c.collectedAt < COLLECTED_TTL_MS);
+    cullEffects(this, this.run.time, this.config);
     const limit = this.cameraY - 1;
     this.platforms = this.platforms.filter((pl) => pl.y >= limit);
     this.pickups = this.pickups.filter((pk) => pk.y + pk.size >= limit);
@@ -597,26 +520,9 @@ export class VerticalSection implements Section {
 
   private addChunk(chunk: PlacedChunk, mayHideEasterEgg: boolean) {
     const theme = platformTheme(this.run.milestonesReached, this.config.platformThemes);
-    for (const pl of chunk.platforms) {
-      this.platforms.push({
-        id: this.run.nextId(),
-        x: pl.col,
-        y: chunk.baseRow + pl.row + 1,
-        width: pl.width,
-        variant: theme ?? pl.variant,
-        spriteKey: theme ? platformSpriteKey(theme) : pl.spriteKey,
-      });
-    }
+    for (const pl of chunk.platforms) this.platforms.push(platformFrom(pl, this.run.nextId(), 0, chunk.baseRow, theme));
     for (const pk of chunk.pickups) {
-      const pickup: Pickup = {
-        id: this.run.nextId(),
-        x: pk.col + (1 - pk.size) / 2,
-        y: chunk.baseRow + pk.row + 0.15,
-        size: pk.size,
-        effect: pk.effect,
-        spriteKey: pk.spriteKey,
-        bob: pk.bob,
-      };
+      const pickup = pickupFrom(pk, this.run.nextId(), 0, chunk.baseRow);
       if (this.flying) this.scatterFlightCard(pickup);
       this.pickups.push(pickup);
     }
@@ -632,20 +538,7 @@ export class VerticalSection implements Section {
         this.mushroomChunk++;
       }
     }
-    for (const hz of chunk.hazards) {
-      const baseY = chunk.baseRow + hz.row + 0.15;
-      const id = this.run.nextId();
-      this.hazards.push({
-        id,
-        x: hz.col + (1 - hz.size) / 2,
-        y: baseY,
-        baseY,
-        size: hz.size,
-        spriteKey: hz.spriteKey,
-        // out of sync with each other, deterministic per id
-        phase: (id * 2.399) % (2 * Math.PI),
-      });
-    }
+    for (const hz of chunk.hazards) this.hazards.push(hazardFrom(hz, this.run.nextId(), 0, chunk.baseRow));
   }
 }
 
@@ -654,6 +547,12 @@ function platformKey(chunk: PlacedChunk, pl: PlacedChunk['platforms'][number]): 
   return `${chunk.baseRow + pl.row}:${pl.col}`;
 }
 
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
+const isCard = (pk: Pickup) => pk.spriteKey === 'pickup_card';
+
+/**
+ * One roll per run: the chunk number (after the start) that holds the thing,
+ * or -1 for none this run. A disabled roll draws no random numbers.
+ */
+function rollChunk(rng: Rng, { chancePerGame, chunkRange }: { chancePerGame: number; chunkRange: [number, number] }, enabled = true): number {
+  return enabled && rng() < chancePerGame ? chunkRange[0] + Math.floor(rng() * (chunkRange[1] - chunkRange[0] + 1)) : -1;
 }

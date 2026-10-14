@@ -1,6 +1,15 @@
-import { derivePhysics } from '../config';
 import type { SideSection } from '../engine/sections/SideSection';
-import { deathScale, isFalling, type Player, type StarParticle, type World } from '../engine/World';
+import {
+  deathScale,
+  isFalling,
+  type Burst,
+  type CollectedPickup,
+  type EasterEggItem,
+  type Pickup,
+  type Player,
+  type StarParticle,
+  type World,
+} from '../engine/World';
 import { Color } from '../../theme/colors';
 import { skyBodies } from './skyOrbit';
 import { animationDurationMs, hasSprite, spriteAnimations, spriteFrame, spriteIndex, type SpriteKey } from './sprites';
@@ -186,6 +195,98 @@ const pickupPhaseMs = (id: number) => id * 137;
 const cloudSprite = spriteIndex('cloud');
 const psyCloudSprite = spriteIndex('psy_cloud');
 
+// ── drawing shared by both sections ─────────────────────────────────
+
+type SpriteWriter = (
+  op: number,
+  key: SpriteKey,
+  elapsedMs: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  progress?: number,
+) => void;
+
+/** Appends one sprite command (its frame picked from the elapsed time or `progress`) to `out`. */
+function spriteWriter(out: number[]): SpriteWriter {
+  return (op, key, elapsedMs, x, y, w, h, progress) => {
+    const { frame, frames } = spriteFrame(key, elapsedMs, progress);
+    out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
+  };
+}
+
+type Box = { x: number; y: number; size: number };
+
+/** A section's camera: level tiles → screen pixels, and what is on screen. */
+type View = {
+  /** Tile size (px). */
+  t: number;
+  sx: (x: number) => number;
+  /** Level y (up) → screen y (down). */
+  sy: (y: number) => number;
+  shows: (item: Box) => boolean;
+  sprite: SpriteWriter;
+};
+
+/** Art above the walkable surface (surfaceY px of 128 per tile) is drawn above the platform's y. */
+function platformLift(key: SpriteKey, t: number): number {
+  return ((spriteAnimations[key]?.surfaceY ?? 0) / TILE_PX) * t;
+}
+
+/** Pickups, bobbing (the hitbox stays put). */
+function drawPickups(v: View, pickups: Pickup[], time: number) {
+  for (const pk of pickups) {
+    if (!v.shows(pk)) continue;
+    const phase = time + pickupPhaseMs(pk.id);
+    const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
+    v.sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, v.sx(pk.x), v.sy(pk.y + pk.size + bob), pk.size * v.t, pk.size * v.t);
+  }
+}
+
+/** Easter egg objects: "ground" stands still on the platform, "hover" bobs like a pickup. */
+function drawEasterEggs(v: View, eggs: EasterEggItem[], time: number) {
+  for (const egg of eggs) {
+    if (!v.shows(egg)) continue;
+    const phase = time + pickupPhaseMs(egg.id);
+    const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
+    v.sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, v.sx(egg.x), v.sy(egg.y + egg.size + bob), egg.size * v.t, egg.size * v.t);
+  }
+}
+
+/** Things standing still in their box (hazards, the mushroom, portals). */
+function drawBoxes(v: View, items: (Box & { spriteKey: string })[], time: number) {
+  for (const it of items) {
+    if (!v.shows(it)) continue;
+    v.sprite(Op.sprite, it.spriteKey as SpriteKey, time, v.sx(it.x), v.sy(it.y + it.size), it.size * v.t, it.size * v.t);
+  }
+}
+
+/** Collect animations (<pickup>_collect) play once where the pickup was taken. */
+function drawCollected(v: View, collected: CollectedPickup[], time: number) {
+  for (const c of collected) {
+    const key = `${c.spriteKey}_collect`;
+    if (!hasSprite(key)) continue;
+    const elapsed = time - c.collectedAt;
+    if (elapsed >= animationDurationMs(key)) continue;
+    v.sprite(Op.sprite, key, elapsed, v.sx(c.x), v.sy(c.y + c.size), c.size * v.t, c.size * v.t);
+  }
+}
+
+/** Milestone star bursts: fireworks fixed where they went off. */
+function drawBursts(v: View, bursts: Burst[], time: number, gravity: number) {
+  for (const burst of bursts) {
+    for (const star of burst.particles) {
+      const st = starState(star, time - burst.startedAt, gravity);
+      if (!st || st.size <= 0) continue;
+      const half = st.size / 2;
+      v.sprite(Op.sprite, 'effect_star', 0, v.sx(burst.x + st.dx - half), v.sy(burst.y + st.dy + half), st.size * v.t, st.size * v.t);
+    }
+  }
+}
+
+const isCard = (pk: Pickup) => pk.spriteKey === 'pickup_card';
+
 /**
  * Draw list of the run's active section, plus the fade while changing sections.
  * `tileSize` is the main level's; the bonus level uses its own (zoomed out).
@@ -218,21 +319,16 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
   const out: number[] = [];
   const cols = world.config.columns;
   const t = tileSize;
-  // world y (up) → screen y (down)
-  const sy = (y: number) => screenHeight - (y - world.cameraY) * t;
-  const sprite = (
-    op: number,
-    key: SpriteKey,
-    elapsedMs: number,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    progress?: number,
-  ) => {
-    const { frame, frames } = spriteFrame(key, elapsedMs, progress);
-    out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
+  const sprite = spriteWriter(out);
+  const visible = (bottom: number, top: number) => top >= world.cameraY && bottom <= world.cameraY + world.viewHeight;
+  const view: View = {
+    t,
+    sx: (x) => x * t,
+    sy: (y) => screenHeight - (y - world.cameraY) * t,
+    shows: (it) => visible(it.y, it.y + it.size),
+    sprite,
   };
+  const { sy } = view;
 
   const psy = world.psyActive;
   // backdrop sky: taller than the screen, scrolls down very slowly as the camera climbs;
@@ -271,8 +367,6 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     }
   }
 
-  const visible = (bottom: number, top: number) => top >= world.cameraY && bottom <= world.cameraY + world.viewHeight;
-
   // platforms: one sprite per tile; the sprite's top edge is the walkable surface,
   // drawn art may hang below the tile (height from the image, see Op.tile)
   // (psy mode: the platforms are not there for the flying chick)
@@ -281,55 +375,20 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     const y = sy(pl.y);
     for (let i = 0; i < pl.width; i++) {
       const key = `${pl.spriteKey}_${platformPart(i, pl.width)}` as SpriteKey;
-      // art above the walkable surface (surfaceY px of 128 per tile) is drawn above the platform's y
-      const lift = ((spriteAnimations[key]?.surfaceY ?? 0) / TILE_PX) * t;
-      sprite(Op.tile, key, world.time, ((pl.x + i) % cols) * t, y - lift, t, t);
+      sprite(Op.tile, key, world.time, ((pl.x + i) % cols) * t, y - platformLift(key, t), t, t);
     }
   }
 
-  // (psy mode: only the cards)
-  for (const pk of world.pickups) {
-    if (psy && pk.spriteKey !== 'pickup_card') continue;
-    if (!visible(pk.y, pk.y + pk.size)) continue;
-    const phase = world.time + pickupPhaseMs(pk.id);
-    const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
-    sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, pk.x * t, sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
+  // (psy mode: only the cards; the meme, oranges, the mushroom and the portal are out of reach)
+  drawPickups(view, psy ? world.pickups.filter(isCard) : world.pickups, world.time);
+  if (!psy) {
+    drawEasterEggs(view, world.easterEggs, world.time);
+    drawBoxes(view, world.hazards, world.time);
+    // the magic mushroom and the portal to the bonus level, standing on their platforms
+    drawBoxes(view, world.main.mushrooms, world.time);
+    drawBoxes(view, world.main.portals, world.time);
   }
-
-  // easter egg objects: "ground" stands still on the platform, "hover" bobs like a pickup
-  for (const egg of psy ? [] : world.easterEggs) {
-    if (!visible(egg.y, egg.y + egg.size)) continue;
-    const phase = world.time + pickupPhaseMs(egg.id);
-    const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
-    const x = egg.x * t;
-    sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, x, sy(egg.y + egg.size + bob), egg.size * t, egg.size * t);
-  }
-
-  for (const h of psy ? [] : world.hazards) {
-    if (!visible(h.y, h.y + h.size)) continue;
-    sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, h.x * t, sy(h.y + h.size), h.size * t, h.size * t);
-  }
-
-  // the magic mushroom, standing on its platform
-  for (const m of psy ? [] : world.main.mushrooms) {
-    if (!visible(m.y, m.y + m.size)) continue;
-    sprite(Op.sprite, m.spriteKey as SpriteKey, world.time, m.x * t, sy(m.y + m.size), m.size * t, m.size * t);
-  }
-
-  // the portal to the bonus level, standing on its platform, swirling
-  for (const pt of psy ? [] : world.main.portals) {
-    if (!visible(pt.y, pt.y + pt.size)) continue;
-    sprite(Op.sprite, pt.spriteKey as SpriteKey, world.time, pt.x * t, sy(pt.y + pt.size), pt.size * t, pt.size * t);
-  }
-
-  // collect animations (<pickup>_collect) play once where the pickup was taken
-  for (const c of world.collected) {
-    const key = `${c.spriteKey}_collect`;
-    if (!hasSprite(key)) continue;
-    const elapsed = world.time - c.collectedAt;
-    if (elapsed >= animationDurationMs(key)) continue;
-    sprite(Op.sprite, key, elapsed, c.x * t, sy(c.y + c.size), c.size * t, c.size * t);
-  }
+  drawCollected(view, world.collected, world.time);
 
   // player: 1-tile sprite centred on the hitbox, feet on the hitbox bottom,
   // squashed/stretched around the feet; drawn twice while crossing the edge
@@ -357,7 +416,7 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     ? 'player_hurt'
     : playerSpriteKey(p, world.time, world.config.player.fallPoseAfterTiles, active, hurtPoseMs);
   const elapsed = playerAnimElapsed(p, world.time, world.config.player.bonusPoseMs);
-  const { jumpVelocity } = derivePhysics(world.config);
+  const { jumpVelocity } = world.physics;
   const { sx, sy: sY } = world.dying ? { sx: 1, sy: 1 } : playerScale(p, world.time, jumpVelocity);
   const progress = jumpProgress(p, world.time, jumpVelocity);
   const w = t * sx;
@@ -396,17 +455,8 @@ function snapshotVertical(world: World, tileSize: number, screenHeight: number):
     sprite(Op.sprite, 'start_egg', 0, x, sy(egg.y + egg.size), egg.size * t, egg.size * t);
   }
 
-  // milestone star bursts: fireworks fixed where they went off, drawn on top
-  for (const burst of world.bursts) {
-    for (const star of burst.particles) {
-      const st = starState(star, world.time - burst.startedAt, world.config.milestones.gravity);
-      if (!st || st.size <= 0) continue;
-      const half = st.size / 2;
-      const x = burst.x + st.dx - half;
-      sprite(Op.sprite, 'effect_star', 0, x * t, sy(burst.y + st.dy + half), st.size * t, st.size * t);
-    }
-  }
-
+  // milestone star bursts, drawn on top
+  drawBursts(view, world.bursts, world.time, world.config.milestones.gravity);
   return out;
 }
 
@@ -430,13 +480,16 @@ function snapshotSide(world: World, bonus: SideSection, screenWidth: number, scr
   const out: number[] = [];
   const t = screenWidth / bonus.viewColumns;
   const cam = bonus.cameraX;
-  const sx = (x: number) => (x - cam) * t;
-  const sy = (y: number) => screenHeight - y * t;
-  const sprite = (op: number, key: SpriteKey, elapsedMs: number, x: number, y: number, w: number, h: number, progress?: number) => {
-    const { frame, frames } = spriteFrame(key, elapsedMs, progress);
-    out.push(op, spriteIndex(key), frame, frames, x, y, w, h);
-  };
+  const sprite = spriteWriter(out);
   const visibleX = (x: number, w: number) => x + w >= cam - 1 && x <= cam + bonus.viewColumns + 1;
+  const view: View = {
+    t,
+    sx: (x) => (x - cam) * t,
+    sy: (y) => screenHeight - y * t,
+    shows: (it) => visibleX(it.x, it.size),
+    sprite,
+  };
+  const { sx, sy } = view;
 
   // sky, then the small clouds drifting slower than the level
   const bg = world.config.background;
@@ -458,39 +511,15 @@ function snapshotSide(world: World, bonus: SideSection, screenWidth: number, scr
     const to = Math.min(pl.width, Math.ceil(cam + bonus.viewColumns - pl.x) + 1);
     for (let i = from; i < to; i++) {
       const key = `${pl.spriteKey}_${platformPart(i, pl.width)}` as SpriteKey;
-      const lift = ((spriteAnimations[key]?.surfaceY ?? 0) / TILE_PX) * t;
-      sprite(Op.tile, key, world.time, sx(pl.x + i), sy(pl.y) - lift, t, t);
+      sprite(Op.tile, key, world.time, sx(pl.x + i), sy(pl.y) - platformLift(key, t), t, t);
     }
   }
 
-  for (const pk of bonus.pickups) {
-    if (!visibleX(pk.x, pk.size)) continue;
-    const phase = world.time + pickupPhaseMs(pk.id);
-    const bob = Math.sin((phase / 1000) * pk.bob.hz * 2 * Math.PI) * pk.bob.tiles;
-    sprite(Op.sprite, pk.spriteKey as SpriteKey, phase, sx(pk.x), sy(pk.y + pk.size + bob), pk.size * t, pk.size * t);
-  }
-  for (const h of bonus.hazards) {
-    if (!visibleX(h.x, h.size)) continue;
-    sprite(Op.sprite, h.spriteKey as SpriteKey, world.time, sx(h.x), sy(h.y + h.size), h.size * t, h.size * t);
-  }
-  // the hidden meme: "ground" stands still, "hover" bobs like a pickup
-  for (const egg of bonus.easterEggs) {
-    if (!visibleX(egg.x, egg.size)) continue;
-    const phase = world.time + pickupPhaseMs(egg.id);
-    const bob = egg.placement === 'hover' ? Math.sin((phase / 1000) * BOB_HZ * 2 * Math.PI) * BOB_TILES : 0;
-    sprite(Op.sprite, egg.spriteKey as SpriteKey, phase, sx(egg.x), sy(egg.y + egg.size + bob), egg.size * t, egg.size * t);
-  }
-  const exit = bonus.exit;
-  if (visibleX(exit.x, exit.size)) {
-    sprite(Op.sprite, exit.spriteKey as SpriteKey, world.time, sx(exit.x), sy(exit.y + exit.size), exit.size * t, exit.size * t);
-  }
-  for (const c of bonus.collected) {
-    const key = `${c.spriteKey}_collect`;
-    if (!hasSprite(key)) continue;
-    const elapsed = world.time - c.collectedAt;
-    if (elapsed >= animationDurationMs(key)) continue;
-    sprite(Op.sprite, key, elapsed, sx(c.x), sy(c.y + c.size), c.size * t, c.size * t);
-  }
+  drawPickups(view, bonus.pickups, world.time);
+  drawBoxes(view, bonus.hazards, world.time);
+  drawEasterEggs(view, bonus.easterEggs, world.time);
+  drawBoxes(view, [bonus.exit], world.time);
+  drawCollected(view, bonus.collected, world.time);
 
   // the chick: running poses on the ground, the usual jump / fall / bonus poses in the air
   const p = bonus.player;
@@ -514,13 +543,6 @@ function snapshotSide(world: World, bonus: SideSection, screenWidth: number, scr
     sprite(Op.sprite, key, elapsed, sx(p.x + p.w / 2) - w / 2, sy(p.y) - h, w, h, progress);
   }
 
-  for (const burst of bonus.bursts) {
-    for (const star of burst.particles) {
-      const st = starState(star, world.time - burst.startedAt, world.config.milestones.gravity);
-      if (!st || st.size <= 0) continue;
-      const half = st.size / 2;
-      sprite(Op.sprite, 'effect_star', 0, sx(burst.x + st.dx - half), sy(burst.y + st.dy + half), st.size * t, st.size * t);
-    }
-  }
+  drawBursts(view, bonus.bursts, world.time, world.config.milestones.gravity);
   return out;
 }

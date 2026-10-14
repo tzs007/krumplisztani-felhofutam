@@ -18,7 +18,19 @@ import type {
   StepInput,
 } from '../entities';
 import type { RunContext, Section } from './Section';
-import { COLLECTED_TTL_MS, easterEggItemDef, HOVER_LIFT } from './VerticalSection';
+import {
+  collectEasterEggs,
+  collectPickups,
+  createPlayer,
+  cullEffects,
+  easterEggItemDef,
+  hazardFrom,
+  HOVER_LIFT,
+  pickupFrom,
+  platformFrom,
+  stepHazards,
+  takeOff,
+} from './shared';
 
 /** Top of the floor that runs under the whole bonus level. */
 export const GROUND_Y = 1;
@@ -83,40 +95,9 @@ export class SideSection implements Section {
     for (const chunk of [start, ...middle, end]) {
       const width = chunkWidth(chunk);
       const parsed = parseChunk(chunk.map, width);
-      for (const pl of parsed.platforms) {
-        this.platforms.push({
-          id: run.nextId(),
-          x: x + pl.col,
-          y: GROUND_Y + pl.row + 1,
-          width: pl.width,
-          variant: pl.variant,
-          spriteKey: pl.spriteKey,
-        });
-      }
-      for (const pk of parsed.pickups) {
-        this.pickups.push({
-          id: run.nextId(),
-          x: x + pk.col + (1 - pk.size) / 2,
-          y: GROUND_Y + pk.row + 0.15,
-          size: pk.size,
-          effect: pk.effect,
-          spriteKey: pk.spriteKey,
-          bob: pk.bob,
-        });
-      }
-      for (const hz of parsed.hazards) {
-        const baseY = GROUND_Y + hz.row + 0.15;
-        const id = run.nextId();
-        this.hazards.push({
-          id,
-          x: x + hz.col + (1 - hz.size) / 2,
-          y: baseY,
-          baseY,
-          size: hz.size,
-          spriteKey: hz.spriteKey,
-          phase: (id * 2.399) % (2 * Math.PI),
-        });
-      }
+      for (const pl of parsed.platforms) this.platforms.push(platformFrom(pl, run.nextId(), x, GROUND_Y));
+      for (const pk of parsed.pickups) this.pickups.push(pickupFrom(pk, run.nextId(), x, GROUND_Y));
+      for (const hz of parsed.hazards) this.hazards.push(hazardFrom(hz, run.nextId(), x, GROUND_Y));
       for (const pt of parsed.portals) {
         exit = {
           id: run.nextId(),
@@ -136,22 +117,7 @@ export class SideSection implements Section {
     const ground = config.side.groundTheme;
     this.platforms.unshift({ id: run.nextId(), x: 0, y: GROUND_Y, width: x, variant: ground, spriteKey: platformSpriteKey(ground) });
 
-    const { widthTiles: w, heightTiles: h } = config.player;
-    this.player = {
-      x: 1,
-      y: GROUND_Y,
-      w,
-      h,
-      vx: config.side.runSpeed,
-      vy: 0,
-      facing: 1,
-      bonusUntil: 0,
-      bonusSpriteKey: null,
-      landedAt: -Infinity,
-      apexY: GROUND_Y,
-      targetOffset: 0,
-      hurtAt: -Infinity,
-    };
+    this.player = createPlayer(config, 1, GROUND_Y, config.side.runSpeed);
     this.standingOn = this.platforms[0];
     // the meme hides between the start chunk and the end chunk
     if (config.easterEggs.sections.includes('bonus')) this.hideEasterEgg(run, chunkWidth(start), x - chunkWidth(end));
@@ -236,9 +202,7 @@ export class SideSection implements Section {
     const canJump = this.standingOn !== null || run.time - this.groundedAt <= side.coyoteMs;
     if (run.time <= this.jumpBufferedUntil && canJump) {
       const from = this.standingOn;
-      p.vy = jumpVelocity * Math.sqrt(run.jumpMultiplier);
-      p.landedAt = run.time;
-      p.apexY = p.y;
+      takeOff(p, jumpVelocity * Math.sqrt(run.jumpMultiplier), run.time);
       this.standingOn = null;
       this.groundedAt = -Infinity;
       this.jumpBufferedUntil = -Infinity;
@@ -264,7 +228,7 @@ export class SideSection implements Section {
         this.groundedAt = run.time;
         // a tap just before touching down jumps right away
         if (run.time <= this.jumpBufferedUntil) {
-          p.vy = jumpVelocity * Math.sqrt(run.jumpMultiplier);
+          takeOff(p, jumpVelocity * Math.sqrt(run.jumpMultiplier), run.time);
           this.standingOn = null;
           this.groundedAt = -Infinity;
           this.jumpBufferedUntil = -Infinity;
@@ -274,40 +238,10 @@ export class SideSection implements Section {
     }
 
     // ── pickups, oranges ──
-    this.pickups = this.pickups.filter((pk) => {
-      if (!touchesBox(p, pk.x, pk.y, pk.size, null)) return true;
-      run.effects.trigger(pk.effect, run.time);
-      p.bonusUntil = run.time + this.config.player.bonusPoseMs;
-      p.bonusSpriteKey = pk.spriteKey;
-      run.stats.pickups++;
-      this.collected.push({ ...pk, collectedAt: run.time });
-      events.push({ type: 'pickup', effect: pk.effect });
-      return false;
-    });
-    this.easterEggs = this.easterEggs.filter((egg) => {
-      if (!touchesBox(p, egg.x, egg.y, egg.size, null)) return true;
-      run.stats.easterEggs++;
-      events.push({ type: 'easterEgg', eggId: egg.eggId });
-      return false;
-    });
+    this.pickups = collectPickups(this.pickups, this.collected, p, run, null, events);
+    this.easterEggs = collectEasterEggs(this.easterEggs, p, run, null, events);
     run.effects.tick(run.time);
-    const hz = this.config.hazards;
-    for (const h of this.hazards) {
-      h.y = h.baseY + ((1 - Math.cos((run.time / 1000) * hz.bobHz * 2 * Math.PI + h.phase)) / 2) * hz.bobTiles;
-    }
-    if (!this.isInvulnerable(run.time)) {
-      const hit = this.hazards.find((h) => {
-        const box = h.size * hz.hitboxScale;
-        const inset = (h.size - box) / 2;
-        return touchesBox(p, h.x + inset, h.y + inset, box, null);
-      });
-      if (hit) {
-        run.addScore(-hz.damage);
-        p.hurtAt = run.time;
-        run.stats.hits++;
-        events.push({ type: 'hit', damage: hz.damage });
-      }
-    }
+    stepHazards(this.hazards, p, run, null, this.isInvulnerable(run.time), events);
 
     // ── the exit ──
     if (!this.finished && touchesBox(p, this.exit.x, this.exit.y, this.exit.size, null)) {
@@ -320,9 +254,7 @@ export class SideSection implements Section {
     const maxCamera = Math.max(0, this.length - this.viewColumns);
     this.cameraX = Math.min(maxCamera, Math.max(0, p.x - this.viewColumns * side.followX));
 
-    const maxLife = this.config.milestones.lifeMs * 1.2;
-    this.bursts = this.bursts.filter((b) => run.time - b.startedAt < maxLife);
-    this.collected = this.collected.filter((c) => run.time - c.collectedAt < COLLECTED_TTL_MS);
+    cullEffects(this, run.time, this.config);
     return events;
   }
 }

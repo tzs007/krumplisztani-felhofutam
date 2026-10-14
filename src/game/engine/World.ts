@@ -11,7 +11,8 @@ import { VerticalSection } from './sections/VerticalSection';
 
 export * from './entities';
 export { isFalling, overlapsX, wrap } from './collide';
-export { deathScale, easterEggItemDef, platformTheme } from './sections/VerticalSection';
+export { deathScale, platformTheme } from './sections/VerticalSection';
+export { easterEggItemDef } from './sections/shared';
 export type { RunContext, Section, SectionId } from './sections/Section';
 
 export type WorldOptions = {
