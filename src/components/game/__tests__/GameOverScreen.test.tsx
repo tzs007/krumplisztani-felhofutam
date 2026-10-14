@@ -58,14 +58,14 @@ describe('game over screen', () => {
     await render(<GameOverRoute />);
     expect(screen.getByText('Game Over')).toBeTruthy();
     expect(screen.getByText('42')).toBeTruthy();
-    expect(screen.getByText('Best: 77')).toBeTruthy();
+    expect(screen.getByText('Rekord: 77')).toBeTruthy();
     expect(mockPlaySound).toHaveBeenCalledWith('gameOver');
   });
 
   it('celebrates a new best', async () => {
     Object.assign(mockParams, { score: '120', best: '77' });
     await render(<GameOverRoute />);
-    expect(screen.getByText('New best score!')).toBeTruthy();
+    expect(screen.getByText('Új rekord!')).toBeTruthy();
   });
 
   it('starts a new run, opens the leaderboard, the collection or the menu', async () => {
